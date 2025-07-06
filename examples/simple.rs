@@ -1,6 +1,6 @@
-use rust_template::add_two;
+use mokapot::add_two;
 
-fn main(){
+fn main() {
     let i = 2;
-    println!("{} plus two is {}", i , add_two(i));
+    println!("{} plus two is {}", i, add_two(i));
 }
