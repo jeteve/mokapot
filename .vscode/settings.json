@@ -1,0 +1,6 @@
+{
+    "rust-analyzer.check.command": "clippy",
+    "workbench.colorTheme": "Visual Studio Dark",
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "editor.formatOnSave": true
+}
