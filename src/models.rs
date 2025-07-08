@@ -45,6 +45,21 @@ impl Query for ConjunctionQuery {
     }
 }
 
+#[derive(Debug)]
+pub struct DisjunctionQuery {
+    queries: Vec<Box<dyn Query>>,
+}
+impl DisjunctionQuery {
+    pub fn new(queries: Vec<Box<dyn Query>>) -> Self {
+        DisjunctionQuery { queries }
+    }
+}
+impl Query for DisjunctionQuery {
+    fn matches(&self, d: &Document) -> bool {
+        self.queries.iter().any(|q| q.matches(d))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TermQuery {
     field: Rc<str>,

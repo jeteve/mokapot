@@ -1,4 +1,4 @@
-use mokapot::models::{ConjunctionQuery, Document, Query, TermQuery};
+use mokapot::models::{ConjunctionQuery, DisjunctionQuery, Document, Query, TermQuery};
 
 #[test]
 fn test_query() {
@@ -21,4 +21,16 @@ fn test_query() {
         Box::new(TermQuery::new("taste".into(), "sweet".into())),
     ]);
     assert!(green_and_sweet.matches(&d));
+
+    let green_or_bitter = DisjunctionQuery::new(vec![
+        Box::new(TermQuery::new("colour".into(), "green".into())),
+        Box::new(TermQuery::new("taste".into(), "bitter".into())),
+    ]);
+    assert!(green_or_bitter.matches(&d));
+
+    let purple_or_bitter = DisjunctionQuery::new(vec![
+        Box::new(TermQuery::new("colour".into(), "purple".into())),
+        Box::new(TermQuery::new("taste".into(), "bitter".into())),
+    ]);
+    assert!(!purple_or_bitter.matches(&d));
 }
