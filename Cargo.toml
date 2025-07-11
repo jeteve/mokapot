@@ -9,6 +9,7 @@ readme = "README.md"
 default-run="mokapot"
 
 [dependencies]
+bitvec = "1.0.1"
 
 [dev-dependencies]
 criterion = "0.5.1"

@@ -50,7 +50,7 @@ impl TermQuery {
 
 impl Query for TermQuery {
     fn matches(&self, d: &Document) -> bool {
-        d.get_field_iter(&self.field)
+        d.field_values_iter(&self.field)
             .map_or(false, |mut iter| iter.any(|value| value == &self.term))
     }
 }

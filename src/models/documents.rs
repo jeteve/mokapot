@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Document {
     // Fields representing the document's content
     fields: HashMap<Rc<str>, Vec<Rc<str>>>,
@@ -20,7 +20,11 @@ impl Document {
         self
     }
 
-    pub fn get_field_iter(&self, field: &str) -> Option<impl Iterator<Item = &Rc<str>>> {
+    pub fn fields(&self) -> impl Iterator<Item = &Rc<str>> {
+        self.fields.keys()
+    }
+
+    pub fn field_values_iter(&self, field: &str) -> Option<impl Iterator<Item = &Rc<str>>> {
         self.fields.get(field).map(|v| v.iter())
     }
 }

@@ -14,8 +14,19 @@ fn test_query() {
     let q2 = TermQuery::new("colour".into(), "red".into());
     assert!(!q2.matches(&d));
 
+    let q3 = TermQuery::new("another_key".into(), "sausage".into());
+    assert!(!q3.matches(&d));
+
     let q_and_q2 = ConjunctionQuery::new(vec![Box::new(q), Box::new(q2)]);
     assert!(!q_and_q2.matches(&d));
+}
+
+#[test]
+fn test_conjunction_disjunction_query() {
+    let d: Document = Document::default()
+        .add_field("colour".into(), "blue".into())
+        .add_field("colour".into(), "green".into())
+        .add_field("taste".into(), "sweet".into());
 
     let green_and_sweet = ConjunctionQuery::new(vec![
         Box::new(TermQuery::new("colour".into(), "green".into())),
