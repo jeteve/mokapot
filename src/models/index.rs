@@ -58,6 +58,10 @@ impl Index {
         new_doc_id
     }
 
+    pub fn get_document(&self, doc_id: DocId) -> Option<&Document> {
+        self.documents.get(doc_id)
+    }
+
     pub fn get_documents(&self) -> &[Document] {
         &self.documents
     }
