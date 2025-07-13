@@ -160,6 +160,16 @@ impl Query for DisjunctionQuery {
     }
 
     fn docids_from_index<'a>(&self, _index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
+        // Ideas for the iterator:
+        // Maintain a set of seen docIds
+        // Advance them all.
+        // You get a set of docIds. Return the first one.
+        // discard from the seen ones the ones that are lower than
+        // the min.
+        // Subsequently, consume this set.
+        // When the set is empty, advance them all again,
+        // If set is empty, return None.
+        //
         todo!()
     }
 }
