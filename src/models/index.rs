@@ -10,7 +10,7 @@ pub struct Index {
     // Remember the documents
     documents: Vec<Document>,
     // The inverted indices for each ( field,  value)
-    inverted_indices: HashMap<Rc<str>, HashMap<Rc<str>, Vec<DocId>>>,
+    inverted_indices: HashMap<(Rc<str>, Rc<str>), Vec<DocId>>,
 }
 
 impl Index {
@@ -18,10 +18,9 @@ impl Index {
         Self::default()
     }
 
-    pub fn term_iter(&self, field: &str, term: &str) -> impl Iterator<Item = DocId> + '_ {
+    pub fn term_iter(&self, field: Rc<str>, term: Rc<str>) -> impl Iterator<Item = DocId> + '_ {
         self.inverted_indices
-            .get(field)
-            .and_then(|field_entry| field_entry.get(term))
+            .get(&(field, term))
             .map(|doc_ids| doc_ids.iter().cloned())
             .unwrap_or_default()
     }
@@ -34,10 +33,11 @@ impl Index {
 
         // Update the right inverted indices.
         for field in d.fields() {
-            let field_entry = self.inverted_indices.entry(field.clone()).or_default();
-
             for value in d.field_values_iter(field).unwrap() {
-                let value_index = field_entry.entry(value.clone()).or_default();
+                let value_index = self
+                    .inverted_indices
+                    .entry((field.clone(), value.clone()))
+                    .or_default();
                 value_index.push(new_doc_id);
             }
         }
