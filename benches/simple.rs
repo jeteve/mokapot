@@ -1,6 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use mokapot::add_two;
+fn add_two(x: i32) -> i32 {
+    x + 2
+}
 
 fn benchmark_add_two(c: &mut Criterion) {
     c.bench_function("add_two", |b| b.iter(|| add_two(black_box(20))));
