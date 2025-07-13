@@ -27,19 +27,15 @@ fn test_few_docs() {
     assert_eq!(doc_id2, 1);
     assert_eq!(index.get_documents().len(), 3);
 
-    assert!(index.term_iter("shape", "sausage").is_none());
-    assert!(index.term_iter("colour", "purple").is_none());
-    assert!(index.term_iter("colour", "blue").is_some());
-    assert!(index.term_iter("taste", "sweet").is_some());
+    assert!(index.term_iter("shape", "sausage").next().is_none());
+    assert!(index.term_iter("colour", "purple").next().is_none());
+    assert!(index.term_iter("colour", "blue").next().is_some());
+    assert!(index.term_iter("taste", "sweet").next().is_some());
 
-    let sweet_docs = index
-        .term_iter("taste", "sweet")
-        .map(|iter| iter.collect::<Vec<_>>());
+    let sweet_docs = index.term_iter("taste", "sweet").collect::<Vec<_>>();
 
-    assert_eq!(sweet_docs, Some(vec![2]));
+    assert_eq!(sweet_docs, vec![2]);
 
-    let blue_docs = index
-        .term_iter("colour", "blue")
-        .map(|iter| iter.collect::<Vec<_>>());
-    assert_eq!(blue_docs, Some(vec![0, 2]));
+    let blue_docs = index.term_iter("colour", "blue").collect::<Vec<_>>();
+    assert_eq!(blue_docs, vec![0, 2]);
 }
