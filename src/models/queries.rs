@@ -65,7 +65,7 @@ impl Iterator for ConjunctionIterator<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // We need to advance all iterators that are lower than the current max_id
-        let mut max_iterations = 5;
+        let mut max_iterations = u32::MAX;
         loop {
             max_iterations -= 1;
             if max_iterations == 0 {
