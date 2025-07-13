@@ -1,7 +1,10 @@
+use crate::models::index;
+
 use super::documents::Document;
 use std::rc::Rc;
 
 pub trait Query: std::fmt::Debug {
+    //fn filter_index<'a>(&self, index: &'a index::Index) -> impl Iterator<Item = index::DocId> + 'a;
     fn matches(&self, d: &Document) -> bool;
 }
 
@@ -45,6 +48,12 @@ pub struct TermQuery {
 impl TermQuery {
     pub fn new(field: Rc<str>, term: Rc<str>) -> Self {
         TermQuery { field, term }
+    }
+    pub fn filter_index<'a>(
+        &self,
+        index: &'a index::Index,
+    ) -> impl Iterator<Item = index::DocId> + 'a {
+        index.term_iter(self.field.clone(), self.term.clone())
     }
 }
 

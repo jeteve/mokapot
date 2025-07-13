@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use super::documents::Document;
 
-type DocId = usize;
+pub type DocId = usize;
 
 #[derive(Debug, Default)]
 pub struct Index {
