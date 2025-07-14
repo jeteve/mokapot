@@ -1,7 +1,7 @@
 use mokapot::models::{
     documents::Document,
     index::Index,
-    queries::{ConjunctionQuery, Query, TermQuery},
+    queries::{ConjunctionQuery, DisjunctionQuery, Query, TermQuery},
 };
 
 #[test]
@@ -80,6 +80,55 @@ fn test_conjunction_query() {
     let mut doc_ids = conjunction_query.docids_from_index(&index);
     assert_eq!(doc_ids.next(), Some(0));
     assert_eq!(doc_ids.next(), Some(3));
+    assert_eq!(doc_ids.next(), None);
+    assert_eq!(doc_ids.next(), None);
+}
+
+#[test]
+fn test_disjunction_query() {
+    let d: Document = Document::default()
+        .add_field("colour".into(), "blue".into())
+        .add_field("taste".into(), "sweet".into());
+
+    let d1: Document = Document::default()
+        .add_field("colour".into(), "yellow".into())
+        .add_field("taste".into(), "sour".into());
+
+    let d2: Document = Document::default()
+        .add_field("colour".into(), "blue".into())
+        .add_field("taste".into(), "bitter".into());
+
+    let d3: Document = Document::default()
+        .add_field("colour".into(), "blue".into())
+        .add_field("taste".into(), "sweet".into());
+
+    let d4: Document = Document::default()
+        .add_field("colour".into(), "yellow".into())
+        .add_field("taste".into(), "bitter".into());
+
+    let q = TermQuery::new("colour".into(), "blue".into());
+    let q2 = TermQuery::new("taste".into(), "sweet".into());
+    let disq = DisjunctionQuery::new(vec![Box::new(q), Box::new(q2)]);
+
+    assert!(disq.matches(&d));
+
+    let mut index = Index::new();
+    // Query against the empty index.
+    let doc_ids: Vec<_> = disq.docids_from_index(&index).collect();
+    assert_eq!(doc_ids, vec![]);
+
+    index.index_document(d.clone());
+    index.index_document(d1.clone());
+    index.index_document(d2.clone());
+    index.index_document(d3.clone());
+    index.index_document(d4.clone());
+
+    // colour = blue or taste = sweet.
+    let mut doc_ids = disq.docids_from_index(&index);
+    assert_eq!(doc_ids.next(), Some(0));
+    assert_eq!(doc_ids.next(), Some(2));
+    assert_eq!(doc_ids.next(), Some(3));
+    // No more matches!
     assert_eq!(doc_ids.next(), None);
     assert_eq!(doc_ids.next(), None);
 }

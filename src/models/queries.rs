@@ -159,18 +159,87 @@ impl Query for DisjunctionQuery {
         self.queries.iter().any(|q| q.matches(d))
     }
 
-    fn docids_from_index<'a>(&self, _index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
+    fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
+        let iterators: Vec<_> = self
+            .queries
+            .iter()
+            .map(|q| q.docids_from_index(index))
+            .collect();
+        Box::new(DisjunctionIterator::new(iterators))
+    }
+}
+
+struct DisjunctionIterator<'a> {
+    iterators: Vec<Box<dyn Iterator<Item = DocId> + 'a>>,
+    seen: std::collections::HashSet<DocId>,
+    current_docids: Vec<DocId>,
+}
+
+impl<'a> DisjunctionIterator<'a> {
+    fn new(iterators: Vec<Box<dyn Iterator<Item = DocId> + 'a>>) -> Self {
+        let n_its = iterators.len();
+        let docids = Vec::with_capacity(n_its);
+        DisjunctionIterator {
+            iterators,
+            seen: std::collections::HashSet::with_capacity(n_its * 2),
+            current_docids: docids,
+        }
+    }
+}
+
+impl Iterator for DisjunctionIterator<'_> {
+    type Item = DocId;
+
+    fn next(&mut self) -> Option<Self::Item> {
         // Ideas for the iterator:
         // Maintain a set of seen docIds
-        // Advance them all.
-        // You get a set of docIds. Return the first one.
-        // discard from the seen ones the ones that are lower than
-        // the min.
-        // Subsequently, consume this set.
-        // When the set is empty, advance them all again,
-        // If set is empty, return None.
-        //
-        todo!()
+        loop {
+            // This would be made empty at the beginning
+            // or when the current_docids buffer has been poped enough.
+            if self.current_docids.is_empty() {
+                // If we have no current docids, we need to advance all iterators
+                for it in self.iterators.iter_mut() {
+                    if let Some(doc_id) = it.next() {
+                        self.current_docids.push(doc_id);
+                    }
+                }
+                // Go from lower to higher doc IDs.
+                // It is important to preserve the order.
+                if self.current_docids.is_empty() {
+                    // If we have no current docids despite
+                    // just having tried to populate, we are done for good.
+                    return None;
+                }
+
+                // Current docids is Not empty
+
+                self.current_docids.sort();
+                self.current_docids.reverse();
+                // Cleanup seen from anything lower than min
+                let &new_min = self
+                    .current_docids
+                    .last()
+                    .expect("current_docids should not be empty here");
+                // Only keep stuff greater than this new min
+                self.seen.retain(|&e| e >= new_min);
+            }
+
+            // This will return all the matching doc IDs,
+            // with potential duplicates.
+
+            // current_docids is not empty here.
+            let candidate = self
+                .current_docids
+                .pop()
+                .expect("current_docids should not be empty");
+
+            if !self.seen.contains(&candidate) {
+                // Candidate has not been seen.
+                // It is a good one!
+                self.seen.insert(candidate);
+                return Some(candidate);
+            }
+        }
     }
 }
 
