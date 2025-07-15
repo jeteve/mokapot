@@ -7,14 +7,14 @@ use mokapot::models::{
 #[test]
 fn test_term_query() {
     let d: Document = Document::default()
-        .add_field("colour".into(), "blue".into())
-        .add_field("colour".into(), "green".into())
-        .add_field("taste".into(), "sweet".into());
+        .with_value("colour", "blue")
+        .with_value("colour", "green")
+        .with_value("taste", "sweet");
 
     let d2: Document = Document::default()
-        .add_field("colour".into(), "yellow".into())
-        .add_field("colour".into(), "green".into())
-        .add_field("taste".into(), "bitter".into());
+        .with_value("colour", "yellow")
+        .with_value("colour", "green")
+        .with_value("taste", "bitter");
 
     let mut index = Index::new();
     // A query on an empty index.
@@ -46,20 +46,20 @@ fn test_term_query() {
 #[test]
 fn test_conjunction_query() {
     let d: Document = Document::default()
-        .add_field("colour".into(), "blue".into())
-        .add_field("taste".into(), "sweet".into());
+        .with_value("colour", "blue")
+        .with_value("taste", "sweet");
 
     let d1: Document = Document::default()
-        .add_field("colour".into(), "yellow".into())
-        .add_field("taste".into(), "sweet".into());
+        .with_value("colour", "yellow")
+        .with_value("taste", "sweet");
 
     let d2: Document = Document::default()
-        .add_field("colour".into(), "blue".into())
-        .add_field("taste".into(), "bitter".into());
+        .with_value("colour", "blue")
+        .with_value("taste", "bitter");
 
     let d3: Document = Document::default()
-        .add_field("colour".into(), "blue".into())
-        .add_field("taste".into(), "sweet".into());
+        .with_value("colour", "blue")
+        .with_value("taste", "sweet");
 
     let q = TermQuery::new("colour".into(), "blue".into());
     let q2 = TermQuery::new("taste".into(), "sweet".into());
@@ -87,24 +87,24 @@ fn test_conjunction_query() {
 #[test]
 fn test_disjunction_query() {
     let d: Document = Document::default()
-        .add_field("colour".into(), "blue".into())
-        .add_field("taste".into(), "sweet".into());
+        .with_value("colour", "blue")
+        .with_value("taste", "sweet");
 
     let d1: Document = Document::default()
-        .add_field("colour".into(), "yellow".into())
-        .add_field("taste".into(), "sour".into());
+        .with_value("colour", "yellow")
+        .with_value("taste", "sour");
 
     let d2: Document = Document::default()
-        .add_field("colour".into(), "blue".into())
-        .add_field("taste".into(), "bitter".into());
+        .with_value("colour", "blue")
+        .with_value("taste", "bitter");
 
     let d3: Document = Document::default()
-        .add_field("colour".into(), "blue".into())
-        .add_field("taste".into(), "sweet".into());
+        .with_value("colour", "blue")
+        .with_value("taste", "sweet");
 
     let d4: Document = Document::default()
-        .add_field("colour".into(), "yellow".into())
-        .add_field("taste".into(), "bitter".into());
+        .with_value("colour", "yellow")
+        .with_value("taste", "bitter");
 
     let q = TermQuery::new("colour".into(), "blue".into());
     let q2 = TermQuery::new("taste".into(), "sweet".into());

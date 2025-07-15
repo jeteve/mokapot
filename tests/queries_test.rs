@@ -4,9 +4,9 @@ use mokapot::models::queries::{ConjunctionQuery, DisjunctionQuery, Query, TermQu
 #[test]
 fn test_query() {
     let d: Document = Document::default()
-        .add_field("colour".into(), "blue".into())
-        .add_field("colour".into(), "green".into())
-        .add_field("taste".into(), "sweet".into());
+        .with_value("colour", "blue")
+        .with_value("colour", "green")
+        .with_value("taste", "sweet");
 
     let q = TermQuery::new("colour".into(), "blue".into());
     assert!(q.matches(&d));
@@ -24,9 +24,9 @@ fn test_query() {
 #[test]
 fn test_conjunction_disjunction_query() {
     let d: Document = Document::default()
-        .add_field("colour".into(), "blue".into())
-        .add_field("colour".into(), "green".into())
-        .add_field("taste".into(), "sweet".into());
+        .with_value("colour", "blue")
+        .with_value("colour", "green")
+        .with_value("taste", "sweet");
 
     let green_and_sweet = ConjunctionQuery::new(vec![
         Box::new(TermQuery::new("colour".into(), "green".into())),

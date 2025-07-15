@@ -18,11 +18,11 @@ fn test_few_docs() {
     let taste: Rc<str> = "taste".into();
 
     let mut index = Index::new();
-    let d1 = Document::default().add_field(colour.clone(), "blue".into());
-    let d2 = Document::default().add_field(colour.clone(), "green".into());
+    let d1 = Document::default().with_value(colour.clone(), "blue");
+    let d2 = Document::default().with_value(colour.clone(), "green");
     let d3 = Document::default()
-        .add_field(taste.clone(), "sweet".into())
-        .add_field(colour.clone(), "blue".into());
+        .with_value(taste.clone(), "sweet")
+        .with_value(colour.clone(), "blue");
 
     let doc_id1 = index.index_document(d1);
     let doc_id2 = index.index_document(d2);
