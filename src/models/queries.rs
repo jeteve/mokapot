@@ -13,6 +13,8 @@ pub trait Query: std::fmt::Debug {
         )
     }
 
+    fn to_document(&self) -> Document;
+
     fn matches(&self, d: &Document) -> bool;
 }
 
@@ -29,6 +31,10 @@ impl ConjunctionQuery {
 impl Query for ConjunctionQuery {
     fn matches(&self, d: &Document) -> bool {
         self.queries.iter().all(|q| q.matches(d))
+    }
+
+    fn to_document(&self) -> Document {
+        todo!()
     }
 
     fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
@@ -167,6 +173,12 @@ impl Query for DisjunctionQuery {
             .collect();
         Box::new(DisjunctionIterator::new(iterators))
     }
+
+    fn to_document(&self) -> Document {
+        self.queries
+            .iter()
+            .fold(Document::default(), |a, q| a.merge_with(&q.to_document()))
+    }
 }
 
 struct DisjunctionIterator<'a> {
@@ -262,5 +274,9 @@ impl Query for TermQuery {
     }
     fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
         Box::new(index.term_iter(self.field.clone(), self.term.clone()))
+    }
+
+    fn to_document(&self) -> Document {
+        Document::default().with_value(self.field.clone(), self.term.clone())
     }
 }

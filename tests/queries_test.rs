@@ -10,6 +10,7 @@ fn test_query() {
 
     let q = TermQuery::new("colour".into(), "blue".into());
     assert!(q.matches(&d));
+    assert_eq!(q.to_document().field_values("colour"), vec!["blue"]);
 
     let q2 = TermQuery::new("colour".into(), "red".into());
     assert!(!q2.matches(&d));
@@ -39,6 +40,14 @@ fn test_conjunction_disjunction_query() {
         Box::new(TermQuery::new("taste".into(), "bitter".into())),
     ]);
     assert!(green_or_bitter.matches(&d));
+    assert_eq!(
+        green_or_bitter.to_document().field_values("colour"),
+        vec!["green"]
+    );
+    assert_eq!(
+        green_or_bitter.to_document().field_values("taste"),
+        vec!["bitter"]
+    );
 
     let purple_or_bitter = DisjunctionQuery::new(vec![
         Box::new(TermQuery::new("colour".into(), "purple".into())),
