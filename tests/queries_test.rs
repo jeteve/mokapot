@@ -1,8 +1,6 @@
 use mokapot::models::documents::Document;
 use mokapot::models::queries::{ConjunctionQuery, DisjunctionQuery, Query, TermQuery};
 
-use approx;
-
 #[test]
 fn test_query() {
     let d: Document = Document::default()

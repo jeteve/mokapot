@@ -5,6 +5,11 @@ use crate::models::index::{DocId, Index};
 use super::documents::Document;
 use std::rc::Rc;
 
+pub struct DocEnricher {
+    name: Rc<str>,
+    f: fn(Document) -> Document,
+}
+
 pub trait Query: std::fmt::Debug {
     /**
      * An iterator on all the DocIds matching this query in the index.
@@ -33,6 +38,10 @@ pub trait Query: std::fmt::Debug {
      * any sample index.
      */
     fn specificity(&self) -> f64;
+
+    fn doc_enrichers(&self) -> Vec<DocEnricher> {
+        Vec::default()
+    }
 }
 
 #[derive(Debug)]
