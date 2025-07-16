@@ -1,6 +1,8 @@
 use mokapot::models::documents::Document;
 use mokapot::models::queries::{ConjunctionQuery, DisjunctionQuery, Query, TermQuery};
 
+use approx;
+
 #[test]
 fn test_query() {
     let d: Document = Document::default()
@@ -48,6 +50,18 @@ fn test_conjunction_disjunction_query() {
         green_or_bitter.to_document().field_values("taste"),
         vec!["bitter"]
     );
+
+    approx::assert_relative_eq!(green_or_bitter.specificity(), 0.5);
+
+    let gob_and_b = ConjunctionQuery::new(vec![
+        Box::new(green_or_bitter),
+        Box::new(TermQuery::new("colour".into(), "blue".into())),
+    ]);
+
+    let gob_and_b_doc = gob_and_b.to_document();
+    // The single colour=blue is more specific a priori
+    assert_eq!(gob_and_b_doc.field_values("colour"), vec!["blue"]);
+    assert!(gob_and_b_doc.field_values("taste").is_empty());
 
     let purple_or_bitter = DisjunctionQuery::new(vec![
         Box::new(TermQuery::new("colour".into(), "purple".into())),

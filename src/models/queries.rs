@@ -1,11 +1,19 @@
+use itertools::Itertools;
+
 use crate::models::index::{DocId, Index};
 
 use super::documents::Document;
 use std::rc::Rc;
 
 pub trait Query: std::fmt::Debug {
+    /**
+     * An iterator on all the DocIds matching this query in the index.
+     */
     fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a>;
 
+    /**
+     * An iterator on all the Documents matching this query in the index.
+     */
     fn docs_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = &'a Document> + 'a> {
         Box::new(
             self.docids_from_index(index)
@@ -13,9 +21,18 @@ pub trait Query: std::fmt::Debug {
         )
     }
 
+    /**
+     * A Document for the purpose of indexing in the percolator
+     */
     fn to_document(&self) -> Document;
 
     fn matches(&self, d: &Document) -> bool;
+
+    /**
+     * The a-priori specificity of a query, regardless of
+     * any sample index.
+     */
+    fn specificity(&self) -> f64;
 }
 
 #[derive(Debug)]
@@ -34,7 +51,27 @@ impl Query for ConjunctionQuery {
     }
 
     fn to_document(&self) -> Document {
-        todo!()
+        // This is the to_document of the most specific subquery.
+        // ( (f1=a OR f2=b)[0.5] AND f2=c[1] )[1.5]
+        // would choose f2=c
+        if self.queries.is_empty() {
+            return Document::default();
+        }
+
+        // Find the most specific subquery and to_document it.
+        self.queries
+            .iter()
+            .map(|q| (q, q.specificity()))
+            .sorted_by(|(_, a), (_, b)| a.total_cmp(b))
+            .map(|(q, _)| q)
+            .last()
+            .unwrap()
+            .to_document()
+    }
+
+    fn specificity(&self) -> f64 {
+        // The sun of sub specifities
+        self.queries.iter().map(|q| q.specificity()).sum()
     }
 
     fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
@@ -175,9 +212,25 @@ impl Query for DisjunctionQuery {
     }
 
     fn to_document(&self) -> Document {
+        // Returns all fields from the queries,
+        // as the incoming document will turn into a Disjunction query.
         self.queries
             .iter()
             .fold(Document::default(), |a, q| a.merge_with(&q.to_document()))
+    }
+
+    fn specificity(&self) -> f64 {
+        // Guarantee No NAN.
+        if self.queries.is_empty() {
+            0.0
+        } else {
+            // Just the Max of the sub specificities (or zero if nothing)
+            self.queries
+                .iter()
+                .map(|q| q.specificity())
+                .fold(f64::NAN, f64::max)
+                / self.queries.len() as f64
+        }
     }
 }
 
@@ -278,5 +331,9 @@ impl Query for TermQuery {
 
     fn to_document(&self) -> Document {
         Document::default().with_value(self.field.clone(), self.term.clone())
+    }
+
+    fn specificity(&self) -> f64 {
+        1.0
     }
 }
