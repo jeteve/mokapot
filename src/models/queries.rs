@@ -3,11 +3,64 @@ use itertools::Itertools;
 use crate::models::index::{DocId, Index};
 
 use super::documents::Document;
-use std::rc::Rc;
+use std::{iter::Map, rc::Rc};
 
-pub struct DocEnricher {
+trait SchwartzianProject<K, I>: FnMut((K, I)) -> I {}
+impl<T: FnMut((K, I)) -> I, K, I> SchwartzianProject<K, I> for T {}
+type Schwartzian<I, K, F> = Map<std::vec::IntoIter<(K, <I as Iterator>::Item)>, F>;
+
+trait MyIterators: Iterator {
+    fn schwartzian<F, K, O>(
+        self,
+        fk: F,
+        ord: O,
+    ) -> Schwartzian<Self, K, impl SchwartzianProject<K, Self::Item>>
+    // Schwartzian<Self, K, impl FnMut((K, Self::Item)) -> Self::Item>
+    /* Map<
+        std::vec::IntoIter<(K, <Self as Iterator>::Item)>,
+        impl FnMut((K, <Self as Iterator>::Item)) -> <Self as Iterator>::Item,
+    > */
+    where
+        F: Fn(&Self::Item) -> K,
+        O: Fn(&K, &K) -> std::cmp::Ordering,
+        Self: Iterator + Sized,
+    {
+        self.map(|i| (fk(&i), i))
+            .sorted_by(|(ka, _ia), (kb, _ib)| ord(ka, kb))
+            .map(|(_k, i)| i)
+    }
+}
+
+impl<T> MyIterators for T where T: Iterator {}
+
+/**
+* A DocPredicate is used by the percolator
+* to pre-process the documents.
+* It is something that MUST be true about the document
+* for it to match.
+*
+* The Document Query will be enriched with "OR TermQuery(_predicate_true=name, specificity = super high)"
+* only if p(Document) is true,
+*
+* The Query document (to match) will be enriched with _predicate_true=name
+*
+* Reserve DocPredicate for cases where an index based approach would not work.
+* Like comparison queries (PrefixQueries, < num queries and so on.)
+*
+* For Individual queries:
+*  Predicate is given by the query or NONE.. Example, a PrefixQuery.
+*
+*  For conjunctions, return all predicates from subqueries.
+*
+*  For disjunction, return all predicates from subqueries.
+* Examples:
+*      A query like "TermQuery(foo=bar) OR PrefixQuery(baz=bla*)"
+*      Will equal to self.match, only because PrefixQuery does generate a predicate.
+*/
+pub struct DocPredicate<'a> {
     name: Rc<str>,
-    f: fn(Document) -> Document,
+    pub query: &'a dyn Query,
+    //f: fn(&dyn Query, Document) -> bool,
 }
 
 pub trait Query: std::fmt::Debug {
@@ -31,6 +84,10 @@ pub trait Query: std::fmt::Debug {
      */
     fn to_document(&self) -> Document;
 
+    /**
+     * Does this query match this document?
+     * Eventually this is the ultimate truth for the percolator.
+     */
     fn matches(&self, d: &Document) -> bool;
 
     /**
@@ -39,7 +96,7 @@ pub trait Query: std::fmt::Debug {
      */
     fn specificity(&self) -> f64;
 
-    fn doc_enrichers(&self) -> Vec<DocEnricher> {
+    fn doc_enrichers(&self) -> Vec<DocPredicate> {
         Vec::default()
     }
 }
@@ -70,9 +127,7 @@ impl Query for ConjunctionQuery {
         // Find the most specific subquery and to_document it.
         self.queries
             .iter()
-            .map(|q| (q, q.specificity()))
-            .sorted_by(|(_, a), (_, b)| a.total_cmp(b))
-            .map(|(q, _)| q)
+            .schwartzian(|q| q.specificity(), |sa, sb| sa.total_cmp(sb))
             .last()
             .unwrap()
             .to_document()
@@ -214,6 +269,7 @@ impl Query for DisjunctionQuery {
     fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
         let iterators: Vec<_> = self
             .queries
+            //.sort_by_cached_key(|q);
             .iter()
             .map(|q| q.docids_from_index(index))
             .collect();
@@ -277,8 +333,7 @@ impl Iterator for DisjunctionIterator<'_> {
                         self.current_docids.push(doc_id);
                     }
                 }
-                // Go from lower to higher doc IDs.
-                // It is important to preserve the order.
+
                 if self.current_docids.is_empty() {
                     // If we have no current docids despite
                     // just having tried to populate, we are done for good.
@@ -287,6 +342,8 @@ impl Iterator for DisjunctionIterator<'_> {
 
                 // Current docids is Not empty
 
+                // Go from lower to higher doc IDs.
+                // It is important to preserve the order.
                 self.current_docids.sort();
                 self.current_docids.reverse();
                 // Cleanup seen from anything lower than min
@@ -294,7 +351,9 @@ impl Iterator for DisjunctionIterator<'_> {
                     .current_docids
                     .last()
                     .expect("current_docids should not be empty here");
-                // Only keep stuff greater than this new min
+                // Only keep stuff greater or equal than this new min
+                // Note that if we have seen the new_min, we need to keep
+                // is as seen. So we retain it too.
                 self.seen.retain(|&e| e >= new_min);
             }
 
@@ -330,6 +389,13 @@ impl TermQuery {
 }
 
 impl Query for TermQuery {
+    fn doc_enrichers(&self) -> Vec<DocPredicate> {
+        vec![DocPredicate {
+            name: "{self.field}_is_{self.term}".into(),
+            query: self,
+        }]
+    }
+
     fn matches(&self, d: &Document) -> bool {
         d.field_values_iter(&self.field)
             .map_or(false, |mut iter| iter.any(|value| value == &self.term))
