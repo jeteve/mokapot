@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use itertools::Itertools;
 
 use crate::models::queries::DisjunctionQuery;
@@ -11,15 +13,15 @@ pub type Qid = usize;
 pub struct Percolator {
     qindex: Index,
     // The box of query objects.
-    queries: Vec<Box<dyn Query>>,
+    queries: Vec<Rc<dyn Query>>,
 }
 
 impl Percolator {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
 
-    fn add_query(&mut self, q: Box<dyn Query>) -> Qid {
+    pub fn add_query(&mut self, q: Rc<dyn Query>) -> Qid {
         // Get the document from the query
         // and index in the query index.
         let doc_id = self.qindex.index_document(q.to_document());
@@ -30,10 +32,10 @@ impl Percolator {
         doc_id
     }
 
-    fn qids_from_document<'a, 'b>(
-        &'a self,
+    pub fn qids_from_document<'b>(
+        &self,
         d: &'b Document,
-    ) -> impl Iterator<Item = Qid> + use<'a, 'b> {
+    ) -> impl Iterator<Item = Qid> + use<'b, '_> {
         // First turn all unique field values into a disjunction of
         // term queries.
         let doc_tqs = d
