@@ -3,23 +3,13 @@ use itertools::Itertools;
 use crate::models::index::{DocId, Index};
 
 use super::documents::Document;
-use std::{iter::Map, rc::Rc};
+use std::rc::Rc;
 
-trait SchwartzianProject<K, I>: FnMut((K, I)) -> I {}
-impl<T: FnMut((K, I)) -> I, K, I> SchwartzianProject<K, I> for T {}
-type Schwartzian<I, K, F> = Map<std::vec::IntoIter<(K, <I as Iterator>::Item)>, F>;
+mod query;
+pub use crate::models::queries::query::*;
 
 trait MyIterators: Iterator {
-    fn schwartzian<F, K, O>(
-        self,
-        fk: F,
-        ord: O,
-    ) -> Schwartzian<Self, K, impl SchwartzianProject<K, Self::Item>>
-    // Schwartzian<Self, K, impl FnMut((K, Self::Item)) -> Self::Item>
-    /* Map<
-        std::vec::IntoIter<(K, <Self as Iterator>::Item)>,
-        impl FnMut((K, <Self as Iterator>::Item)) -> <Self as Iterator>::Item,
-    > */
+    fn schwartzian<F, K, O>(self, fk: F, ord: O) -> impl Iterator<Item = <Self as Iterator>::Item>
     where
         F: Fn(&Self::Item) -> K,
         O: Fn(&K, &K) -> std::cmp::Ordering,
@@ -32,74 +22,6 @@ trait MyIterators: Iterator {
 }
 
 impl<T> MyIterators for T where T: Iterator {}
-
-/**
-* A DocPredicate is used by the percolator
-* to pre-process the documents.
-* It is something that MUST be true about the document
-* for it to match.
-*
-* The Document Query will be enriched with "OR TermQuery(_predicate_true=name, specificity = super high)"
-* only if p(Document) is true,
-*
-* The Query document (to match) will be enriched with _predicate_true=name
-*
-* Reserve DocPredicate for cases where an index based approach would not work.
-* Like comparison queries (PrefixQueries, < num queries and so on.)
-*
-* For Individual queries:
-*  Predicate is given by the query or NONE.. Example, a PrefixQuery.
-*
-*  For conjunctions, return all predicates from subqueries.
-*
-*  For disjunction, return all predicates from subqueries.
-* Examples:
-*      A query like "TermQuery(foo=bar) OR PrefixQuery(baz=bla*)"
-*      Will equal to self.match, only because PrefixQuery does generate a predicate.
-*/
-pub struct DocPredicate<'a> {
-    name: Rc<str>,
-    pub query: &'a dyn Query,
-    //f: fn(&dyn Query, Document) -> bool,
-}
-
-pub trait Query: std::fmt::Debug {
-    /**
-     * An iterator on all the DocIds matching this query in the index.
-     */
-    fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a>;
-
-    /**
-     * An iterator on all the Documents matching this query in the index.
-     */
-    fn docs_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = &'a Document> + 'a> {
-        Box::new(
-            self.docids_from_index(index)
-                .map(|doc_id| index.get_document(doc_id).expect("Document should exist")),
-        )
-    }
-
-    /**
-     * A Document for the purpose of indexing in the percolator
-     */
-    fn to_document(&self) -> Document;
-
-    /**
-     * Does this query match this document?
-     * Eventually this is the ultimate truth for the percolator.
-     */
-    fn matches(&self, d: &Document) -> bool;
-
-    /**
-     * The a-priori specificity of a query, regardless of
-     * any sample index.
-     */
-    fn specificity(&self) -> f64;
-
-    fn doc_enrichers(&self) -> Vec<DocPredicate> {
-        Vec::default()
-    }
-}
 
 #[derive(Debug)]
 pub struct ConjunctionQuery {
