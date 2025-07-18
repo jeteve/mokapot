@@ -13,20 +13,28 @@ impl TermQuery {
     pub fn new(field: Rc<str>, term: Rc<str>) -> Self {
         TermQuery { field, term }
     }
+
+    // Specialized method. Cannot be part of a trait for use of lifetime
+    // in the concrete impl implementation.
+    fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
+        index.term_iter(self.field.clone(), self.term.clone())
+    }
 }
 
 impl Query for TermQuery {
     fn doc_enrichers(&self) -> Vec<DocPredicate> {
-        vec![DocPredicate {
-            name: "{self.field}_is_{self.term}".into(),
-            query: self,
-        }]
+        // vec![DocPredicate {
+        //     name: "{self.field}_is_{self.term}".into(),
+        //     query: self,
+        // }]
+        vec![]
     }
 
     fn matches(&self, d: &Document) -> bool {
         d.field_values_iter(&self.field)
             .map_or(false, |mut iter| iter.any(|value| value == self.term))
     }
+
     fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
         Box::new(index.term_iter(self.field.clone(), self.term.clone()))
     }

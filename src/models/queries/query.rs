@@ -25,9 +25,9 @@ use std::rc::Rc;
 *  For disjunction, return all predicates from subqueries.
 *
 */
-pub struct DocPredicate<'a> {
+pub struct DocPredicate {
     pub name: Rc<str>,
-    pub query: &'a dyn Query,
+    //pub query: &'a dyn Query,
     //f: fn(&dyn Query, Document) -> bool,
 }
 

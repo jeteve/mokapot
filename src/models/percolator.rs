@@ -10,6 +10,8 @@ pub type Qid = usize;
 #[derive(Default)]
 pub struct Percolator {
     qindex: Index,
+    // The box of query objects.
+    queries: Vec<Box<dyn Query>>,
 }
 
 impl Percolator {
@@ -20,10 +22,18 @@ impl Percolator {
     fn add_query(&mut self, q: Box<dyn Query>) -> Qid {
         // Get the document from the query
         // and index in the query index.
-        self.qindex.index_document(q.to_document())
+        let doc_id = self.qindex.index_document(q.to_document());
+        self.queries.push(q);
+
+        assert_eq!(self.queries.len(), self.qindex.len());
+
+        doc_id
     }
 
-    fn qids_from_document(&self, d: &Document) -> impl Iterator<Item = Qid> + use<'_> {
+    fn qids_from_document<'a, 'b>(
+        &'a self,
+        d: &'b Document,
+    ) -> impl Iterator<Item = Qid> + use<'a, 'b> {
         // First turn all unique field values into a disjunction of
         // term queries.
         let doc_tqs = d
@@ -34,6 +44,8 @@ impl Percolator {
             .collect_vec();
         let doc_disj = DisjunctionQuery::new(doc_tqs);
 
-        doc_disj.docids_from_index(&self.qindex)
+        doc_disj
+            .docids_from_index(&self.qindex)
+            .filter(|v| self.queries[*v].matches(d))
     }
 }

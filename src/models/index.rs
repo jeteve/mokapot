@@ -18,6 +18,10 @@ impl Index {
         Self::default()
     }
 
+    pub fn len(&self) -> usize {
+        self.documents.len()
+    }
+
     pub fn term_iter(&self, field: Rc<str>, term: Rc<str>) -> impl Iterator<Item = DocId> + '_ {
         self.inverted_indices
             .get(&(field, term))
