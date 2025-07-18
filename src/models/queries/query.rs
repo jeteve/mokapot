@@ -59,7 +59,7 @@ pub trait Query: std::fmt::Debug {
     fn matches(&self, d: &Document) -> bool;
 
     /**
-     * The a-priori specificity of a query, regardless of
+     * The a-priori intricic specificity of a query, regardless of
      * any sample index.
      */
     fn specificity(&self) -> f64;

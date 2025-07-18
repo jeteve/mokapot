@@ -36,7 +36,9 @@ impl Query for ConjunctionQuery {
     }
 
     fn specificity(&self) -> f64 {
-        // The sun of sub specifities
+        // The sum of sub specifities
+        // This is because a conjunction becomes more an more specific
+        // as subqueries accumulate.
         self.queries.iter().map(|q| q.specificity()).sum()
     }
 

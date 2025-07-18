@@ -40,6 +40,8 @@ impl Query for DisjunctionQuery {
             0.0
         } else {
             // Just the Max of the sub specificities (or zero if nothing)
+            // divided by the length.
+            // This is because a disjunction is less specific that its individual queries.
             self.queries
                 .iter()
                 .map(|q| q.specificity())
