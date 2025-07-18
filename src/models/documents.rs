@@ -10,22 +10,24 @@ pub struct Document {
     fields: HashMap<Rc<str>, Vec<Rc<str>>>,
 }
 
+type DocFieldValue = (Rc<str>, Rc<str>);
+
 impl Document {
     pub fn new() -> Self {
         Self::default()
     }
 
+    pub fn fv_pairs(&self) -> impl Iterator<Item = DocFieldValue> + use<'_> {
+        self.fields()
+            .map(|f| (f.clone(), self.field_values_iter(f.as_ref())))
+            .filter_map(|(f, ovit)| ovit.map(|vit| (f, vit)))
+            .flat_map(|(f, vit)| vit.map(move |v| (f.clone(), v)))
+    }
+
     pub fn merge_with(&self, other: &Self) -> Self {
         // Find all the (key,value) of a document.
-        fn fvs(d: &Document) -> impl Iterator<Item = (Rc<str>, &Rc<str>)> {
-            d.fields()
-                .map(|f| (f, d.field_values_iter(f)))
-                .filter_map(|(f, ovit)| ovit.map(|vit| (f, vit)))
-                .flat_map(|(f, vit)| vit.map(|v| (f.clone(), v)))
-        }
-
-        fvs(self)
-            .chain(fvs(other))
+        self.fv_pairs()
+            .chain(other.fv_pairs())
             .unique()
             .fold(Document::new(), |a, (f, v)| a.with_value(f, v.clone()))
     }
@@ -42,19 +44,19 @@ impl Document {
         self
     }
 
-    pub fn fields(&self) -> impl Iterator<Item = &Rc<str>> {
-        self.fields.keys()
+    pub fn fields(&self) -> impl Iterator<Item = Rc<str>> + use<'_> {
+        self.fields.keys().map(|k| k.clone())
     }
 
-    pub fn field_values(&self, field: &str) -> Vec<&str> {
+    pub fn field_values(&self, field: &str) -> Vec<Rc<str>> {
         if let Some(it) = self.field_values_iter(field) {
-            it.map(|v| v.as_ref()).collect()
+            it.map(|v| v).collect()
         } else {
             vec![]
         }
     }
 
-    pub fn field_values_iter(&self, field: &str) -> Option<impl Iterator<Item = &Rc<str>>> {
-        self.fields.get(field).map(|v| v.iter())
+    pub fn field_values_iter(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_> {
+        self.fields.get(field).map(|v| v.iter().map(|v| v.clone()))
     }
 }

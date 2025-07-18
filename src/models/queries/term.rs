@@ -25,7 +25,7 @@ impl Query for TermQuery {
 
     fn matches(&self, d: &Document) -> bool {
         d.field_values_iter(&self.field)
-            .map_or(false, |mut iter| iter.any(|value| value == &self.term))
+            .map_or(false, |mut iter| iter.any(|value| value == self.term))
     }
     fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
         Box::new(index.term_iter(self.field.clone(), self.term.clone()))

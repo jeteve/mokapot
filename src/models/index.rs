@@ -33,7 +33,7 @@ impl Index {
 
         // Update the right inverted indices.
         for field in d.fields() {
-            for value in d.field_values_iter(field).unwrap() {
+            for value in d.field_values_iter(field.as_ref()).unwrap() {
                 let value_index = self
                     .inverted_indices
                     .entry((field.clone(), value.clone()))
