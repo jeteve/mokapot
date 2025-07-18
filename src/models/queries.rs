@@ -1,8 +1,6 @@
-use itertools::Itertools;
-
+use crate::itertools::TheShwartz;
+use crate::models::documents::Document;
 use crate::models::index::{DocId, Index};
-
-use super::documents::Document;
 
 // Submodules.
 mod query;
@@ -11,21 +9,6 @@ mod term;
 // Re-export
 pub use crate::models::queries::query::*;
 pub use crate::models::queries::term::*;
-
-trait MyIterators: Iterator {
-    fn schwartzian<F, K, O>(self, fk: F, ord: O) -> impl Iterator<Item = <Self as Iterator>::Item>
-    where
-        F: Fn(&Self::Item) -> K,
-        O: Fn(&K, &K) -> std::cmp::Ordering,
-        Self: Iterator + Sized,
-    {
-        self.map(|i| (fk(&i), i))
-            .sorted_by(|(ka, _ia), (kb, _ib)| ord(ka, kb))
-            .map(|(_k, i)| i)
-    }
-}
-
-impl<T> MyIterators for T where T: Iterator {}
 
 #[derive(Debug)]
 pub struct ConjunctionQuery {
