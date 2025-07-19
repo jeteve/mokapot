@@ -16,5 +16,5 @@ criterion = "0.5.1"
 approx = "0.5.1"
 
 [[bench]]
-name = "simple"
+name = "percolate_simple"
 harness = false

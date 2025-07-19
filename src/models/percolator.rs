@@ -1,3 +1,4 @@
+use std::fmt;
 use std::rc::Rc;
 
 use itertools::Itertools;
@@ -9,11 +10,17 @@ use crate::models::{documents::Document, index::Index, queries::Query};
 
 pub type Qid = usize;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Percolator {
     qindex: Index,
     // The box of query objects.
     queries: Vec<Rc<dyn Query>>,
+}
+
+impl fmt::Display for Percolator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Percolator with {} queries", self.queries.len())
+    }
 }
 
 impl Percolator {

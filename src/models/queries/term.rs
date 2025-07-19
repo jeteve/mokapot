@@ -14,6 +14,14 @@ impl TermQuery {
         TermQuery { field, term }
     }
 
+    pub fn field(&self) -> Rc<str> {
+        self.field.clone()
+    }
+
+    pub fn term(&self) -> Rc<str> {
+        self.term.clone()
+    }
+
     // Specialized method. Cannot be part of a trait for use of lifetime
     // in the concrete impl implementation.
     fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
