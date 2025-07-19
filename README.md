@@ -6,9 +6,22 @@ mokapot is a percolator library in Rust. Condider this alpha software.
 
 In search technology, a percolator is a component that allows the matching of a stream
 of documents (for instance representing events) against a relatively static set
-of queries (representing specific interests in passing events).
+of queries (representing specific interests in events).
 
-One very common use of a percolator is to implement instant alerting.
+One very common use of a percolator is to implement instant alerting, when you consider incoming
+document as events.
+
+# Features
+
+- Percolator first design
+
+- Support for fuzzy queries (coming up)
+
+- Support for number comparison queries (coming up)
+
+# Non-features
+
+- Full text search. This does not contain any document body tokenizing.
 
 # Getting started with development
 
