@@ -22,6 +22,10 @@ impl Index {
         self.documents.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn term_iter(&self, field: Rc<str>, term: Rc<str>) -> impl Iterator<Item = DocId> + '_ {
         self.inverted_indices
             .get(&(field, term))

@@ -20,7 +20,7 @@ fn test_query() {
 
     let q_and_q2 = ConjunctionQuery::new(vec![Box::new(q), Box::new(q2)]);
 
-    let eq = TermQuery::new("another_key".into(), "sausage".into());
+    // let eq = TermQuery::new("another_key".into(), "sausage".into());
     //let enricher = eq.doc_enrichers();
     // Ok, this drop does not compile. Thanks Rust!
     // drop(eq);

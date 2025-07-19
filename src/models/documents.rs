@@ -45,18 +45,18 @@ impl Document {
     }
 
     pub fn fields(&self) -> impl Iterator<Item = Rc<str>> + use<'_> {
-        self.fields.keys().map(|k| k.clone())
+        self.fields.keys().cloned()
     }
 
     pub fn field_values(&self, field: &str) -> Vec<Rc<str>> {
         if let Some(it) = self.field_values_iter(field) {
-            it.map(|v| v).collect()
+            it.collect()
         } else {
             vec![]
         }
     }
 
     pub fn field_values_iter(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_> {
-        self.fields.get(field).map(|v| v.iter().map(|v| v.clone()))
+        self.fields.get(field).map(|v| v.iter().cloned())
     }
 }
