@@ -1,14 +1,11 @@
 use std::{collections::HashMap, rc::Rc};
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::Throughput;
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
-use mokapot::models::{
-    documents::Document,
-    percolator::Percolator,
-    queries::{Query, TermQuery},
-};
+use mokapot::models::{documents::Document, percolator::Percolator, queries::TermQuery};
 
-fn build_simple_percolator(n: u32) -> Percolator {
+fn build_simple_percolator(n: u64) -> Percolator {
     let mut p = Percolator::new();
     let field: Rc<str> = "field".into();
     (0..n)
@@ -28,35 +25,46 @@ impl JustAMap {
 }
 impl std::fmt::Display for JustAMap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "String HashMap with {} strings", self.0.len())
+        write!(f, "HashMap-{} strings", self.0.len())
     }
 }
 
-fn build_hashmap(n: u32) -> JustAMap {
+fn build_hashmap(n: u64) -> JustAMap {
     let mut h = HashMap::new();
     for pretend_qid in 0..n {
-        h.insert(format!("value{pretend_qid}").into(), pretend_qid as usize);
+        h.insert(
+            format!("value{pretend_qid}").into(),
+            pretend_qid.try_into().unwrap(),
+        );
     }
     JustAMap(h)
 }
 
 fn percolate_simple(c: &mut Criterion) {
     // Build the percolators with 1000 simple queries.
-    let p = build_simple_percolator(1000);
-    let h = build_hashmap(1000);
     let value500: Rc<str> = "value500".into();
     let d = Document::new().with_value("field", value500.clone());
 
     let mut group = c.benchmark_group("Onefield_matching");
 
-    group.bench_with_input(BenchmarkId::new("with_percolator", &p), &p, |b, p| {
-        b.iter(|| p.qids_from_document(&d).next())
-    });
+    for nqueries in [1, 10, 100, 1000, 10000, 100000, 1000000] {
+        group.throughput(Throughput::Elements(nqueries));
 
-    group.bench_with_input(BenchmarkId::new("with_hash", &h), &h, |b, h| {
-        b.iter(|| h.as_hashmap().get(&value500.clone()))
-    });
+        let p = build_simple_percolator(nqueries);
+        let h = build_hashmap(nqueries);
 
+        group.bench_with_input(BenchmarkId::new("with_percolator", &p), &p, |b, p| {
+            b.iter(|| p.qids_from_document(&d).next())
+        });
+
+        group.bench_with_input(BenchmarkId::new("with_nondynpercolator", &p), &p, |b, p| {
+            b.iter(|| p.special_qids_from_document(&d).next())
+        });
+
+        group.bench_with_input(BenchmarkId::new("with_hash", &h), &h, |b, h| {
+            b.iter(|| h.as_hashmap().get(&value500.clone()))
+        });
+    }
     group.finish();
 }
 

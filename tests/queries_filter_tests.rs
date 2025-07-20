@@ -1,7 +1,11 @@
+use std::collections::HashSet;
+
 use mokapot::models::{
     documents::Document,
-    index::Index,
-    queries::{ConjunctionQuery, DisjunctionQuery, Query, TermQuery},
+    index::{DocId, Index},
+    queries::{
+        termdisjunction::TermDisjunction, ConjunctionQuery, DisjunctionQuery, Query, TermQuery,
+    },
 };
 
 #[test]
@@ -131,4 +135,49 @@ fn test_disjunction_query() {
     // No more matches!
     assert_eq!(doc_ids.next(), None);
     assert_eq!(doc_ids.next(), None);
+}
+
+#[test]
+fn test_termdisjunction() {
+    let d: Document = Document::default()
+        .with_value("colour", "blue")
+        .with_value("taste", "sweet");
+
+    let d1: Document = Document::default()
+        .with_value("colour", "yellow")
+        .with_value("taste", "sour");
+
+    let d2: Document = Document::default()
+        .with_value("colour", "blue")
+        .with_value("taste", "bitter");
+
+    let d3: Document = Document::default()
+        .with_value("colour", "blue")
+        .with_value("taste", "sweet");
+
+    let d4: Document = Document::default()
+        .with_value("colour", "yellow")
+        .with_value("taste", "bitter");
+
+    let q = TermQuery::new("colour".into(), "blue".into());
+    let q2 = TermQuery::new("taste".into(), "sweet".into());
+    let disq = TermDisjunction::new(vec![q, q2]);
+
+    assert!(disq.matches(&d));
+
+    let mut index = Index::new();
+    // Query against the empty index.
+    let doc_ids: Vec<_> = disq.dids_from_idx(&index).collect();
+    assert_eq!(doc_ids, vec![]);
+
+    index.index_document(d.clone());
+    index.index_document(d1.clone());
+    index.index_document(d2.clone());
+    index.index_document(d3.clone());
+    index.index_document(d4.clone());
+
+    // colour = blue or taste = sweet.
+    let doc_ids: HashSet<DocId> = disq.dids_from_idx(&index).collect();
+    // Notice the order does not matter..
+    assert_eq!(doc_ids, HashSet::from([0, 2, 3]));
 }

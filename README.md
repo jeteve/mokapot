@@ -38,6 +38,37 @@ cargo test
 For now there is no other developer documentation, but reading the `tests`, specially the percolator ones
 will be a good start.
 
+# Benchmarking
+
+```sh
+
+cargo bench
+
+# Or..
+cargo bench --no-run
+
+# And then run the benchmark executable by hand,
+# for instance:
+./target/release/deps/percolate_simple-(etc..) --bench
+
+```
+
+# Profiling a benchmark
+
+```sh
+
+cargo bench --no-run
+# Then run the executable with perf, for instance:
+
+perf record target/release/deps/percolate_simple-0a1dd9fa04796dd8 --bench --profile-time 5
+
+# Then do
+
+perf report 
+
+# etc..
+```
+
 # Project URL
 
 mokapot is developped at https://github.com/jeteve/mokapot/.

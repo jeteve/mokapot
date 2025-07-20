@@ -24,7 +24,7 @@ impl TermQuery {
 
     // Specialized method. Cannot be part of a trait for use of lifetime
     // in the concrete impl implementation.
-    fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
+    pub fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
         index.term_iter(self.field.clone(), self.term.clone())
     }
 }

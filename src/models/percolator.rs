@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use itertools::Itertools;
 
+use crate::models::queries::termdisjunction::TermDisjunction;
 use crate::models::queries::DisjunctionQuery;
 use crate::models::queries::TermQuery;
 
@@ -19,7 +20,7 @@ pub struct Percolator {
 
 impl fmt::Display for Percolator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Percolator with {} queries", self.queries.len())
+        write!(f, "Percolator-{} queries", self.queries.len())
     }
 }
 
@@ -39,12 +40,30 @@ impl Percolator {
         doc_id
     }
 
+    ///
+    /// Uses the specially optimised TermDisjunction that doesn't use dynamic objects.
+    /// as a Document ALWAYS turn into a TermDisjunction anyway.
+    pub fn special_qids_from_document<'b>(
+        &self,
+        d: &'b Document,
+    ) -> impl Iterator<Item = Qid> + use<'b, '_> {
+        let doc_tqs = d
+            .fv_pairs()
+            .map(|(f, v)| TermQuery::new(f, v.clone()))
+            .collect_vec();
+
+        let tdis = TermDisjunction::new(doc_tqs);
+        tdis.dids_from_idx(&self.qindex)
+            .filter(|v| self.queries[*v].matches(d))
+    }
+
     pub fn qids_from_document<'b>(
         &self,
         d: &'b Document,
     ) -> impl Iterator<Item = Qid> + use<'b, '_> {
         // First turn all unique field values into a disjunction of
         // term queries.
+
         let doc_tqs = d
             .fv_pairs()
             // Force to be a Box<dyn Query>
