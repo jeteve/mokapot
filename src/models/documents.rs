@@ -8,6 +8,7 @@ use itertools::Itertools;
 pub struct Document {
     // Fields representing the document's content
     fields: HashMap<Rc<str>, Vec<Rc<str>>>,
+    fvs_count: usize,
 }
 
 type DocFieldValue = (Rc<str>, Rc<str>);
@@ -15,6 +16,10 @@ type DocFieldValue = (Rc<str>, Rc<str>);
 impl Document {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn fv_count(&self) -> usize {
+        self.fvs_count
     }
 
     pub fn fv_pairs(&self) -> impl Iterator<Item = DocFieldValue> + use<'_> {
@@ -41,6 +46,7 @@ impl Document {
             .entry(field.into())
             .and_modify(|v| v.push(value.clone().into()))
             .or_insert(vec![value.into()]);
+        self.fvs_count += 1;
         self
     }
 

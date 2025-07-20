@@ -47,10 +47,10 @@ impl Percolator {
         &self,
         d: &'b Document,
     ) -> impl Iterator<Item = Qid> + use<'b, '_> {
-        let doc_tqs = d
-            .fv_pairs()
+        let mut doc_tqs: Vec<TermQuery> = Vec::with_capacity(d.fv_count());
+        d.fv_pairs()
             .map(|(f, v)| TermQuery::new(f, v.clone()))
-            .collect_vec();
+            .for_each(|tq| doc_tqs.push(tq));
 
         let tdis = TermDisjunction::new(doc_tqs);
         tdis.dids_from_idx(&self.qindex)
