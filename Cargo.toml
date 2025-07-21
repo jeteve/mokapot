@@ -14,6 +14,7 @@ itertools = ">= 0.9.0"
 [dev-dependencies]
 criterion = "0.5.1"
 approx = "0.5.1"
+proptest = "1.7.0"
 flamegraph = "0.6.8"
 
 [profile.release]
