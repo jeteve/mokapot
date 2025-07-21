@@ -54,6 +54,7 @@ where
     }
 
     fn _advance_all_iters(&mut self) {
+        // Advance all iterators and push the docIds in the current_docids.
         for it in self.iterators.iter_mut() {
             if let Some(doc_id) = it.next() {
                 self.current_docids.push(doc_id);
@@ -70,6 +71,9 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
+            if self.iterators.len() == 1 {
+                return self.iterators[0].next();
+            }
             // This would be made empty at the beginning
             // or when the current_docids buffer has been poped enough.
             if self.current_docids.is_empty() {

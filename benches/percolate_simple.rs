@@ -53,15 +53,15 @@ fn percolate_simple(c: &mut Criterion) {
         let p = build_simple_percolator(nqueries);
         let h = build_hashmap(nqueries);
 
-        group.bench_with_input(BenchmarkId::new("with_percolator", &p), &p, |b, p| {
+        group.bench_with_input(BenchmarkId::new("perc_dyna", &p), &p, |b, p| {
             b.iter(|| p.qids_from_document(&d).next())
         });
 
-        group.bench_with_input(BenchmarkId::new("with_nondynpercolator", &p), &p, |b, p| {
-            b.iter(|| p.special_qids_from_document(&d).next())
+        group.bench_with_input(BenchmarkId::new("perc_static", &p), &p, |b, p| {
+            b.iter(|| p.static_qids_from_document(&d).next())
         });
 
-        group.bench_with_input(BenchmarkId::new("with_hash", &h), &h, |b, h| {
+        group.bench_with_input(BenchmarkId::new("hashmap", &h), &h, |b, h| {
             b.iter(|| h.as_hashmap().get(&value500.clone()))
         });
     }

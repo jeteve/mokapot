@@ -159,14 +159,22 @@ fn test_termdisjunction() {
         .with_value("colour", "yellow")
         .with_value("taste", "bitter");
 
+    let one_disjunction =
+        TermDisjunction::new(vec![TermQuery::new("colour".into(), "blue".into())]);
+    assert!(one_disjunction.matches(&d));
+
+    let mut index = Index::new();
+    // Query against the empty index.
+
+    let doc_ids: Vec<_> = one_disjunction.dids_from_idx(&index).collect();
+    assert_eq!(doc_ids, vec![]);
+
     let q = TermQuery::new("colour".into(), "blue".into());
     let q2 = TermQuery::new("taste".into(), "sweet".into());
     let disq = TermDisjunction::new(vec![q, q2]);
 
     assert!(disq.matches(&d));
 
-    let mut index = Index::new();
-    // Query against the empty index.
     let doc_ids: Vec<_> = disq.dids_from_idx(&index).collect();
     assert_eq!(doc_ids, vec![]);
 
@@ -179,5 +187,10 @@ fn test_termdisjunction() {
     // colour = blue or taste = sweet.
     let doc_ids: HashSet<DocId> = disq.dids_from_idx(&index).collect();
     // Notice the order does not matter..
+    assert_eq!(doc_ids, HashSet::from([0, 2, 3]));
+
+    // Test the one term disjunction, to check the
+    // optmimisation
+    let doc_ids: HashSet<DocId> = one_disjunction.dids_from_idx(&index).collect();
     assert_eq!(doc_ids, HashSet::from([0, 2, 3]));
 }

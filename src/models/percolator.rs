@@ -43,7 +43,7 @@ impl Percolator {
     ///
     /// Uses the specially optimised TermDisjunction that doesn't use dynamic objects.
     /// as a Document ALWAYS turn into a TermDisjunction anyway.
-    pub fn special_qids_from_document<'b>(
+    pub fn static_qids_from_document<'b>(
         &self,
         d: &'b Document,
     ) -> impl Iterator<Item = Qid> + use<'b, '_> {
