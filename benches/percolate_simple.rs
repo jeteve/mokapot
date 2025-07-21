@@ -47,15 +47,15 @@ fn percolate_simple(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Onefield_matching");
 
-    for nqueries in [1, 10, 100, 1000, 10000, 100000, 1000000] {
+    for nqueries in [10000, 20000, 100000, 1000000] {
         group.throughput(Throughput::Elements(nqueries));
 
         let p = build_simple_percolator(nqueries);
         let h = build_hashmap(nqueries);
 
-        group.bench_with_input(BenchmarkId::new("perc_dyna", &p), &p, |b, p| {
-            b.iter(|| p.qids_from_document(&d).next())
-        });
+        //group.bench_with_input(BenchmarkId::new("perc_dyna", &p), &p, |b, p| {
+        //    b.iter(|| p.qids_from_document(&d).next())
+        //});
 
         group.bench_with_input(BenchmarkId::new("perc_static", &p), &p, |b, p| {
             b.iter(|| p.static_qids_from_document(&d).next())

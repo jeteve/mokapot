@@ -81,7 +81,6 @@ See Also https://github.com/flamegraph-rs/flamegraph
 cargo bench --no-run
 
 # Then flamegraph it
-flamegraph -- target/release/deps/percolate_simple-53d08e664a8d2b33 --bench --profile-time 5
 
 cargo flamegraph --bench percolate_simple -- --bench --profile-time 5
 

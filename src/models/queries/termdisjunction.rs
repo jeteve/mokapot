@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::models::documents::Document;
 use crate::models::index::{DocId, Index};
 use crate::models::queries::query::Query;
@@ -35,7 +37,7 @@ where
     T: Iterator<Item = DocId>,
 {
     iterators: Vec<T>,
-    seen: std::collections::HashSet<DocId>,
+    seen: Vec<DocId>,
     current_docids: Vec<DocId>,
 }
 
@@ -48,7 +50,7 @@ where
         let docids = Vec::with_capacity(n_its);
         TermDisjunctionIterator {
             iterators,
-            seen: std::collections::HashSet::with_capacity(n_its * 2),
+            seen: Vec::with_capacity(n_its * 2),
             current_docids: docids,
         }
     }
@@ -89,7 +91,7 @@ where
             // Otherwise we would have returned just above.
             let candidate = self.current_docids.pop().unwrap();
             if !self.seen.contains(&candidate) {
-                self.seen.insert(candidate);
+                self.seen.push(candidate);
                 return Some(candidate);
             }
         }

@@ -17,9 +17,11 @@ approx = "0.5.1"
 flamegraph = "0.6.8"
 
 [profile.release]
+# debug = true
+
+[profile.bench]
 debug = true
 
 [[bench]]
 name = "percolate_simple"
 harness = false
-debug = true
