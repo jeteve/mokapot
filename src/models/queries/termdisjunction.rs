@@ -72,10 +72,12 @@ where
     type Item = DocId;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // optimisation for queries containing just one term query.
+        if self.iterators.len() == 1 {
+            return self.iterators[0].next();
+        }
+
         loop {
-            if self.iterators.len() == 1 {
-                return self.iterators[0].next();
-            }
             // This would be made empty at the beginning
             // or when the current_docids buffer has been poped enough.
             if self.current_docids.is_empty() {
