@@ -3,7 +3,6 @@ use std::rc::Rc;
 
 use itertools::Itertools;
 
-use crate::models::queries::termdisjunction::TermDisjunction;
 use crate::models::queries::DisjunctionQuery;
 use crate::models::queries::TermQuery;
 
@@ -47,13 +46,8 @@ impl Percolator {
         &self,
         d: &'b Document,
     ) -> impl Iterator<Item = Qid> + use<'b, '_> {
-        let mut doc_tqs: Vec<TermQuery> = Vec::with_capacity(d.fv_count());
-        d.fv_pairs()
-            .map(|(f, v)| TermQuery::new(f, v.clone()))
-            .for_each(|tq| doc_tqs.push(tq));
-
-        let tdis = TermDisjunction::new(doc_tqs);
-        tdis.dids_from_idx(&self.qindex)
+        d.to_percolator_query()
+            .dids_from_idx(&self.qindex)
             .filter(|v| self.queries[*v].matches(d))
     }
 

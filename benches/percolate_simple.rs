@@ -17,9 +17,9 @@ fn build_simple_percolator(n: u64) -> Percolator {
 }
 
 // Compare with simple hashmap access
-struct JustAMap(HashMap<Rc<str>, usize>);
+struct JustAMap(HashMap<Rc<str>, Vec<usize>>);
 impl JustAMap {
-    fn as_hashmap(&self) -> &HashMap<Rc<str>, usize> {
+    fn as_hashmap(&self) -> &HashMap<Rc<str>, Vec<usize>> {
         &self.0
     }
 }
@@ -30,11 +30,11 @@ impl std::fmt::Display for JustAMap {
 }
 
 fn build_hashmap(n: u64) -> JustAMap {
-    let mut h = HashMap::new();
+    let mut h: HashMap<Rc<str>, Vec<usize>> = HashMap::new();
     for pretend_qid in 0..n {
         h.insert(
             format!("value{pretend_qid}").into(),
-            pretend_qid.try_into().unwrap(),
+            vec![pretend_qid.try_into().unwrap()],
         );
     }
     JustAMap(h)
@@ -62,7 +62,7 @@ fn percolate_simple(c: &mut Criterion) {
         });
 
         group.bench_with_input(BenchmarkId::new("hashmap", &h), &h, |b, h| {
-            b.iter(|| h.as_hashmap().get(&value500.clone()))
+            b.iter(|| h.as_hashmap().get(&value500.clone()).map(|v| v.first()))
         });
     }
     group.finish();
