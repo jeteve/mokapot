@@ -40,7 +40,7 @@ impl Query for TermQuery {
 
     fn matches(&self, d: &Document) -> bool {
         d.field_values_iter(&self.field)
-            .map_or(false, |mut iter| iter.any(|value| value == self.term))
+            .is_some_and(|mut i| i.any(|v| v == self.term))
     }
 
     fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
