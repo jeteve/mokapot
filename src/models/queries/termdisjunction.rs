@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::models::documents::Document;
 use crate::models::index::{DocId, Index};
 use crate::models::queries::query::Query;
