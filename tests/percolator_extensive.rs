@@ -1,19 +1,20 @@
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use fakeit;
 use rand::Rng;
 
 use mokapot::models::documents::Document;
-use mokapot::models::percolator::Percolator;
+use mokapot::models::percolator::{Percolator, Qid};
 use mokapot::models::queries::{ConjunctionQuery, TermQuery};
 
 #[test]
 fn test_percolator() {
-    // Generate 1000 random documents.
+    // Generate 10000 random documents.
     let mut rng = rand::rng();
     let mut docs: Vec<Document> = vec![];
     let field_names = vec!["colour", "taste", "shape", "price", "smell"];
-    for _ in 0..1000 {
+    for _ in 0..10000 {
         let mut d = Document::default();
         for _ in 0..rng.random_range(0..40) {
             d = d.with_value(
@@ -42,7 +43,13 @@ fn test_percolator() {
 
     let mut total_nres = 0;
     for d in docs {
-        total_nres += p.static_qids_from_document(&d).count();
+        let res_stat = p.static_qids_from_document(&d).collect::<HashSet<Qid>>();
+        let res_dyn = p.qids_from_document(&d).collect::<HashSet<Qid>>();
+
+        // Same sets of Query IDs in both cases
+        assert_eq!(res_dyn, res_stat);
+
+        total_nres += res_stat.len();
     }
 
     assert_ne!(total_nres, 0);
