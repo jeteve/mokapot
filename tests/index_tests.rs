@@ -8,7 +8,7 @@ fn test_basic_index() {
     let mut index = Index::new();
     let d = Document::default();
 
-    let doc_id = index.index_document(d);
+    let doc_id = index.index_document(&d);
     assert_eq!(doc_id, 0);
 }
 
@@ -24,9 +24,9 @@ fn test_few_docs() {
         .with_value(taste.clone(), "sweet")
         .with_value(colour.clone(), "blue");
 
-    let doc_id1 = index.index_document(d1);
-    let doc_id2 = index.index_document(d2);
-    let _ = index.index_document(d3);
+    let doc_id1 = index.index_document(&d1);
+    let doc_id2 = index.index_document(&d2);
+    let _ = index.index_document(&d3);
 
     assert_eq!(doc_id1, 0);
     assert_eq!(doc_id2, 1);

@@ -13,6 +13,7 @@ pub type Qid = usize;
 #[derive(Default, Debug)]
 pub struct Percolator {
     qindex: Index,
+    sample_docs: Index,
     // The box of query objects.
     queries: Vec<Rc<dyn Query>>,
 }
@@ -28,10 +29,14 @@ impl Percolator {
         Self::default()
     }
 
+    pub fn add_sample(&mut self, d: &Document) {
+        self.sample_docs.index_document(d);
+    }
+
     pub fn add_query(&mut self, q: Rc<dyn Query>) -> Qid {
         // Get the document from the query
         // and index in the query index.
-        let doc_id = self.qindex.index_document(q.to_document());
+        let doc_id = self.qindex.index_document(&q.to_document());
         self.queries.push(q);
 
         assert_eq!(self.queries.len(), self.qindex.len());

@@ -25,8 +25,8 @@ fn test_term_query() {
     let q = TermQuery::new("colour".into(), "blue".into());
     assert_eq!(q.docids_from_index(&index).count(), 0);
 
-    index.index_document(d.clone());
-    index.index_document(d2.clone());
+    index.index_document(&d);
+    index.index_document(&d2);
 
     assert!(q.matches(&d));
     assert!(q.docids_from_index(&index).next().is_some());
@@ -76,10 +76,10 @@ fn test_conjunction_query() {
     let doc_ids: Vec<_> = conjunction_query.docids_from_index(&index).collect();
     assert_eq!(doc_ids, vec![]);
 
-    index.index_document(d.clone());
-    index.index_document(d1.clone());
-    index.index_document(d2.clone());
-    index.index_document(d3.clone());
+    index.index_document(&d);
+    index.index_document(&d1);
+    index.index_document(&d2);
+    index.index_document(&d3);
 
     let mut doc_ids = conjunction_query.docids_from_index(&index);
     assert_eq!(doc_ids.next(), Some(0));
@@ -121,11 +121,11 @@ fn test_disjunction_query() {
     let doc_ids: Vec<_> = disq.docids_from_index(&index).collect();
     assert_eq!(doc_ids, vec![]);
 
-    index.index_document(d.clone());
-    index.index_document(d1.clone());
-    index.index_document(d2.clone());
-    index.index_document(d3.clone());
-    index.index_document(d4.clone());
+    index.index_document(&d);
+    index.index_document(&d1);
+    index.index_document(&d2);
+    index.index_document(&d3);
+    index.index_document(&d4);
 
     // colour = blue or taste = sweet.
     let mut doc_ids = disq.docids_from_index(&index);
@@ -178,11 +178,11 @@ fn test_termdisjunction() {
     let doc_ids: Vec<_> = disq.dids_from_idx(&index).collect();
     assert_eq!(doc_ids, vec![]);
 
-    index.index_document(d.clone());
-    index.index_document(d1.clone());
-    index.index_document(d2.clone());
-    index.index_document(d3.clone());
-    index.index_document(d4.clone());
+    index.index_document(&d);
+    index.index_document(&d1);
+    index.index_document(&d2);
+    index.index_document(&d3);
+    index.index_document(&d4);
 
     // colour = blue or taste = sweet.
     let doc_ids: HashSet<DocId> = disq.dids_from_idx(&index).collect();

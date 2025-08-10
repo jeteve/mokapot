@@ -33,7 +33,7 @@ impl Index {
             .unwrap_or_default()
     }
 
-    pub fn index_document(&mut self, d: Document) -> DocId {
+    pub fn index_document(&mut self, d: &Document) -> DocId {
         // Save the new document
         self.documents.push(d.clone());
 

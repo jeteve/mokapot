@@ -1,8 +1,6 @@
+use rand::Rng;
 use std::collections::HashSet;
 use std::rc::Rc;
-
-use fakeit;
-use rand::Rng;
 
 use mokapot::itertools::*;
 use mokapot::models::documents::Document;
