@@ -29,14 +29,21 @@ impl Percolator {
         Self::default()
     }
 
-    pub fn add_sample(&mut self, d: &Document) {
+    pub fn add_sample_document(&mut self, d: &Document) {
         self.sample_docs.index_document(d);
+    }
+
+    pub fn get_query(&self, qid: Qid) -> Rc<dyn Query> {
+        self.queries[qid].clone()
     }
 
     pub fn add_query(&mut self, q: Rc<dyn Query>) -> Qid {
         // Get the document from the query
         // and index in the query index.
-        let doc_id = self.qindex.index_document(&q.to_document());
+        let doc_id = self
+            .qindex
+            //.index_document(&q.to_document());
+            .index_document(&q.to_document_with_sample(&self.sample_docs));
         self.queries.push(q);
 
         assert_eq!(self.queries.len(), self.qindex.len());

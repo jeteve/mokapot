@@ -52,6 +52,10 @@ pub trait Query: std::fmt::Debug {
      */
     fn to_document(&self) -> Document;
 
+    fn to_document_with_sample(&self, _sample: &Index) -> Document {
+        self.to_document()
+    }
+
     /**
      * Does this query match this document?
      * Eventually this is the ultimate truth for the percolator.
@@ -63,6 +67,31 @@ pub trait Query: std::fmt::Debug {
      * any sample index.
      */
     fn specificity(&self) -> f64;
+
+    fn specificity_in_sample(&self, sample: &Index) -> f64 {
+        // N Res / Sample size. No specificity (1.0 if no index size)
+        //  - ( log(nres) (if not zero) - log(size) )
+        // Unknown specificity.
+        if sample.is_empty() {
+            return 0.0;
+        }
+        let res_in_sample = self.docids_from_index(sample).count();
+        // When there are no result, this is better.
+        // Max specificity.
+        if res_in_sample == 0 {
+            // Max score possible is log2 of sample size
+            // Plus one for it to be better than the 1 result only score.
+            return (sample.len() as f64).log2() + 1.0;
+        }
+
+        // 10 VS 1 is better than 10 VS 5
+
+        // log( 1/10 ) < log( 5 / 10 ) < log( 1 ) == 0
+
+        // The more the results the worse. 2/10 is better than 5/10
+        // if there is just one result, this is the max specifity too.
+        (sample.len() as f64).log2() - (res_in_sample as f64).log2()
+    }
 
     fn doc_enrichers(&self) -> Vec<DocPredicate> {
         todo!()

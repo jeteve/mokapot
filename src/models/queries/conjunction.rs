@@ -18,6 +18,22 @@ impl Query for ConjunctionQuery {
         self.queries.iter().all(|q| q.matches(d))
     }
 
+    fn to_document_with_sample(&self, sample: &Index) -> Document {
+        if self.queries.is_empty() {
+            return Document::default();
+        }
+        dbg!(self
+            .queries
+            .iter()
+            .schwartzian(
+                |q| dbg!(q.specificity_in_sample(sample)),
+                |sa, sb| sa.total_cmp(sb).reverse(),
+            )
+            .next()
+            .unwrap()) 
+        .to_document()
+    }
+
     fn to_document(&self) -> Document {
         // This is the to_document of the most specific subquery.
         // ( (f1=a OR f2=b)[0.5] AND f2=c[1] )[1.5]
@@ -29,8 +45,8 @@ impl Query for ConjunctionQuery {
         // Find the most specific subquery and to_document it.
         self.queries
             .iter()
-            .schwartzian(|q| q.specificity(), |sa, sb| sa.total_cmp(sb))
-            .last()
+            .schwartzian(|q| q.specificity(), |sa, sb| sa.total_cmp(sb).reverse())
+            .next()
             .unwrap()
             .to_document()
     }
