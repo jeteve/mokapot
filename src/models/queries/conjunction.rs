@@ -26,11 +26,11 @@ impl Query for ConjunctionQuery {
             .queries
             .iter()
             .schwartzian(
-                |q| dbg!(q.specificity_in_sample(sample)),
+                |q| q.specificity_in_sample(sample),
                 |sa, sb| sa.total_cmp(sb).reverse(),
             )
             .next()
-            .unwrap()) 
+            .unwrap())
         .to_document()
     }
 
@@ -43,12 +43,13 @@ impl Query for ConjunctionQuery {
         }
 
         // Find the most specific subquery and to_document it.
-        self.queries
+        dbg!(self
+            .queries
             .iter()
             .schwartzian(|q| q.specificity(), |sa, sb| sa.total_cmp(sb).reverse())
             .next()
             .unwrap()
-            .to_document()
+            .to_document())
     }
 
     fn specificity(&self) -> f64 {

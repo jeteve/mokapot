@@ -1,13 +1,14 @@
-use rand::Rng;
+use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
+use fake::faker::address::en::*;
 use fake::{Fake, Faker};
 
 use mokapot::itertools::*;
 use mokapot::models::documents::Document;
 use mokapot::models::percolator::{Percolator, Qid};
-use mokapot::models::queries::{ConjunctionQuery, TermQuery};
+use mokapot::models::queries::{ConjunctionQuery, Query, TermQuery};
 
 fn one_random_data<T: Clone>(d: &[T]) -> T {
     d[(0..d.len()).fake::<usize>()].clone()
@@ -58,45 +59,64 @@ fn test_percolator() {
             (1..100).map(|p| format!("price_{}", p)).collect::<Vec<_>>(),
         ),
     ]);
-    for _ in 0..10000 {
+    for _ in 0..20000 {
         let mut d = Document::default();
-        // Maybe some fields will be duplicated..
-        for _ in 0..rng.random_range(1..field_names.len() * 5) {
-            let f_name = one_random_data(&field_names);
-            d = d.with_value(f_name, one_random_data(field_values.get(f_name).unwrap()));
-        }
+        // We always have one random city.
+        d = d.with_value("city", CountryName().fake::<String>());
+
+        // And a colour
+        d = d.with_value("colour", one_random_data(&field_values["colour"]));
+
+        // And a taste
+        d = d.with_value("taste", one_random_data(&field_values["taste"]));
+
+        // And a price (only 100 price possible)
+        d = d.with_value("price", one_random_data(&field_values["price"]));
+
         docs.push(d);
     }
 
     let mut p = Percolator::new();
 
-    // Add 1000 documents as a sample
-    for d in docs.iter().take(1000) {
+    // Add 5000 documents as a sample
+    for d in docs.iter().take(10000) {
         p.add_sample_document(d);
     }
 
-    // Generate and index 1000 conjunction queries that operate on
+    // Generate and index 100 conjunction queries that operate on
     // different fields please.
-    for _ in 0..20 {
-        let (f1, f2) = two_random_data(&field_names);
+    for _ in 0..1000 {
+        // The first query is always a random city.
 
-        println!("Query fields={} {}", f1, f2);
+        // WARNING. There will be no difference in efficiency
+        // with that. The order of q1/e
+        let q1 = TermQuery::new("city".into(), CountryName().fake::<String>().into());
 
-        let f_value = one_random_data(field_values.get(f1).unwrap());
-        let q1 = TermQuery::new(f1.into(), f_value.clone().into());
+        let q1b = TermQuery::new(
+            "taste".into(),
+            one_random_data(&field_values["taste"]).into(),
+        );
 
+        // The last field is random.
+        let f2 = one_random_data(&field_names);
         let f_value = one_random_data(field_values.get(f2).unwrap());
         let q2 = TermQuery::new(f2.into(), f_value.into());
 
-        let q = ConjunctionQuery::new(vec![Box::new(q1), Box::new(q2)]);
-        println!("Adding query={:?}", q);
+        let mut qs: Vec<Box<dyn Query>> = vec![q1, q1b, q2]
+            .into_iter()
+            .map(|q| Box::new(q) as Box<dyn Query>)
+            .collect();
+        qs.shuffle(&mut rng);
+
+        let q = ConjunctionQuery::new(qs);
+        // println!("Adding query={:?}", q);
         p.add_query(Rc::new(q));
     }
 
     let mut total_nres = 0;
     let mut total_pre: usize = 0;
     let mut total_post: usize = 0;
-    for d in docs.iter().rev().take(10) {
+    for d in docs.iter().rev().take(10000) {
         //println!("Percolating {:?}", d);
         let mut res_i = p.static_qids_from_document(d).with_stat();
 
@@ -111,7 +131,7 @@ fn test_percolator() {
         //println!("Matching queries:");
         for qid in res_static.iter() {
             let q = p.get_query(*qid);
-            println!("{:?}", q);
+            //println!("{:?}", q);
         }
 
         total_pre += res_i.pre_nested();

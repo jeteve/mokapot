@@ -40,10 +40,8 @@ impl Percolator {
     pub fn add_query(&mut self, q: Rc<dyn Query>) -> Qid {
         // Get the document from the query
         // and index in the query index.
-        let doc_id = self
-            .qindex
-            //.index_document(&q.to_document());
-            .index_document(&q.to_document_with_sample(&self.sample_docs));
+        let doc_id = self.qindex.index_document(&q.to_document());
+        //.index_document(&q.to_document_with_sample(&self.sample_docs));
         self.queries.push(q);
 
         assert_eq!(self.queries.len(), self.qindex.len());
