@@ -1,5 +1,4 @@
 use fake::faker::lorem::en::*;
-use fake::Fake;
 
 #[test]
 fn test_fake() {
@@ -9,9 +8,9 @@ fn test_fake() {
     let word: String = Word().fake();
     println!("words {:?}", word);
 
-    use fake::{Fake, Faker};
+    use fake::Fake;
 
-    let vector = vec!["apple", "banana", "cherry", "date", "elderberry"];
+    let vector = ["apple", "banana", "cherry", "date", "elderberry"];
 
     // Use range directly with .fake()
     let max_index = vector.len() - 1;
@@ -22,5 +21,5 @@ fn test_fake() {
         index2 = (0..=max_index).fake();
     }
 
-    let random_two = vec![vector[index1], vector[index2]];
+    //let random_two = [vector[index1], vector[index2]];
 }
