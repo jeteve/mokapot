@@ -43,15 +43,14 @@ impl CNFQuery {
     pub fn from_literal(q: TermQuery) -> Self {
         Self(vec![Clause(vec![Literal(q)])])
     }
-    pub fn from_and(cnf_qs: Vec<CNFQuery>) -> Self {
-        Self(cnf_qs.into_iter().flat_map(|cnfq| cnfq.0).collect())
+    pub fn from_and(qs: Vec<CNFQuery>) -> Self {
+        Self(qs.into_iter().flat_map(|cnfq| cnfq.0).collect())
     }
 
-    pub fn from_or(cnf_qs: Vec<CNFQuery>) -> Self {
+    pub fn from_or(qs: Vec<CNFQuery>) -> Self {
         // Combine all CNF queries into a single CNF query
         Self(
-            cnf_qs
-                .into_iter()
+            qs.into_iter()
                 .map(|cnfq| cnfq.0.into_iter())
                 .multi_cartesian_product()
                 .map(|clauses| {
@@ -146,5 +145,24 @@ mod test {
             ]),
         ]);
         assert_eq!(q.to_string(), "(AND (OR X=x) (OR Y=y Z=z) (OR Y=y W=w))");
+    }
+
+    // Different values OR
+    #[test]
+    fn test_or_with_multiple_values() {
+        use super::*;
+        let xsq = CNFQuery::from_or(
+            (0..5)
+                .map(|i| TermQuery::new("X".into(), format!("x_{}", i).into()))
+                .map(CNFQuery::from_literal)
+                .collect(),
+        );
+        let oney = CNFQuery::from_literal(TermQuery::new("Y".into(), "y".into()));
+
+        let combined = CNFQuery::from_and(vec![xsq, oney]);
+        assert_eq!(
+            combined.to_string(),
+            "(AND (OR X=x_0 X=x_1 X=x_2 X=x_3 X=x_4) (OR Y=y))"
+        );
     }
 }
