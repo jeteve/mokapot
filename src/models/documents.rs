@@ -4,10 +4,8 @@ use std::rc::Rc;
 #[allow(unused_imports)]
 use itertools::Itertools;
 
-use crate::models::queries::termdisjunction::TermDisjunction;
-use crate::models::queries::TermQuery;
-
 use crate::models::cnf::Clause;
+use crate::models::queries::TermQuery;
 
 #[derive(Debug, Default, Clone)]
 pub struct Document {
@@ -29,15 +27,6 @@ impl Document {
 
     pub fn to_clause(&self) -> Clause {
         Clause::from_termqueries(self.fv_pairs().map(|(f, v)| TermQuery::new(f, v)).collect())
-    }
-
-    pub fn to_percolator_query(&self) -> TermDisjunction {
-        let mut doc_tqs: Vec<TermQuery> = Vec::with_capacity(self.fv_count());
-        self.fv_pairs()
-            .map(|(f, v)| TermQuery::new(f, v.clone()))
-            .for_each(|tq| doc_tqs.push(tq));
-
-        TermDisjunction::new(doc_tqs)
     }
 
     pub fn fv_pairs(&self) -> impl Iterator<Item = DocFieldValue> + use<'_> {

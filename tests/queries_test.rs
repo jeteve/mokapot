@@ -1,5 +1,4 @@
 use mokapot::models::documents::Document;
-use mokapot::models::queries::termdisjunction::TermDisjunction;
 use mokapot::models::queries::{ConjunctionQuery, DisjunctionQuery, Query, TermQuery};
 
 #[test]
@@ -29,26 +28,6 @@ fn test_query() {
     //assert!(!q4.matches(&d));
 
     assert!(!q_and_q2.matches(&d));
-}
-
-#[test]
-fn test_termdisjunction() {
-    let d: Document = Document::default()
-        .with_value("colour", "blue")
-        .with_value("colour", "green")
-        .with_value("taste", "sweet");
-
-    let green_or_bitter = TermDisjunction::new(vec![
-        TermQuery::new("colour".into(), "green".into()),
-        TermQuery::new("taste".into(), "bitter".into()),
-    ]);
-    assert!(green_or_bitter.matches(&d));
-
-    let red_or_bitter = TermDisjunction::new(vec![
-        TermQuery::new("colour".into(), "red".into()),
-        TermQuery::new("taste".into(), "bitter".into()),
-    ]);
-    assert!(!red_or_bitter.matches(&d));
 }
 
 #[test]

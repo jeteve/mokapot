@@ -3,7 +3,6 @@ mod conjunction;
 mod disjunction;
 mod query;
 mod term;
-pub mod termdisjunction;
 
 // Re-export
 pub use conjunction::*;

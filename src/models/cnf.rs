@@ -1,8 +1,9 @@
 // Strongly inspired by https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
 use crate::models::{
+    documents::Document,
     index::{DocId, Index},
     iterators::DisjunctionIterator,
-    queries::TermQuery,
+    queries::{Query, TermQuery},
 };
 
 use itertools::Itertools;
@@ -45,6 +46,10 @@ impl Clause {
 
     pub fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
         DisjunctionIterator::new(self.0.iter().map(|q| q.0.dids_from_idx(index)).collect())
+    }
+
+    pub fn matches(&self, d: &Document) -> bool {
+        self.0.iter().any(|q| q.0.matches(d))
     }
 }
 impl fmt::Display for Clause {
