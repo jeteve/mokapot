@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use fake::faker::address::en::*;
-use fake::{Fake, Faker};
+use fake::Fake;
 
 use mokapot::itertools::*;
 use mokapot::models::documents::Document;
@@ -12,16 +12,6 @@ use mokapot::models::queries::{ConjunctionQuery, Query, TermQuery};
 
 fn one_random_data<T: Clone>(d: &[T]) -> T {
     d[(0..d.len()).fake::<usize>()].clone()
-}
-
-fn two_random_data<T: Clone>(d: &[T]) -> (T, T) {
-    let len = d.len();
-    let n: usize = (0..len).fake();
-    let mut n2: usize = (0..len).fake();
-    while n == n2 {
-        n2 = (0..len).fake();
-    }
-    (d[n].clone(), d[n2].clone())
 }
 
 #[test]
@@ -118,26 +108,24 @@ fn test_percolator() {
     let mut total_post: usize = 0;
     for d in docs.iter().rev().take(10000) {
         //println!("Percolating {:?}", d);
-        let mut res_i = p.static_qids_from_document(d).with_stat();
+        let mut res_i = p.qids_from_document(d).with_stat();
 
-        let res_static = res_i.by_ref().collect::<HashSet<Qid>>();
-
-        let res_dyn = p.qids_from_document(d).collect::<HashSet<Qid>>();
+        let res = res_i.by_ref().collect::<HashSet<Qid>>();
 
         // Same sets of Query IDs in both cases
-        assert_eq!(res_dyn, res_static);
         assert!(res_i.pre_nested() >= res_i.post_nested());
         //println!("Pre/Post: {} {}", res_i.pre_nested(), res_i.post_nested());
         //println!("Matching queries:");
-        for qid in res_static.iter() {
-            let q = p.get_query(*qid);
-            //println!("{:?}", q);
-        }
+
+        //for qid in res.iter() {
+        //    let q = p.get_query(*qid);
+        //println!("{:?}", q);
+        //}
 
         total_pre += res_i.pre_nested();
         total_post += res_i.post_nested();
 
-        total_nres += res_static.len();
+        total_nres += res.len();
     }
 
     assert_ne!(total_nres, 0);

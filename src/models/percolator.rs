@@ -3,9 +3,6 @@ use std::rc::Rc;
 
 use itertools::Itertools;
 
-use crate::models::queries::DisjunctionQuery;
-use crate::models::queries::TermQuery;
-
 use crate::models::{documents::Document, index::Index, queries::Query};
 
 pub type Qid = usize;
@@ -52,32 +49,13 @@ impl Percolator {
     ///
     /// Uses the specially optimised TermDisjunction that doesn't use dynamic objects.
     /// as a Document ALWAYS turn into a TermDisjunction anyway.
-    pub fn static_qids_from_document<'b>(
+    pub fn qids_from_document<'b>(
         &self,
         d: &'b Document,
     ) -> impl Iterator<Item = Qid> + use<'b, '_> {
         d.to_percolator_query()
             .dids_from_idx(&self.qindex)
             .filter(|v| self.queries[*v].matches(d))
-    }
-
-    pub fn qids_from_document<'b>(
-        &self,
-        d: &'b Document,
-    ) -> impl Iterator<Item = Qid> + use<'b, '_> {
-        // First turn all unique field values into a disjunction of
-        // term queries.
-
-        let doc_tqs = d
-            .fv_pairs()
-            // Force to be a Box<dyn Query>
-            // As type inference does go through the iterator item.
-            .map(|(f, v)| Box::new(TermQuery::new(f, v.clone())) as Box<dyn Query>)
-            .collect_vec();
-        let doc_disj = DisjunctionQuery::new(doc_tqs);
-
-        doc_disj
-            .docids_from_index(&self.qindex)
-            .filter(|v| self.queries[*v].matches(d))
+            .sorted()
     }
 }

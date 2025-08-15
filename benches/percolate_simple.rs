@@ -58,7 +58,7 @@ fn percolate_simple(c: &mut Criterion) {
         //});
 
         group.bench_with_input(BenchmarkId::new("perc_static", &p), &p, |b, p| {
-            b.iter(|| p.static_qids_from_document(&d).next())
+            b.iter(|| p.qids_from_document(&d).next())
         });
 
         group.bench_with_input(BenchmarkId::new("hashmap", &h), &h, |b, h| {
@@ -70,6 +70,3 @@ fn percolate_simple(c: &mut Criterion) {
 
 criterion_group!(benches, percolate_simple);
 criterion_main!(benches);
-
-//criterion_group!(benches, benchmark_add_two, benchmark_native);
-//criterion_main!(benches);
