@@ -1,3 +1,4 @@
+use crate::models::cnf::CNFQuery;
 use crate::models::documents::Document;
 use crate::models::index::{DocId, Index};
 
@@ -32,6 +33,8 @@ pub struct DocPredicate {
 }
 
 pub trait Query: std::fmt::Debug {
+    fn to_cnf(&self) -> CNFQuery;
+
     /**
      * An iterator on all the DocIds matching this query in the index.
      */

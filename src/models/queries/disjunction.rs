@@ -1,4 +1,5 @@
 use super::query::*;
+use crate::models::cnf::CNFQuery;
 use crate::models::documents::Document;
 use crate::models::index::{DocId, Index};
 
@@ -48,6 +49,10 @@ impl Query for DisjunctionQuery {
                 .fold(f64::NAN, f64::max)
                 / self.queries.len() as f64
         }
+    }
+
+    fn to_cnf(&self) -> CNFQuery {
+        CNFQuery::from_or(self.queries.iter().map(|q| q.to_cnf()).collect())
     }
 }
 

@@ -8,7 +8,7 @@ use crate::models::{
 
 use itertools::Itertools;
 
-use std::fmt;
+use std::{fmt, iter};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Literal(TermQuery);
@@ -51,6 +51,12 @@ impl Clause {
     pub fn matches(&self, d: &Document) -> bool {
         self.0.iter().any(|q| q.0.matches(d))
     }
+
+    pub fn to_document(&self) -> Document {
+        self.0.iter().fold(Document::default(), |a, l| {
+            a.with_value(l.0.field(), l.0.term())
+        })
+    }
 }
 impl fmt::Display for Clause {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -75,6 +81,10 @@ impl fmt::Display for CNFQuery {
 }
 
 impl CNFQuery {
+    // Just an alias
+    pub fn from_termquery(q: TermQuery) -> Self {
+        Self::from_literal(q)
+    }
     pub fn from_literal(q: TermQuery) -> Self {
         Self(vec![Clause(vec![Literal(q)])])
     }
@@ -99,10 +109,31 @@ impl CNFQuery {
     pub fn from_or_two(a: CNFQuery, b: CNFQuery) -> Self {
         Self::from_or(vec![a, b])
     }
+
+    /**
+      Return an infinite iterator of documents.
+      If you pull more document than there are clauses in this query,
+      you get match all documents.
+      This is bounded to 1000 extra match all documents to avoid infinite loops.
+    */
+    pub fn to_documents(&self) -> impl Iterator<Item = Document> + use<'_> {
+        self.0
+            .iter()
+            .map(|c| c.to_document())
+            .chain(iter::repeat(Document::match_all()).take(1000))
+    }
 }
 
 #[cfg(test)]
 mod test {
+
+    #[test]
+    fn test_empty() {
+        use super::*;
+        let cnf = CNFQuery(vec![]);
+        assert_eq!(cnf.to_string(), "(AND )");
+        assert_eq!(cnf.to_documents().next(), Some(Document::match_all()));
+    }
 
     #[test]
     fn test_literal() {
@@ -112,6 +143,11 @@ mod test {
         assert_eq!(cnf_query.0.len(), 1);
         assert_eq!(cnf_query.0[0].0.len(), 1);
         assert_eq!(cnf_query.to_string(), "(AND (OR field=value))");
+        let mut docs = cnf_query.to_documents();
+        assert_eq!(
+            docs.next(),
+            Some(Document::default().with_value("field", "value"))
+        );
     }
 
     #[test]
@@ -129,6 +165,16 @@ mod test {
             combined.to_string(),
             "(AND (OR field1=value1) (OR field2=value2))"
         );
+        let mut docs = combined.to_documents();
+        assert_eq!(
+            docs.next(),
+            Some(Document::default().with_value("field1", "value1"))
+        );
+        assert_eq!(
+            docs.next(),
+            Some(Document::default().with_value("field2", "value2"))
+        );
+        assert_eq!(docs.next(), Some(Document::match_all()));
     }
 
     #[test]
@@ -143,6 +189,16 @@ mod test {
         assert_eq!(combined.0[0].0.len(), 2); // Two litteral in the clause.
                                               // In this shape: AND (OR field1:value1 field2:value2)
         assert_eq!(combined.to_string(), "(AND (OR X=x Y=y))");
+        let mut docs = combined.to_documents();
+        assert_eq!(
+            docs.next(),
+            Some(
+                Document::default()
+                    .with_value("X", "x")
+                    .with_value("Y", "y")
+            )
+        );
+        assert_eq!(docs.next(), Some(Document::match_all()));
 
         // (x AND Y) OR Z:
         // The Z
@@ -155,6 +211,24 @@ mod test {
             CNFQuery::from_literal(z.clone()),
         );
         assert_eq!(q.to_string(), "(AND (OR X=x Z=z) (OR Y=y Z=z))");
+        let mut docs = q.to_documents();
+        assert_eq!(
+            docs.next(),
+            Some(
+                Document::default()
+                    .with_value("X", "x")
+                    .with_value("Z", "z")
+            )
+        );
+        assert_eq!(
+            docs.next(),
+            Some(
+                Document::default()
+                    .with_value("Y", "y")
+                    .with_value("Z", "z")
+            )
+        );
+        assert_eq!(docs.next(), Some(Document::match_all()));
 
         // (X OR Y) OR Z
         let q = CNFQuery::from_or_two(

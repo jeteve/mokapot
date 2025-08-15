@@ -3,15 +3,17 @@ use std::rc::Rc;
 use itertools::Itertools;
 use mokapot::models::{
     documents::Document,
-    percolator::Percolator,
+    percolator::{MultiPercolator, Percolator},
     queries::{ConjunctionQuery, DisjunctionQuery, TermQuery},
 };
 
 #[test]
 fn test_percolator() {
     let mut p = Percolator::default();
+    let mut mp = MultiPercolator::default();
     let q1 = Rc::new(TermQuery::new("colour".into(), "blue".into()));
     let q1_id = p.add_query(q1.clone());
+    assert_eq!(mp.add_query(q1.clone()), q1_id);
 
     assert_eq!(q1_id, 0);
 
@@ -32,7 +34,7 @@ fn test_percolator() {
         Box::new(TermQuery::new("colour".into(), "green".into())),
     ]));
 
-    p.add_query(disj.clone());
+    assert_eq!(p.add_query(disj.clone()), mp.add_query(disj.clone()));
 
     // The colour=green document will match the disjunction query.
     assert_eq!(p.qids_from_document(&d).collect::<Vec<usize>>(), vec![1]);
@@ -50,6 +52,7 @@ fn test_percolator() {
     ]));
 
     let cid = p.add_query(conj.clone());
+    assert_eq!(mp.add_query(conj.clone()), cid);
 
     // A document that is green will not match. but generate a failed candidate
     // as the conjunction would have mached, because it just indexes the bitter taste,

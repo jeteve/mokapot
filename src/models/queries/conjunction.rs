@@ -1,5 +1,6 @@
 use super::query::*;
 use crate::itertools::TheShwartz;
+use crate::models::cnf::CNFQuery;
 use crate::models::documents::Document;
 use crate::models::index::*;
 
@@ -67,6 +68,10 @@ impl Query for ConjunctionQuery {
             .map(|q| q.docids_from_index(index))
             .collect();
         Box::new(ConjunctionIterator::new(iterators))
+    }
+
+    fn to_cnf(&self) -> CNFQuery {
+        CNFQuery::from_and(self.queries.iter().map(|q| q.to_cnf()).collect())
     }
 }
 

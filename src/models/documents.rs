@@ -7,7 +7,7 @@ use itertools::Itertools;
 use crate::models::cnf::Clause;
 use crate::models::queries::TermQuery;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Document {
     // Fields representing the document's content
     fields: HashMap<Rc<str>, Vec<Rc<str>>>,
@@ -19,6 +19,10 @@ type DocFieldValue = (Rc<str>, Rc<str>);
 impl Document {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn match_all() -> Self {
+        Self::default().with_value("__match_all__", "true")
     }
 
     pub fn fv_count(&self) -> usize {

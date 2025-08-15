@@ -1,3 +1,4 @@
+use crate::models::cnf::CNFQuery;
 use crate::models::documents::Document;
 use crate::models::index::*;
 use crate::models::queries::query::*;
@@ -53,5 +54,9 @@ impl Query for TermQuery {
 
     fn specificity(&self) -> f64 {
         1.0
+    }
+
+    fn to_cnf(&self) -> CNFQuery {
+        CNFQuery::from_termquery(self.clone())
     }
 }
