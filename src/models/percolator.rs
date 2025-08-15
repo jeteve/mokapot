@@ -53,7 +53,7 @@ impl Percolator {
         &self,
         d: &'b Document,
     ) -> impl Iterator<Item = Qid> + use<'b, '_> {
-        d.to_percolator_query()
+        d.to_clause()
             .dids_from_idx(&self.qindex)
             .filter(|v| self.queries[*v].matches(d))
             .sorted()

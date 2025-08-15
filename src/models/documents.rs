@@ -7,6 +7,8 @@ use itertools::Itertools;
 use crate::models::queries::termdisjunction::TermDisjunction;
 use crate::models::queries::TermQuery;
 
+use crate::models::cnf::Clause;
+
 #[derive(Debug, Default, Clone)]
 pub struct Document {
     // Fields representing the document's content
@@ -23,6 +25,10 @@ impl Document {
 
     pub fn fv_count(&self) -> usize {
         self.fvs_count
+    }
+
+    pub fn to_clause(&self) -> Clause {
+        Clause::from_termqueries(self.fv_pairs().map(|(f, v)| TermQuery::new(f, v)).collect())
     }
 
     pub fn to_percolator_query(&self) -> TermDisjunction {

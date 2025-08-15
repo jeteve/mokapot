@@ -1,12 +1,31 @@
 // Strongly inspired by https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
-use crate::models::queries::TermQuery;
+use crate::models::{
+    index::{DocId, Index},
+    iterators::DisjunctionIterator,
+    queries::TermQuery,
+};
 
 use itertools::Itertools;
 
 use std::fmt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 struct Literal(TermQuery);
+
+impl Ord for Literal {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0
+            .field()
+            .cmp(&other.0.field())
+            .then_with(|| self.0.term().cmp(&other.0.term()))
+    }
+}
+
+impl PartialOrd for Literal {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -15,15 +34,26 @@ impl fmt::Display for Literal {
 }
 
 #[derive(Debug, Clone)]
-struct Clause(Vec<Literal>);
+pub struct Clause(Vec<Literal>);
 impl Clause {
-    fn from_clauses(clauses: Vec<Clause>) -> Self {
-        Self(clauses.into_iter().flat_map(|c| c.0).collect())
+    pub fn from_termqueries(ts: Vec<TermQuery>) -> Self {
+        Self(ts.into_iter().map(Literal).collect())
+    }
+    fn from_clauses(cs: Vec<Clause>) -> Self {
+        Self(cs.into_iter().flat_map(|c| c.0).collect())
+    }
+
+    pub fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
+        DisjunctionIterator::new(self.0.iter().map(|q| q.0.dids_from_idx(index)).collect())
     }
 }
 impl fmt::Display for Clause {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(OR {})", self.0.iter().map(|l| l.to_string()).join(" "))
+        write!(
+            f,
+            "(OR {})",
+            self.0.iter().sorted().map(|l| l.to_string()).join(" ")
+        )
     }
 }
 
@@ -44,18 +74,18 @@ impl CNFQuery {
         Self(vec![Clause(vec![Literal(q)])])
     }
     pub fn from_and(qs: Vec<CNFQuery>) -> Self {
-        Self(qs.into_iter().flat_map(|cnfq| cnfq.0).collect())
+        Self(qs.into_iter().flat_map(|q| q.0).collect())
     }
 
     pub fn from_or(qs: Vec<CNFQuery>) -> Self {
         // Combine all CNF queries into a single CNF query
         Self(
             qs.into_iter()
-                .map(|cnfq| cnfq.0.into_iter())
+                .map(|q| q.0.into_iter())
                 .multi_cartesian_product()
-                .map(|clauses| {
+                .map(|cs| {
                     // Combine the clauses into one
-                    Clause::from_clauses(clauses)
+                    Clause::from_clauses(cs)
                 })
                 .collect(),
         )
@@ -144,7 +174,7 @@ mod test {
                 ]),
             ]),
         ]);
-        assert_eq!(q.to_string(), "(AND (OR X=x) (OR Y=y Z=z) (OR Y=y W=w))");
+        assert_eq!(q.to_string(), "(AND (OR X=x) (OR Y=y Z=z) (OR W=w Y=y))");
     }
 
     // Different values OR

@@ -18,3 +18,20 @@ fn test_document_merge() {
     );
     assert_eq!(d3.field_values("taste"), vec!["bitter".into()]);
 }
+
+#[test]
+fn test_document_to_clause() {
+    let d = Document::default()
+        .with_value("colour", "blue")
+        .with_value("taste", "bitter")
+        .with_value("taste", "sweet");
+
+    let clause = d.to_clause();
+    assert_eq!(
+        clause.to_string(),
+        "(OR colour=blue taste=bitter taste=sweet)"
+    );
+
+    let d = Document::default();
+    assert_eq!(d.to_clause().to_string(), "(OR )");
+}
