@@ -19,7 +19,6 @@ use std::rc::Rc;
 use fake::faker::address::en::*;
 use fake::Fake;
 
-use mokapot::itertools::*;
 use mokapot::models::documents::Document;
 use mokapot::models::percolator::{MultiPercolator, Percolator, Qid, SimplePercolator};
 use mokapot::models::queries::{ConjunctionQuery, Query, TermQuery};
