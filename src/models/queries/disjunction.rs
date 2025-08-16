@@ -103,7 +103,7 @@ impl Iterator for DisjunctionIterator<'_> {
                 // It is important to preserve the order.
                 self.current_docids.sort();
                 self.current_docids.reverse();
-                // Cleanup seen from anything lower than min
+                // Cleanup seen from anything lower than umin
                 let &new_min = self
                     .current_docids
                     .last()

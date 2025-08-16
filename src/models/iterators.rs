@@ -1,15 +1,91 @@
 use crate::models::index::DocId;
 
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashSet};
+use std::hash::Hash;
+
+pub(crate) struct ConjunctionIterator<T>
+where
+    T: Iterator<Item = DocId>,
+{
+    iterators: Vec<T>,
+    iterator_levels: Vec<Option<DocId>>,
+    watermark: DocId,
+}
+
+impl<T> ConjunctionIterator<T>
+where
+    T: Iterator<Item = DocId>,
+{
+    pub(crate) fn new(iterators: Vec<T>) -> Self {
+        let n_its = iterators.len();
+        let iterator_levels = vec![None; n_its];
+        ConjunctionIterator {
+            iterators,
+            iterator_levels,
+            watermark: DocId::MAX,
+        }
+    }
+}
+
+impl<T> Iterator for ConjunctionIterator<T>
+where
+    T: Iterator<Item = DocId>,
+{
+    type Item = DocId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.iterators.is_empty() {
+            return None;
+        }
+
+        // Advance all iterators that are lower than the watermark
+
+        let advance = self
+            .iterator_levels
+            .iter()
+            .enumerate()
+            .filter_map(|(i, id)| match (i, id) {
+                (i, Some(id)) if *id < self.watermark => Some(i), // Advance if lower than watermark
+                (i, None) => Some(i),                             // Always advance None
+                _ => None, // Do not advance if it is higher than the watermark
+            })
+            .collect::<Vec<_>>();
+
+        // Ok advance the ones.
+
+        None
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct DocByIt {
+    doc_id: DocId,
+    it_index: usize,
+}
+
+impl std::cmp::PartialOrd for DocByIt {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.doc_id.cmp(&other.doc_id))
+    }
+}
+impl std::cmp::Ord for DocByIt {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.doc_id.cmp(&other.doc_id)
+    }
+}
+
 /**
  * An docIDs iterator to iterate over a disjunction of other iterators of the SAME type.
+ * Given iterators MUST be ordered.
  */
 pub(crate) struct DisjunctionIterator<T>
 where
     T: Iterator<Item = DocId>,
 {
     iterators: Vec<T>,
-    seen: Vec<DocId>,
-    current_docids: Vec<DocId>,
+    seen: HashSet<DocId>,
+    candidates: BinaryHeap<Reverse<DocByIt>>,
 }
 
 impl<T> DisjunctionIterator<T>
@@ -18,19 +94,19 @@ where
 {
     pub(crate) fn new(iterators: Vec<T>) -> Self {
         let n_its = iterators.len();
-        let docids = Vec::with_capacity(n_its);
         DisjunctionIterator {
             iterators,
-            seen: Vec::with_capacity(n_its * 2),
-            current_docids: docids,
+            seen: HashSet::with_capacity(n_its * 2),
+            candidates: BinaryHeap::with_capacity(n_its * 2),
         }
     }
 
-    fn _advance_all_iters(&mut self) {
+    fn _fetch_all_iters(&mut self) {
         // Advance all iterators and push the docIds in the current_docids.
-        for it in self.iterators.iter_mut() {
+        for (it_index, it) in self.iterators.iter_mut().enumerate() {
             if let Some(doc_id) = it.next() {
-                self.current_docids.push(doc_id);
+                self.candidates
+                    .push(dbg!(Reverse(DocByIt { doc_id, it_index })));
             }
         }
     }
@@ -43,32 +119,84 @@ where
     type Item = DocId;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // More or less the same algorithm as the general DisjunctionIterator,
-        // but here theres is no ordering guarantee.
-        // optimisation for queries containing just one term query.
-        if self.iterators.len() == 1 {
-            return self.iterators[0].next();
-        }
-
+        // Guarantees order and uniquness of emitted docIds
         loop {
-            // This would be made empty at the beginning
-            // or when the current_docids buffer has been poped enough.
-            if self.current_docids.is_empty() {
-                self._advance_all_iters();
-
-                if self.current_docids.is_empty() {
-                    // still empty..
+            if self.candidates.is_empty() {
+                self._fetch_all_iters();
+                if self.candidates.is_empty() {
+                    // If still have no candidates, we are done.
                     return None;
                 }
             }
+            // Ok we have some candidates.
 
-            // Ok, current_docids is NOT empty.
-            // Otherwise we would have returned just above.
-            let candidate = self.current_docids.pop().unwrap();
-            if !self.seen.contains(&candidate) {
-                self.seen.push(candidate);
-                return Some(candidate);
+            // Now we can pop the smallest candidate.
+            let candidate = dbg!(self.candidates.pop())
+                .expect("candidate is not empty here")
+                .0;
+            // For next time, we advance this smallest candidate's iterator
+            if let Some(new_docid) = dbg!(self.iterators[candidate.it_index].next()) {
+                self.candidates.push(Reverse(DocByIt {
+                    doc_id: new_docid,
+                    it_index: candidate.it_index,
+                }));
             }
+
+            if !self.seen.contains(&candidate.doc_id) {
+                // If we have not seen this candidate, we can return it.
+                self.seen.insert(candidate.doc_id);
+                // Cleanup. Hum, maybe not great to do it each time.
+                // self.seen.retain(|&id| id >= candidate.doc_id);
+                return Some(candidate.doc_id);
+            }
+            // If we have seen it, we just continue until there are no more candidates.
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_disjunction_iterator() {
+        let mut di: DisjunctionIterator<std::ops::Range<usize>> = DisjunctionIterator::new(vec![]);
+        assert_eq!(di.next(), None);
+
+        // Single iterator
+        let mut di = DisjunctionIterator::new(vec![(0..=3)]);
+        assert_eq!(di.next(), Some(0));
+        assert_eq!(di.next(), Some(1));
+        assert_eq!(di.next(), Some(2));
+        assert_eq!(di.next(), Some(3));
+        assert_eq!(di.next(), None);
+
+        // Overlapping
+        let mut di = DisjunctionIterator::new(vec![(0..=3), (2..=5)]);
+        assert_eq!(di.next(), Some(0));
+        assert_eq!(di.next(), Some(1));
+        assert_eq!(di.next(), Some(2));
+        assert_eq!(di.next(), Some(3));
+        assert_eq!(di.next(), Some(4));
+        assert_eq!(di.next(), Some(5));
+        assert_eq!(di.next(), None);
+
+        // Mixed
+        let mut di = DisjunctionIterator::new(vec![
+            vec![0, 2, 4, 6].into_iter(),
+            vec![1, 3, 7].into_iter(),
+            vec![1, 2, 3, 5, 8, 8, 9].into_iter(),
+        ]);
+        assert_eq!(di.next(), Some(0));
+        assert_eq!(di.next(), Some(1));
+        assert_eq!(di.next(), Some(2));
+        assert_eq!(di.next(), Some(3));
+        assert_eq!(di.next(), Some(4));
+        assert_eq!(di.next(), Some(5));
+        assert_eq!(di.next(), Some(6));
+        assert_eq!(di.next(), Some(7));
+        assert_eq!(di.next(), Some(8));
+        assert_eq!(di.next(), Some(9));
+        assert_eq!(di.next(), None);
     }
 }
