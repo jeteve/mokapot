@@ -21,7 +21,6 @@ impl Query for DisjunctionQuery {
     fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
         let iterators: Vec<_> = self
             .queries
-            //.sort_by_cached_key(|q);
             .iter()
             .map(|q| q.docids_from_index(index))
             .collect();

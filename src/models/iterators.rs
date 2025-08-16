@@ -2,7 +2,6 @@ use crate::models::index::DocId;
 
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashSet};
-use std::hash::Hash;
 
 pub(crate) struct ConjunctionIterator<T>
 where
@@ -18,8 +17,7 @@ where
     T: Iterator<Item = DocId>,
 {
     pub(crate) fn new(iterators: Vec<T>) -> Self {
-        let n_its = iterators.len();
-        let iterator_levels = vec![None; n_its];
+        let iterator_levels = vec![None; iterators.len()];
         ConjunctionIterator {
             iterators,
             iterator_levels,
@@ -39,22 +37,46 @@ where
             return None;
         }
 
-        // Advance all iterators that are lower than the watermark
+        loop {
+            // Advance all iterators that are lower than the watermark
+            for (idx, level) in self.iterator_levels.iter_mut().enumerate() {
+                match level {
+                    Some(doc_id) if *doc_id < self.watermark => {
+                        *level = self.iterators[idx].next();
+                    }
+                    None => {
+                        // We need to advance. We never ad
+                        *level = self.iterators[idx].next();
+                    }
+                    _ => continue, // No need to advance
+                }
+            }
+            // Any None means we are done.
+            if self.iterator_levels.iter().any(|id| id.is_none()) {
+                return None;
+            }
 
-        let advance = self
-            .iterator_levels
-            .iter()
-            .enumerate()
-            .filter_map(|(i, id)| match (i, id) {
-                (i, Some(id)) if *id < self.watermark => Some(i), // Advance if lower than watermark
-                (i, None) => Some(i),                             // Always advance None
-                _ => None, // Do not advance if it is higher than the watermark
-            })
-            .collect::<Vec<_>>();
+            // Next watermark and test for consistency match
+            self.watermark = self
+                .iterator_levels
+                .iter()
+                .filter_map(|id| *id)
+                .max()
+                .expect("At least one iterator should have a value here");
 
-        // Ok advance the ones.
+            // If all iterators have the same level, return the level.
+            if self
+                .iterator_levels
+                .iter()
+                .all(|&id| id == Some(self.watermark))
+            {
+                // Push the watermark up by for the next round, so all iterators are advanced
+                self.watermark += 1;
+                return self.iterator_levels[0];
+            }
 
-        None
+            // next iteration will advance the iterators that are late on the watermark.
+        }
     }
 }
 
@@ -169,6 +191,29 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_conjunction_iterator() {
+        let mut ci: ConjunctionIterator<std::ops::Range<usize>> = ConjunctionIterator::new(vec![]);
+        assert_eq!(ci.next(), None);
+        assert_eq!(ci.next(), None);
+
+        // Single iterator
+        let mut ci = ConjunctionIterator::new(vec![(0..=3)]);
+        assert_eq!(ci.next(), Some(0));
+        assert_eq!(ci.next(), Some(1));
+        assert_eq!(ci.next(), Some(2));
+        assert_eq!(ci.next(), Some(3));
+        assert_eq!(ci.next(), None);
+        assert_eq!(ci.next(), None);
+
+        // Overlapping
+        let mut ci = ConjunctionIterator::new(vec![(0..=3), (2..=5)]);
+        assert_eq!(ci.next(), Some(2));
+        assert_eq!(ci.next(), Some(3));
+        assert_eq!(ci.next(), None);
+        assert_eq!(ci.next(), None);
+    }
+
+    #[test]
     fn test_disjunction_iterator() {
         let mut di: DisjunctionIterator<std::ops::Range<usize>> = DisjunctionIterator::new(vec![]);
         assert_eq!(di.next(), None);
@@ -180,6 +225,7 @@ mod test {
         assert_eq!(di.next(), Some(2));
         assert_eq!(di.next(), Some(3));
         assert_eq!(di.next(), None);
+        assert_eq!(di.next(), None);
 
         // Overlapping
         let mut di = DisjunctionIterator::new(vec![(0..=3), (2..=5)]);
@@ -189,6 +235,7 @@ mod test {
         assert_eq!(di.next(), Some(3));
         assert_eq!(di.next(), Some(4));
         assert_eq!(di.next(), Some(5));
+        assert_eq!(di.next(), None);
         assert_eq!(di.next(), None);
 
         // Mixed
@@ -207,6 +254,7 @@ mod test {
         assert_eq!(di.next(), Some(7));
         assert_eq!(di.next(), Some(8));
         assert_eq!(di.next(), Some(9));
+        assert_eq!(di.next(), None);
         assert_eq!(di.next(), None);
     }
 
