@@ -136,6 +136,14 @@ where
                 .0;
             // For next time, we advance this smallest candidate's iterator
             if let Some(new_docid) = dbg!(self.iterators[candidate.it_index].next()) {
+                // Enforce ordering invariant
+                assert!(
+                    new_docid >= candidate.doc_id,
+                    "Invariant broken: new_docid={} from iterators[{}] < latest doc ID={}",
+                    new_docid,
+                    candidate.it_index,
+                    candidate.doc_id
+                );
                 self.candidates.push(Reverse(DocByIt {
                     doc_id: new_docid,
                     it_index: candidate.it_index,
@@ -198,5 +206,17 @@ mod test {
         assert_eq!(di.next(), Some(8));
         assert_eq!(di.next(), Some(9));
         assert_eq!(di.next(), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invariant broken: new_docid=3 from iterators[2] < latest doc ID=9")]
+    fn test_broken_invariant() {
+        // Broken invariant:
+        let di = DisjunctionIterator::new(vec![
+            vec![0, 2, 4, 6].into_iter(),
+            vec![1, 3, 7].into_iter(),
+            vec![1, 2, 9, 3, 5, 8, 8, 9].into_iter(),
+        ]);
+        let _ = di.collect::<Vec<_>>();
     }
 }
