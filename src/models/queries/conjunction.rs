@@ -45,13 +45,12 @@ impl Query for ConjunctionQuery {
         }
 
         // Find the most specific subquery and to_document it.
-        dbg!(self
-            .queries
+        self.queries
             .iter()
             .schwartzian(|q| q.specificity(), |sa, sb| sa.total_cmp(sb).reverse())
             .next()
             .unwrap()
-            .to_document())
+            .to_document()
     }
 
     fn specificity(&self) -> f64 {
@@ -72,6 +71,9 @@ impl Query for ConjunctionQuery {
         Box::new(iterators::ConjunctionIterator::new(iterators))
     }
 
+    /**
+    Turns this into a CNF query for indexing into a multi percolator.
+     */
     fn to_cnf(&self) -> CNFQuery {
         CNFQuery::from_and(self.queries.iter().map(|q| q.to_cnf()).collect())
     }

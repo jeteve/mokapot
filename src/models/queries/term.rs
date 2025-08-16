@@ -15,6 +15,13 @@ impl TermQuery {
         TermQuery { field, term }
     }
 
+    pub fn match_all() -> Self {
+        TermQuery {
+            field: "__match_all__".into(),
+            term: "true".into(),
+        }
+    }
+
     pub fn field(&self) -> Rc<str> {
         self.field.clone()
     }

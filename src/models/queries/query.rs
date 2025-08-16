@@ -60,15 +60,15 @@ pub trait Query: std::fmt::Debug {
     }
 
     /**
-     * Does this query match this document?
-     * Eventually this is the ultimate truth for the percolator.
-     */
+     Does this query match this document?
+     Eventually this is the ultimate truth for the percolator.
+    */
     fn matches(&self, d: &Document) -> bool;
 
     /**
-     * The a-priori intricic specificity of a query, regardless of
-     * any sample index.
-     */
+     The a-priori intricic specificity of a query, regardless of
+     any sample index.
+    */
     fn specificity(&self) -> f64;
 
     fn specificity_in_sample(&self, sample: &Index) -> f64 {

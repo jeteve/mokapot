@@ -40,7 +40,12 @@ impl Clause {
     pub fn from_termqueries(ts: Vec<TermQuery>) -> Self {
         Self(ts.into_iter().map(Literal).collect())
     }
-    fn from_clauses(cs: Vec<Clause>) -> Self {
+
+    pub fn match_all() -> Self {
+        Self(vec![Literal(TermQuery::match_all())])
+    }
+
+    pub fn from_clauses(cs: Vec<Clause>) -> Self {
         Self(cs.into_iter().flat_map(|c| c.0).collect())
     }
 

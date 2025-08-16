@@ -17,6 +17,7 @@ impl<T> TheShwartz for T where T: Iterator {}
 
 // Nest an iterator to gather
 // various statistics before and after its application.
+// Not sure it works..
 pub struct IterStat<I>
 where
     I: Iterator,
@@ -56,6 +57,8 @@ where
         let res = self.nested_i.next();
         if res.is_some() {
             self.post_nested += 1;
+        } else {
+            self.pre_nested -= 1;
         }
         res
     }

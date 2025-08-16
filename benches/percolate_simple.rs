@@ -3,10 +3,12 @@ use std::{collections::HashMap, rc::Rc};
 use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
-use mokapot::models::{documents::Document, percolator::Percolator, queries::TermQuery};
+use mokapot::models::{
+    documents::Document, percolator::Percolator, percolator::SimplePercolator, queries::TermQuery,
+};
 
-fn build_simple_percolator(n: u64) -> Percolator {
-    let mut p = Percolator::new();
+fn build_simple_percolator(n: u64) -> SimplePercolator {
+    let mut p = SimplePercolator::new();
     let field: Rc<str> = "field".into();
     (0..n)
         .map(|n| Rc::new(TermQuery::new(field.clone(), format!("value{n}").into())))

@@ -1,20 +1,18 @@
 use std::rc::Rc;
 
-use itertools::Itertools;
 use mokapot::models::{
     documents::Document,
-    percolator::{MultiPercolator, Percolator},
+    percolator::{MultiPercolator, Percolator, SimplePercolator},
     queries::{ConjunctionQuery, DisjunctionQuery, TermQuery},
 };
 
 #[test]
 fn test_percolator() {
-    let mut p = Percolator::default();
+    let mut p = SimplePercolator::default();
     let mut mp = MultiPercolator::default();
     let q1 = Rc::new(TermQuery::new("colour".into(), "blue".into()));
     let q1_id = p.add_query(q1.clone());
     assert_eq!(mp.add_query(q1.clone()), q1_id);
-
     assert_eq!(q1_id, 0);
 
     let d = Document::new().with_value("colour", "blue");
@@ -22,12 +20,17 @@ fn test_percolator() {
     let q_ids = p.qids_from_document(&d).collect::<Vec<usize>>();
     assert_eq!(q_ids, vec![0]);
 
+    let q_ids = mp.qids_from_document(&d).collect::<Vec<usize>>();
+    assert_eq!(q_ids, vec![0]);
+
     let q_ids = p.qids_from_document(&d).collect::<Vec<usize>>();
+    assert_eq!(q_ids, vec![0]);
+    let q_ids = mp.qids_from_document(&d).collect::<Vec<usize>>();
     assert_eq!(q_ids, vec![0]);
 
     let d = Document::new().with_value("colour", "green");
     assert_eq!(p.qids_from_document(&d).collect::<Vec<usize>>(), vec![]);
-    assert_eq!(p.qids_from_document(&d).collect::<Vec<usize>>(), vec![]);
+    assert_eq!(mp.qids_from_document(&d).collect::<Vec<usize>>(), vec![]);
 
     let disj = Rc::new(DisjunctionQuery::new(vec![
         Box::new(TermQuery::new("colour".into(), "blue".into())),
@@ -38,7 +41,7 @@ fn test_percolator() {
 
     // The colour=green document will match the disjunction query.
     assert_eq!(p.qids_from_document(&d).collect::<Vec<usize>>(), vec![1]);
-    assert_eq!(p.qids_from_document(&d).collect::<Vec<usize>>(), vec![1]);
+    assert_eq!(mp.qids_from_document(&d).collect::<Vec<usize>>(), vec![1]);
 
     // Now a simple conjunction query
     // ( blue or green ) AND bitter
@@ -58,7 +61,7 @@ fn test_percolator() {
     // as the conjunction would have mached, because it just indexes the bitter taste,
     // as this is more specific than the conjunction side.
     assert_eq!(p.qids_from_document(&d).collect::<Vec<usize>>(), vec![1]);
-    assert_eq!(p.qids_from_document(&d).collect::<Vec<usize>>(), vec![1]);
+    assert_eq!(mp.qids_from_document(&d).collect::<Vec<usize>>(), vec![1]);
 
     // Another document that is bitter and green
     let sprout = Document::new()
@@ -71,9 +74,7 @@ fn test_percolator() {
         vec![1, cid]
     );
     assert_eq!(
-        p.qids_from_document(&sprout)
-            .sorted()
-            .collect::<Vec<usize>>(),
+        mp.qids_from_document(&sprout).collect::<Vec<usize>>(),
         vec![1, cid]
     );
 }

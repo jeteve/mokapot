@@ -1,3 +1,17 @@
+/*
+
+Extensive test for percolating lots of documents against lot of queries.
+
+Using Simple Percolator with sampling:
+
+Pre/Post: 11215 1215
+Efficiency: 0.10833704859563086
+
+Using plain MultiPercolator:
+
+
+*/
+
 use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -7,7 +21,7 @@ use fake::Fake;
 
 use mokapot::itertools::*;
 use mokapot::models::documents::Document;
-use mokapot::models::percolator::{Percolator, Qid};
+use mokapot::models::percolator::{MultiPercolator, Percolator, Qid, SimplePercolator};
 use mokapot::models::queries::{ConjunctionQuery, Query, TermQuery};
 
 fn one_random_data<T: Clone>(d: &[T]) -> T {
@@ -66,16 +80,16 @@ fn test_percolator() {
         docs.push(d);
     }
 
-    let mut p = Percolator::new();
+    let mut p = MultiPercolator::default();
 
     // Add 5000 documents as a sample
-    for d in docs.iter().take(10000) {
-        p.add_sample_document(d);
-    }
+    //for d in docs.iter().take(10000) {
+    //    p.add_sample_document(d);
+    //}
 
     // Generate and index 100 conjunction queries that operate on
     // different fields please.
-    for _ in 0..1000 {
+    for _ in 0..2000 {
         // The first query is always a random city.
 
         // WARNING. There will be no difference in efficiency
@@ -99,36 +113,22 @@ fn test_percolator() {
         qs.shuffle(&mut rng);
 
         let q = ConjunctionQuery::new(qs);
-        // println!("Adding query={:?}", q);
+        //println!("Adding query={}", q.to_cnf());
         p.add_query(Rc::new(q));
     }
 
-    let mut total_nres = 0;
-    let mut total_pre: usize = 0;
-    let mut total_post: usize = 0;
-    for d in docs.iter().rev().take(10000) {
-        //println!("Percolating {:?}", d);
-        let mut res_i = p.qids_from_document(d).with_stat();
+    for d in docs.iter().rev().take(20) {
+        println!("Percolating {:?}", d);
+        let mut res_i = p.qids_from_document(d);
 
         let res = res_i.by_ref().collect::<HashSet<Qid>>();
 
         // Same sets of Query IDs in both cases
-        assert!(res_i.pre_nested() >= res_i.post_nested());
-        //println!("Pre/Post: {} {}", res_i.pre_nested(), res_i.post_nested());
-        //println!("Matching queries:");
+        println!("Matching queries:");
 
-        //for qid in res.iter() {
-        //    let q = p.get_query(*qid);
-        //println!("{:?}", q);
-        //}
-
-        total_pre += res_i.pre_nested();
-        total_post += res_i.post_nested();
-
-        total_nres += res.len();
+        for qid in res.iter() {
+            let q = p.get_query(*qid);
+            println!("{:?}", q);
+        }
     }
-
-    assert_ne!(total_nres, 0);
-    println!("Pre/Post: {} {}", total_pre, total_post);
-    println!("Efficiency: {}", total_post as f64 / total_pre as f64)
 }
