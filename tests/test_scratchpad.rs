@@ -1,5 +1,39 @@
 use fake::faker::lorem::en::*;
 
+trait Doggy {
+    fn bark(&self) -> String;
+}
+
+struct Kennel<T: Doggy> {
+    dog: T,
+}
+
+#[derive(Default)]
+struct Dog {}
+impl Doggy for Dog {
+    fn bark(&self) -> String {
+        "Woof!".to_string()
+    }
+}
+
+// Needed to implement Doggy for Box<dyn Doggy>
+impl<T: Doggy + ?Sized> Doggy for Box<T> {
+    fn bark(&self) -> String {
+        (**self).bark()
+    }
+}
+
+#[test]
+fn test_boxed_traits() {
+    let d = Dog::default();
+    let k = Kennel { dog: d };
+    assert_eq!(k.dog.bark(), "Woof!".to_string());
+
+    let boxed_dog: Box<dyn Doggy> = Box::new(Dog::default());
+    let k2 = Kennel { dog: boxed_dog };
+    assert_eq!(k2.dog.bark(), "Woof!".to_string());
+}
+
 #[test]
 fn test_fake() {
     let words: Vec<String> = Words(3..5).fake();
