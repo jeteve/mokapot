@@ -3,6 +3,7 @@ use crate::itertools::TheShwartz;
 use crate::models::cnf::CNFQuery;
 use crate::models::documents::Document;
 use crate::models::index::*;
+use crate::models::iterators;
 
 #[derive(Debug)]
 pub struct ConjunctionQuery {
@@ -67,113 +68,11 @@ impl Query for ConjunctionQuery {
             .iter()
             .map(|q| q.docids_from_index(index))
             .collect();
-        Box::new(ConjunctionIterator::new(iterators))
+
+        Box::new(iterators::ConjunctionIterator::new(iterators))
     }
 
     fn to_cnf(&self) -> CNFQuery {
         CNFQuery::from_and(self.queries.iter().map(|q| q.to_cnf()).collect())
-    }
-}
-
-struct ConjunctionIterator<'a> {
-    iterators: Vec<Box<dyn Iterator<Item = DocId> + 'a>>,
-    current_docids: Vec<Option<DocId>>,
-    max_id: usize,
-    last_match: Option<DocId>,
-}
-impl<'a> ConjunctionIterator<'a> {
-    fn new(iterators: Vec<Box<dyn Iterator<Item = DocId> + 'a>>) -> Self {
-        let n_its = iterators.len();
-        ConjunctionIterator {
-            iterators,
-            current_docids: vec![None; n_its],
-            max_id: usize::MIN,
-            last_match: None,
-        }
-    }
-}
-
-impl Iterator for ConjunctionIterator<'_> {
-    type Item = DocId;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // We need to advance all iterators that are lower than the current max_id
-        let mut max_iterations = u32::MAX;
-        loop {
-            max_iterations -= 1;
-            if max_iterations == 0 {
-                panic!("Infinite loop detected in ConjunctionIterator");
-            }
-            let to_advance: Vec<usize> = self
-                .current_docids
-                .iter()
-                .enumerate()
-                .filter(|(_i, id)| {
-                    match (id, self.last_match) {
-                        (_, Some(_)) => true, // Always advance all if there was a match.
-                        (Some(id), _) => {
-                            // If we have a current ID, we only advance if it is lower than the max_id
-                            *id < self.max_id
-                        }
-                        (None, _) => true, // Always advance none.
-                    }
-                })
-                .map(|(i, _)| i)
-                .collect(); // We only care about i.
-
-            //println!("Advancing iterators: {:?}", to_advance);
-            //return None;
-
-            for i in to_advance {
-                // Change doc ids in place.
-                self.current_docids[i] = self.iterators[i].next();
-            }
-
-            //println!("Current docids: {:?}", self.current_docids);
-            //return None;
-
-            // If any is None, we are done, as there is no chance
-            // to find a common document ID later on.
-            if self.current_docids.iter().any(|id| id.is_none()) {
-                // TODO later: Maybe mark this iterator as exhausted
-                // So we dont do all the above ever again.
-                //println!("Some iterators are exhausted, returning None");
-                return None;
-            } else {
-                //println!("None of the iterators is exhausted, continuing");
-            }
-
-            //return None;
-
-            self.max_id = self
-                .current_docids
-                .iter()
-                .filter_map(|id| *id)
-                // filter_map makes sure only
-                // the Some values make it through, and they are unwrapped.
-                // Hence the Iterator<Item = usize> type
-                .max() // Vanilla max. on an iterator of usize
-                .unwrap_or(usize::MIN);
-
-            //println!("Max ID: {}", self.max_id);
-            //return None;
-
-            // If all current docids are the same, we return it
-            if self
-                .current_docids
-                .iter()
-                .all(|id| id == &Some(self.max_id))
-            {
-                //println!("All current docids are the same max, returning max_id");
-                self.last_match = Some(self.max_id);
-                return self.last_match;
-            }
-
-            // We havent returned anything, loop again
-            // until we find a common document ID or
-            // any of the iterator is exhausted.
-            self.last_match = None; // No match. Next iteration will try
-                                    // to advance up to the max_id
-        }
     }
 }

@@ -42,7 +42,17 @@ where
             for (idx, level) in self.iterator_levels.iter_mut().enumerate() {
                 match level {
                     Some(doc_id) if *doc_id < self.watermark => {
-                        *level = self.iterators[idx].next();
+                        let next = self.iterators[idx].next();
+                        if let Some(next_docid) = next {
+                            assert!(
+                                next_docid >= *doc_id,
+                                "Invariant broken: next_docid={} < doc_id={} for iterator {}",
+                                next_docid,
+                                doc_id,
+                                idx
+                            );
+                        }
+                        *level = next;
                     }
                     None => {
                         // We need to advance. We never ad
@@ -127,8 +137,7 @@ where
         // Advance all iterators and push the docIds in the current_docids.
         for (it_index, it) in self.iterators.iter_mut().enumerate() {
             if let Some(doc_id) = it.next() {
-                self.candidates
-                    .push(dbg!(Reverse(DocByIt { doc_id, it_index })));
+                self.candidates.push(Reverse(DocByIt { doc_id, it_index }));
             }
         }
     }
@@ -153,11 +162,13 @@ where
             // Ok we have some candidates.
 
             // Now we can pop the smallest candidate.
-            let candidate = dbg!(self.candidates.pop())
+            let candidate = self
+                .candidates
+                .pop()
                 .expect("candidate is not empty here")
                 .0;
             // For next time, we advance this smallest candidate's iterator
-            if let Some(new_docid) = dbg!(self.iterators[candidate.it_index].next()) {
+            if let Some(new_docid) = self.iterators[candidate.it_index].next() {
                 // Enforce ordering invariant
                 assert!(
                     new_docid >= candidate.doc_id,
@@ -211,6 +222,29 @@ mod test {
         assert_eq!(ci.next(), Some(3));
         assert_eq!(ci.next(), None);
         assert_eq!(ci.next(), None);
+
+        // Mixed
+        let mut ci = ConjunctionIterator::new(vec![
+            vec![0, 2, 3, 4, 6, 12, 13].into_iter(),
+            vec![1, 3, 7, 12, 14].into_iter(),
+            vec![1, 2, 3, 5, 8, 8, 9, 10, 11, 12].into_iter(),
+        ]);
+        assert_eq!(ci.next(), Some(3));
+        assert_eq!(ci.next(), Some(12));
+        assert_eq!(ci.next(), None);
+        assert_eq!(ci.next(), None);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invariant broken: next_docid=2 < doc_id=4 for iterator 0")]
+    fn test_broken_conjunction_iterator() {
+        // Broken invariant:
+        let ci = ConjunctionIterator::new(vec![
+            vec![0, 2, 3, 4, 2, 6].into_iter(),
+            vec![1, 3, 7].into_iter(),
+            vec![1, 2, 9, 3, 5, 8, 8, 9].into_iter(),
+        ]);
+        let _ = ci.collect::<Vec<_>>();
     }
 
     #[test]
