@@ -153,8 +153,10 @@ where
             if !self.seen.contains(&candidate.doc_id) {
                 // If we have not seen this candidate, we can return it.
                 self.seen.insert(candidate.doc_id);
-                // Cleanup. Hum, maybe not great to do it each time.
-                // self.seen.retain(|&id| id >= candidate.doc_id);
+                // Cleanup. Do it when things become too big only.
+                if self.seen.len() > 1024 {
+                    self.seen.retain(|&id| id >= candidate.doc_id);
+                }
                 return Some(candidate.doc_id);
             }
             // If we have seen it, we just continue until there are no more candidates.
