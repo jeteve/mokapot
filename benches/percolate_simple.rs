@@ -68,10 +68,11 @@ fn percolate_simple(c: &mut Criterion) {
             b.iter(|| mp.qids_from_document(&d).next())
         });
 
-        /* group.bench_with_input(BenchmarkId::new("simple_perc", &p), &p, |b, p| {
+        group.bench_with_input(BenchmarkId::new("simple_perc", &p), &p, |b, p| {
             b.iter(|| p.qids_from_document(&d).next())
         });
 
+        /*
         group.bench_with_input(BenchmarkId::new("hashmap", &h), &h, |b, h| {
             b.iter(|| h.as_hashmap().get(&value500.clone()).map(|v| v.first()))
         });
