@@ -3,12 +3,16 @@ use std::{collections::HashMap, rc::Rc};
 use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
+use mokapot::models::percolator::MultiPercolator;
 use mokapot::models::{
     documents::Document, percolator::Percolator, percolator::SimplePercolator, queries::TermQuery,
 };
 
-fn build_simple_percolator(n: u64) -> SimplePercolator {
-    let mut p = SimplePercolator::new();
+fn build_percolator<P>(n: u64) -> P
+where
+    P: Percolator + std::fmt::Display + Default,
+{
+    let mut p = P::default();
     let field: Rc<str> = "field".into();
     (0..n)
         .map(|n| Rc::new(TermQuery::new(field.clone(), format!("value{n}").into())))
@@ -49,23 +53,29 @@ fn percolate_simple(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("Onefield_matching");
 
-    for nqueries in [10000, 20000, 100000, 1000000] {
+    for nqueries in [100, 1000, 2000, 5000, 10000] {
         group.throughput(Throughput::Elements(nqueries));
 
-        let p = build_simple_percolator(nqueries);
+        let p = build_percolator::<SimplePercolator>(nqueries);
+        let mp = build_percolator::<MultiPercolator>(nqueries);
         let h = build_hashmap(nqueries);
 
         //group.bench_with_input(BenchmarkId::new("perc_dyna", &p), &p, |b, p| {
         //    b.iter(|| p.qids_from_document(&d).next())
         //});
 
-        group.bench_with_input(BenchmarkId::new("perc_static", &p), &p, |b, p| {
+        group.bench_with_input(BenchmarkId::new("multi_perc", &mp), &mp, |b, mp| {
+            b.iter(|| mp.qids_from_document(&d).next())
+        });
+
+        /* group.bench_with_input(BenchmarkId::new("simple_perc", &p), &p, |b, p| {
             b.iter(|| p.qids_from_document(&d).next())
         });
 
         group.bench_with_input(BenchmarkId::new("hashmap", &h), &h, |b, h| {
             b.iter(|| h.as_hashmap().get(&value500.clone()).map(|v| v.first()))
         });
+        */
     }
     group.finish();
 }

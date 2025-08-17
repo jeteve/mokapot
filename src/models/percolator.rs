@@ -48,7 +48,7 @@ impl std::default::Default for MultiPercolator {
     fn default() -> Self {
         Self {
             queries: Vec::new(),
-            clause_idxs: (0..5).map(|_| Index::new()).collect(),
+            clause_idxs: (0..2).map(|_| Index::new()).collect(),
         }
     }
 }
@@ -102,7 +102,7 @@ impl fmt::Display for MultiPercolator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Percolator-{} queries over {} clause_idxs",
+            "MultiPerc-{}Qs/{}IDXs",
             self.queries.len(),
             self.clause_idxs.len()
         )
@@ -172,7 +172,7 @@ pub struct SimplePercolator {
 
 impl fmt::Display for SimplePercolator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Percolator-{} queries", self.queries.len())
+        write!(f, "SimplePerl-{}Qs", self.queries.len())
     }
 }
 

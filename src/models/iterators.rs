@@ -55,7 +55,7 @@ where
                         *level = next;
                     }
                     None => {
-                        // We need to advance. We never ad
+                        // We need to advance. We never advanced before
                         *level = self.iterators[idx].next();
                     }
                     _ => continue, // No need to advance
@@ -66,13 +66,16 @@ where
                 return None;
             }
 
+            // None of the levels are None.
+
             // Next watermark and test for consistency match
             self.watermark = self
                 .iterator_levels
                 .iter()
-                .filter_map(|id| *id)
+                // unwrap is safe because of the invariant checked above
+                .map(|id| id.unwrap())
                 .max()
-                .expect("At least one iterator should have a value here");
+                .unwrap();
 
             // If all iterators have the same level, return the level.
             if self

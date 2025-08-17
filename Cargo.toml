@@ -23,7 +23,8 @@ fake = "4.4.0"
 # debug = true
 
 [profile.bench]
-debug = true
+# Uncomment and build again if you want to profile
+# debug = true
 
 [[bench]]
 name = "percolate_simple"
