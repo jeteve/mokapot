@@ -41,6 +41,10 @@ impl Clause {
         Self(ts.into_iter().map(Literal).collect())
     }
 
+    pub fn add_termquery(&mut self, tq: TermQuery) {
+        self.0.push(Literal(tq));
+    }
+
     pub fn match_all() -> Self {
         Self(vec![Literal(TermQuery::match_all())])
     }

@@ -4,7 +4,11 @@ use std::rc::Rc;
 use itertools::Itertools;
 
 use crate::models::{
-    cnf::Clause, documents::Document, index::Index, iterators::ConjunctionIterator, queries::Query,
+    cnf::Clause,
+    documents::Document,
+    index::Index,
+    iterators::ConjunctionIterator,
+    queries::{Query, TermQuery},
 };
 
 pub type Qid = usize;
@@ -49,6 +53,51 @@ impl std::default::Default for MultiPercolator {
     }
 }
 
+pub struct TrackedQid {
+    pre_idx: usize,
+    post_idx: usize,
+    pub qid: Qid,
+}
+impl TrackedQid {
+    pub fn n_skipped(&self) -> usize {
+        self.pre_idx - self.post_idx
+    }
+}
+
+impl MultiPercolator {
+    pub fn tracked_qids_from_document<'b>(
+        &self,
+        d: &'b Document,
+    ) -> impl Iterator<Item = TrackedQid> + use<'b, '_> {
+        // This is where the magic happens.
+        let dclause = Clause::from_clauses(vec![d.to_clause(), Clause::match_all()]);
+
+        // We are going to search this clause in all the clause indices
+        let clause_its = self
+            .clause_idxs
+            .iter()
+            .map(|idx| dclause.dids_from_idx(idx))
+            .collect_vec();
+
+        // And wrap all clauses into a ConjunctionIterator
+        ConjunctionIterator::new(clause_its)
+            // And a final filter, just to make sure.
+            .enumerate()
+            .filter(|&(_, query_id)| {
+                // For each document ID, we check if it matches the query.
+                // This is a bit inefficient, but we can optimize later.
+                //println!("MULTIMATCH: {}", self.queries[query_id].to_cnf());
+                self.queries[query_id].matches(d)
+            })
+            .enumerate()
+            .map(|(post_idx, (pre_idx, qid))| TrackedQid {
+                pre_idx,
+                post_idx,
+                qid,
+            })
+    }
+}
+
 impl fmt::Display for MultiPercolator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -88,9 +137,13 @@ impl Percolator for MultiPercolator {
 
     fn qids_from_document(&self, d: &Document) -> impl Iterator<Item = Qid> {
         // This is where the magic happens.
-        let dclause = Clause::from_clauses(vec![d.to_clause(), Clause::match_all()]);
+        let mut dclause = d.to_clause();
+        // Add the match all to match all queries
+        dclause.add_termquery(TermQuery::match_all());
 
         // We are going to search this clause in all the clause indices
+        // We indexed the matchall, so indices of a higher rank with no specific clause
+        // for a given request will still match.
         let clause_its = self
             .clause_idxs
             .iter()
@@ -103,7 +156,7 @@ impl Percolator for MultiPercolator {
             .filter(|&query_id| {
                 // For each document ID, we check if it matches the query.
                 // This is a bit inefficient, but we can optimize later.
-                println!("MULTIMATCH: {}", self.queries[query_id].to_cnf());
+                //println!("MULTIMATCH: {}", self.queries[query_id].to_cnf());
                 self.queries[query_id].matches(d)
             })
     }
@@ -130,6 +183,25 @@ impl SimplePercolator {
     pub fn add_sample_document(&mut self, d: &Document) {
         self.sample_docs.index_document(d);
     }
+
+    pub fn tracked_qids_from_document<'b>(
+        &self,
+        d: &'b Document,
+    ) -> impl Iterator<Item = TrackedQid> + use<'b, '_> {
+        d.to_clause()
+            .dids_from_idx(&self.qindex)
+            .enumerate()
+            .filter(|(_, qid)| {
+                //println!("SIMPLEMATCH: {}", self.queries[*qid].to_cnf());
+                self.queries[*qid].matches(d)
+            })
+            .enumerate()
+            .map(|(post_idx, (pre_idx, qid))| TrackedQid {
+                pre_idx,
+                post_idx,
+                qid,
+            })
+    }
 }
 
 impl Percolator for SimplePercolator {
@@ -153,9 +225,6 @@ impl Percolator for SimplePercolator {
     /// Uses the specially optimised TermDisjunction that doesn't use dynamic objects.
     /// as a Document ALWAYS turn into a TermDisjunction anyway.
     fn qids_from_document(&self, d: &Document) -> impl Iterator<Item = Qid> {
-        d.to_clause().dids_from_idx(&self.qindex).filter(|qid| {
-            println!("SIMPLEMATCH: {}", self.queries[*qid].to_cnf());
-            self.queries[*qid].matches(d)
-        })
+        self.tracked_qids_from_document(d).map(|tq| tq.qid)
     }
 }

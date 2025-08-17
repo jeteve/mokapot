@@ -4,10 +4,11 @@ Extensive test for percolating lots of documents against lot of queries.
 
 Using Simple Percolator with sampling:
 
-Pre/Post: 11215 1215
-Efficiency: 0.10833704859563086
+Skipped: 130145, Matched: 1154, Churn per match: 112.77729636048527
 
 Using plain MultiPercolator:
+
+Skipped: 0, Matched: 1145, Churn per match: 0
 
 
 */
@@ -15,6 +16,7 @@ Using plain MultiPercolator:
 use rand::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::Mutex;
 
 use fake::faker::address::en::*;
 use fake::Fake;
@@ -86,9 +88,9 @@ fn test_percolator() {
     //    p.add_sample_document(d);
     //}
 
-    // Generate and index 100 conjunction queries that operate on
+    // Generate and index 100,000 conjunction queries that operate on
     // different fields please.
-    for _ in 0..2000 {
+    for _ in 0..1000 {
         // The first query is always a random city.
 
         // WARNING. There will be no difference in efficiency
@@ -116,18 +118,31 @@ fn test_percolator() {
         p.add_query(Rc::new(q));
     }
 
-    for d in docs.iter().rev().take(20) {
-        println!("Percolating {:?}", d);
-        let mut res_i = p.qids_from_document(d);
+    let mut tot_skipped = 0;
+    let mut tot_matched = 0;
 
-        let res = res_i.by_ref().collect::<HashSet<Qid>>();
+    for d in docs.iter().rev().take(2000) {
+        //println!("Percolating {:?}", d);
+        let res_i = p.tracked_qids_from_document(d);
+
+        let res = res_i.collect::<Vec<_>>();
 
         // Same sets of Query IDs in both cases
-        println!("Matching queries:");
+        //println!("Matching queries:");
 
-        for qid in res.iter() {
-            let q = p.get_query(*qid);
-            println!("{:?}", q);
+        for tqid in res.iter() {
+            tot_skipped += tqid.n_skipped();
+            tot_matched += 1;
+            let q = p.get_query(tqid.qid);
+            //println!("{:?}", q);
         }
     }
+
+    assert!(tot_matched > 0);
+    println!(
+        "Skipped: {}, Matched: {}, Churn per match: {}",
+        tot_skipped,
+        tot_matched,
+        tot_skipped as f64 / tot_matched as f64,
+    );
 }
