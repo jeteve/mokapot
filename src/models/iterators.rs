@@ -8,7 +8,8 @@ where
     T: Iterator<Item = DocId>,
 {
     iterators: Vec<T>,
-    iterator_levels: Vec<Option<DocId>>,
+    iterator_levels: Vec<DocId>,
+    is_init: bool,
     watermark: DocId,
 }
 
@@ -17,10 +18,11 @@ where
     T: Iterator<Item = DocId>,
 {
     pub(crate) fn new(iterators: Vec<T>) -> Self {
-        let iterator_levels = vec![None; iterators.len()];
+        let iterator_levels = vec![DocId::MAX; iterators.len()];
         ConjunctionIterator {
             iterators,
             iterator_levels,
+            is_init: false,
             watermark: DocId::MAX,
         }
     }
@@ -38,54 +40,93 @@ where
         }
 
         loop {
-            // Advance all iterators that are lower than the watermark
-            for (idx, level) in self.iterator_levels.iter_mut().enumerate() {
-                match level {
-                    Some(doc_id) if *doc_id < self.watermark => {
-                        let next = self.iterators[idx].next();
-                        if let Some(next_docid) = next {
-                            assert!(
-                                next_docid >= *doc_id,
+            // Advance all iterators a first time on init.
+            if !self.is_init {
+                // Initialize the iterator levels
+                for (l, iter) in self
+                    .iterator_levels
+                    .iter_mut()
+                    .zip(self.iterators.iter_mut())
+                {
+                    if let Some(docid) = iter.next() {
+                        *l = docid;
+                    } else {
+                        return None;
+                    }
+                }
+                self.is_init = true;
+            } else {
+                // We have initialized the iterator levels.
+                // Now we need to advance the iterators that are below the watermark.
+                for (i, (l, iter)) in self
+                    .iterator_levels
+                    .iter_mut()
+                    .zip(self.iterators.iter_mut())
+                    .enumerate()
+                {
+                    if *l >= self.watermark {
+                        continue;
+                    }
+                    // Ok there is a need to advance
+                    if let Some(docid) = iter.next() {
+                        if docid < *l {
+                            panic!(
                                 "Invariant broken: next_docid={} < doc_id={} for iterator {}",
-                                next_docid,
-                                doc_id,
-                                idx
+                                docid, *l, i
                             );
                         }
-                        *level = next;
+                        *l = docid;
+                    } else {
+                        // If we cannot advance, we are done.
+                        return None;
                     }
-                    None => {
-                        // We need to advance. We never advanced before
-                        *level = self.iterators[idx].next();
-                    }
-                    _ => continue, // No need to advance
                 }
             }
+
+            /* for (idx, level) in self.iterator_levels.iter_mut().enumerate() {
+            match level {
+                Some(doc_id) if *doc_id < self.watermark => {
+                    let next = self.iterators[idx].next();
+                    // Removing this improves the perf..
+                    /*if let Some(next_docid) = next {
+                        assert!(
+                            next_docid >= *doc_id,
+                            "Invariant broken: next_docid={} < doc_id={} for iterator {}",
+                            next_docid,
+                            doc_id,
+                            idx
+                        );
+                    } */
+                    *level = next;
+                }
+                None => {
+                    // We need to advance. We never advanced before
+                    *level = self.iterators[idx].next();
+                }
+                _ => continue, // No need to advance
+            } */
+
+            // Note this has been returned earlier.
             // Any None means we are done.
-            if self.iterator_levels.iter().any(|id| id.is_none()) {
-                return None;
-            }
+            //if self.iterator_levels.iter().any(|id| id.is_none()) {
+            //    return None;
+            //}
 
             // None of the levels are None.
 
             // Next watermark and test for consistency match
-            self.watermark = self
+            self.watermark = *self
                 .iterator_levels
                 .iter()
                 // unwrap is safe because of the invariant checked above
-                .map(|id| id.unwrap())
                 .max()
                 .unwrap();
 
             // If all iterators have the same level, return the level.
-            if self
-                .iterator_levels
-                .iter()
-                .all(|&id| id == Some(self.watermark))
-            {
+            if self.iterator_levels.iter().all(|&id| id == self.watermark) {
                 // Push the watermark up by for the next round, so all iterators are advanced
                 self.watermark += 1;
-                return self.iterator_levels[0];
+                return Some(self.iterator_levels[0]);
             }
 
             // next iteration will advance the iterators that are late on the watermark.
