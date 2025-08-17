@@ -29,7 +29,8 @@ impl Index {
     pub fn term_iter(&self, field: Rc<str>, term: Rc<str>) -> impl Iterator<Item = DocId> + '_ {
         self.inverted_indices
             .get(&(field, term))
-            .map(|doc_ids| doc_ids.iter().cloned())
+            // Cloned will deref the &usize into usize
+            .map(|doc_ids| doc_ids.iter().copied())
             .unwrap_or_default()
     }
 
