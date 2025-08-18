@@ -1,7 +1,7 @@
 use crate::models::index::DocId;
 
-use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashSet};
+//use std::cmp::Reverse;
+//use std::collections::BinaryHeap;
 
 use rustc_hash::FxHashSet;
 
@@ -163,7 +163,8 @@ where
 {
     iterators: Vec<T>,
     seen: FxHashSet<DocId>,
-    candidates: BinaryHeap<Reverse<DocByIt>>,
+    //candidates: BinaryHeap<Reverse<DocByIt>>,
+    candidates: Vec<DocByIt>,
 }
 
 impl<T> DisjunctionIterator<T>
@@ -175,7 +176,8 @@ where
         DisjunctionIterator {
             iterators,
             seen: FxHashSet::default(),
-            candidates: BinaryHeap::with_capacity(n_its * 4),
+            //candidates: BinaryHeap::with_capacity(n_its * 4),
+            candidates: Vec::with_capacity(n_its * 4),
         }
     }
 
@@ -183,7 +185,8 @@ where
         // Advance all iterators and push the docIds in the current_docids.
         for (it_index, it) in self.iterators.iter_mut().enumerate() {
             if let Some(doc_id) = it.next() {
-                self.candidates.push(Reverse(DocByIt { doc_id, it_index }));
+                //self.candidates.push(Reverse(DocByIt { doc_id, it_index }));
+                self.candidates.push(DocByIt { doc_id, it_index });
             }
         }
     }
@@ -208,11 +211,17 @@ where
             // Ok we have some candidates.
 
             // Now we can pop the smallest candidate.
-            let candidate = self
+            self.candidates.sort_by(|a, b| b.cmp(a));
+
+            /*let candidate = self
                 .candidates
                 .pop()
                 .expect("candidate is not empty here")
                 .0;
+            */
+            // Unwrap is safe. We checked earlier we have candidates.
+            let candidate = self.candidates.pop().unwrap();
+
             // For next time, we advance this smallest candidate's iterator
             if let Some(new_docid) = self.iterators[candidate.it_index].next() {
                 // Enforce ordering invariant
@@ -223,10 +232,15 @@ where
                     candidate.it_index,
                     candidate.doc_id
                 );
-                self.candidates.push(Reverse(DocByIt {
+                /* self.candidates.push(Reverse(DocByIt {
                     doc_id: new_docid,
                     it_index: candidate.it_index,
                 }));
+                */
+                self.candidates.push(DocByIt {
+                    doc_id: new_docid,
+                    it_index: candidate.it_index,
+                })
             }
 
             if !self.seen.contains(&candidate.doc_id) {
