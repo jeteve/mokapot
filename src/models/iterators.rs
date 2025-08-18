@@ -3,6 +3,8 @@ use crate::models::index::DocId;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashSet};
 
+use rustc_hash::FxHashSet;
+
 pub(crate) struct ConjunctionIterator<T>
 where
     T: Iterator<Item = DocId>,
@@ -160,7 +162,7 @@ where
     T: Iterator<Item = DocId>,
 {
     iterators: Vec<T>,
-    seen: HashSet<DocId>,
+    seen: FxHashSet<DocId>,
     candidates: BinaryHeap<Reverse<DocByIt>>,
 }
 
@@ -172,8 +174,8 @@ where
         let n_its = iterators.len();
         DisjunctionIterator {
             iterators,
-            seen: HashSet::with_capacity(n_its * 2),
-            candidates: BinaryHeap::with_capacity(n_its * 2),
+            seen: FxHashSet::default(),
+            candidates: BinaryHeap::with_capacity(n_its * 4),
         }
     }
 

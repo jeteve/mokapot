@@ -10,6 +10,7 @@ default-run="mokapot"
 
 [dependencies]
 itertools = ">= 0.9.0"
+rustc-hash = ">= 2.1.1"
 
 [dev-dependencies]
 criterion = "0.5.1"
@@ -24,7 +25,7 @@ fake = "4.4.0"
 
 [profile.bench]
 # Uncomment and build again if you want to profile
-# debug = true
+debug = true
 
 [[bench]]
 name = "percolate_simple"
