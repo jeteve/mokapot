@@ -84,6 +84,9 @@ cargo bench --no-run
 
 cargo flamegraph --bench percolate_simple -- --bench --profile-time 5
 
+# Inspect in text:
+
+perf report --no-children
 ```
 
 

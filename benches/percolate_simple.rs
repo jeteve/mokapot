@@ -56,9 +56,9 @@ fn percolate_simple(c: &mut Criterion) {
     for nqueries in [100, 1000, 2000, 5000, 10000] {
         group.throughput(Throughput::Elements(1));
 
-        let p = build_percolator::<SimplePercolator>(nqueries);
+        //let p = build_percolator::<SimplePercolator>(nqueries);
         let mp = build_percolator::<MultiPercolator>(nqueries);
-        let h = build_hashmap(nqueries);
+        //let h = build_hashmap(nqueries);
 
         //group.bench_with_input(BenchmarkId::new("perc_dyna", &p), &p, |b, p| {
         //    b.iter(|| p.qids_from_document(&d).next())
@@ -70,8 +70,7 @@ fn percolate_simple(c: &mut Criterion) {
 
         /*group.bench_with_input(BenchmarkId::new("simple_perc", &p), &p, |b, p| {
             b.iter(|| p.qids_from_document(&d).next())
-        });
-        */
+        });*/
 
         /*
         group.bench_with_input(BenchmarkId::new("hashmap", &h), &h, |b, h| {

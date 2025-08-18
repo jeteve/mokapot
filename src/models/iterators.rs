@@ -165,6 +165,7 @@ where
     seen: FxHashSet<DocId>,
     //candidates: BinaryHeap<Reverse<DocByIt>>,
     candidates: Vec<DocByIt>,
+    // Bad idea.. crossed: Vec<bool>,
 }
 
 impl<T> DisjunctionIterator<T>
@@ -199,6 +200,8 @@ where
     type Item = DocId;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // Note: doing a 1 sub iterator trick does not improve perf.
+
         // Guarantees order and uniquness of emitted docIds
         loop {
             if self.candidates.is_empty() {

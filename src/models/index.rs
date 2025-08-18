@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+//use rustc_hash::FxHashMap;
+
 use super::documents::Document;
 
 pub type DocId = usize;
