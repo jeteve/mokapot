@@ -60,11 +60,10 @@ where
             } else {
                 // We have initialized the iterator levels.
                 // Now we need to advance the iterators that are below the watermark.
-                for (i, (l, iter)) in self
+                for (l, iter) in self
                     .iterator_levels
                     .iter_mut()
                     .zip(self.iterators.iter_mut())
-                    .enumerate()
                 {
                     if *l >= self.watermark {
                         continue;
@@ -266,7 +265,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use itertools::{kmerge, Itertools};
+    use itertools::Itertools;
 
     use super::*;
 

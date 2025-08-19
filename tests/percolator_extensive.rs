@@ -14,15 +14,14 @@ Skipped: 0, Matched: 1145, Churn per match: 0
 */
 
 use rand::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::Mutex;
 
 use fake::faker::address::en::*;
 use fake::Fake;
 
 use mokapot::models::documents::Document;
-use mokapot::models::percolator::{MultiPercolator, Percolator, Qid, SimplePercolator};
+use mokapot::models::percolator::{MultiPercolator, Percolator};
 use mokapot::models::queries::{ConjunctionQuery, Query, TermQuery};
 
 fn one_random_data<T: Clone>(d: &[T]) -> T {

@@ -2,7 +2,6 @@
 use crate::models::{
     documents::Document,
     index::{DocId, Index},
-    iterators::DisjunctionIterator,
     queries::{Query, TermQuery},
 };
 

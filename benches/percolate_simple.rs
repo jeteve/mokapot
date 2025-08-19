@@ -4,9 +4,7 @@ use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use mokapot::models::percolator::MultiPercolator;
-use mokapot::models::{
-    documents::Document, percolator::Percolator, percolator::SimplePercolator, queries::TermQuery,
-};
+use mokapot::models::{documents::Document, percolator::Percolator, queries::TermQuery};
 
 fn build_percolator<P>(n: u64) -> P
 where
