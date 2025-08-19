@@ -89,7 +89,7 @@ fn test_percolator() {
 
     // Generate and index 100,000 conjunction queries that operate on
     // different fields please.
-    for _ in 0..1000 {
+    for _ in 0..10000 {
         // The first query is always a random city.
 
         // WARNING. There will be no difference in efficiency
@@ -120,7 +120,7 @@ fn test_percolator() {
     let mut tot_skipped = 0;
     let mut tot_matched = 0;
 
-    for d in docs.iter().rev().take(2000) {
+    for d in docs.iter().rev().take(5000) {
         //println!("Percolating {:?}", d);
         let res_i = p.tracked_qids_from_document(d);
 
