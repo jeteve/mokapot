@@ -54,7 +54,9 @@ impl Clause {
     }
 
     pub fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
-        DisjunctionIterator::new(self.0.iter().map(|q| q.0.dids_from_idx(index)).collect())
+        let subits = self.0.iter().map(|q| q.0.dids_from_idx(index));
+        itertools::kmerge(subits).dedup()
+        //DisjunctionIterator::new(self.0.iter().map(|q| q.0.dids_from_idx(index)).collect())
     }
 
     pub fn matches(&self, d: &Document) -> bool {

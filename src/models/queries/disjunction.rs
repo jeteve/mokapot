@@ -3,6 +3,7 @@ use crate::models::cnf::CNFQuery;
 use crate::models::documents::Document;
 use crate::models::index::{DocId, Index};
 use crate::models::iterators;
+use itertools::*;
 
 #[derive(Debug)]
 pub struct DisjunctionQuery {
@@ -24,7 +25,8 @@ impl Query for DisjunctionQuery {
             .iter()
             .map(|q| q.docids_from_index(index))
             .collect();
-        Box::new(iterators::DisjunctionIterator::new(iterators))
+        Box::new(itertools::kmerge(iterators).dedup())
+        //Box::new(iterators::DisjunctionIterator::new(iterators))
     }
 
     fn to_document(&self) -> Document {

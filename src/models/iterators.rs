@@ -266,6 +266,8 @@ where
 
 #[cfg(test)]
 mod test {
+    use itertools::{kmerge, Itertools};
+
     use super::*;
 
     #[test]
@@ -339,8 +341,27 @@ mod test {
         assert_eq!(di.next(), None);
         assert_eq!(di.next(), None);
 
+        // Same but with kmerge
+        let mut di = itertools::kmerge(vec![(0..=3)]).dedup();
+        assert_eq!(di.next(), Some(0));
+        assert_eq!(di.next(), Some(1));
+        assert_eq!(di.next(), Some(2));
+        assert_eq!(di.next(), Some(3));
+        assert_eq!(di.next(), None);
+        assert_eq!(di.next(), None);
+
         // Overlapping
-        let mut di = DisjunctionIterator::new(vec![(0..=3), (2..=5)]);
+        let mut di = DisjunctionIterator::new(vec![(0..=3), (2..=5)]).unique();
+        assert_eq!(di.next(), Some(0));
+        assert_eq!(di.next(), Some(1));
+        assert_eq!(di.next(), Some(2));
+        assert_eq!(di.next(), Some(3));
+        assert_eq!(di.next(), Some(4));
+        assert_eq!(di.next(), Some(5));
+        assert_eq!(di.next(), None);
+        assert_eq!(di.next(), None);
+        // Same but with kmerge/dedup
+        let mut di = itertools::kmerge(vec![(0..=3), (2..=5)]).dedup();
         assert_eq!(di.next(), Some(0));
         assert_eq!(di.next(), Some(1));
         assert_eq!(di.next(), Some(2));
@@ -356,6 +377,26 @@ mod test {
             vec![1, 3, 7].into_iter(),
             vec![1, 2, 3, 5, 8, 8, 9].into_iter(),
         ]);
+        assert_eq!(di.next(), Some(0));
+        assert_eq!(di.next(), Some(1));
+        assert_eq!(di.next(), Some(2));
+        assert_eq!(di.next(), Some(3));
+        assert_eq!(di.next(), Some(4));
+        assert_eq!(di.next(), Some(5));
+        assert_eq!(di.next(), Some(6));
+        assert_eq!(di.next(), Some(7));
+        assert_eq!(di.next(), Some(8));
+        assert_eq!(di.next(), Some(9));
+        assert_eq!(di.next(), None);
+        assert_eq!(di.next(), None);
+
+        // Same but with kmerge
+        let mut di = itertools::kmerge(vec![
+            vec![0, 2, 4, 6].into_iter(),
+            vec![1, 3, 7].into_iter(),
+            vec![1, 2, 3, 5, 8, 8, 9].into_iter(),
+        ])
+        .dedup();
         assert_eq!(di.next(), Some(0));
         assert_eq!(di.next(), Some(1));
         assert_eq!(di.next(), Some(2));
