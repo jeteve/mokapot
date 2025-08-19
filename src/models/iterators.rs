@@ -70,13 +70,17 @@ where
                         continue;
                     }
                     // Ok there is a need to advance
-                    if let Some(docid) = iter.next() {
-                        if docid < *l {
-                            panic!(
-                                "Invariant broken: next_docid={} < doc_id={} for iterator {}",
-                                docid, *l, i
-                            );
-                        }
+                    // We advance at least to the watermark, as there would be
+                    // no point to advance to something lower.
+                    if let Some(docid) = //iter.next() {
+                        iter.find(|d| *d >= self.watermark)
+                    {
+                        // if docid < *l {
+                        //     panic!(
+                        //         "Invariant broken: next_docid={} < doc_id={} for iterator {}",
+                        //         docid, *l, i
+                        //     );
+                        // }
                         *l = docid;
                     } else {
                         // If we cannot advance, we are done.
@@ -265,6 +269,17 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_next_matching() {
+        let mut i = vec![1, 2, 3, 4, 5, 6].into_iter();
+        let v = i.find(|v| *v >= 5);
+        assert_eq!(v, Some(5));
+        let v = i.find(|v| *v >= 5);
+        assert_eq!(v, Some(6));
+        let v = i.find(|v| *v >= 5);
+        assert!(v.is_none());
+    }
+
+    #[test]
     fn test_conjunction_iterator() {
         let mut ci: ConjunctionIterator<std::ops::Range<usize>> = ConjunctionIterator::new(vec![]);
         assert_eq!(ci.next(), None);
@@ -298,17 +313,17 @@ mod test {
         assert_eq!(ci.next(), None);
     }
 
-    #[test]
-    #[should_panic(expected = "Invariant broken: next_docid=2 < doc_id=4 for iterator 0")]
-    fn test_broken_conjunction_iterator() {
-        // Broken invariant:
-        let ci = ConjunctionIterator::new(vec![
-            vec![0, 2, 3, 4, 2, 6].into_iter(),
-            vec![1, 3, 7].into_iter(),
-            vec![1, 2, 9, 3, 5, 8, 8, 9].into_iter(),
-        ]);
-        let _ = ci.collect::<Vec<_>>();
-    }
+    // #[test]
+    // #[should_panic(expected = "Invariant broken: next_docid=2 < doc_id=4 for iterator 0")]
+    // fn test_broken_conjunction_iterator() {
+    //     // Broken invariant:
+    //     let ci = ConjunctionIterator::new(vec![
+    //         vec![0, 2, 3, 4, 2, 6].into_iter(),
+    //         vec![1, 3, 7].into_iter(),
+    //         vec![1, 2, 9, 3, 5, 8, 8, 9].into_iter(),
+    //     ]);
+    //     let _ = ci.collect::<Vec<_>>();
+    // }
 
     #[test]
     fn test_disjunction_iterator() {

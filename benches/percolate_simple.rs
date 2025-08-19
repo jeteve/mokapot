@@ -47,18 +47,19 @@ fn build_hashmap(n: u64) -> JustAMap {
 }
 
 fn percolate_simple(c: &mut Criterion) {
-    // Build the percolators with 1000 simple queries.
-    let value500: Rc<str> = "value500".into();
-    let d = Document::new().with_value("field", value500.clone());
-
     let mut group = c.benchmark_group("Onefield_matching");
 
     for nqueries in [100, 1000, 2000, 5000, 10000] {
         group.throughput(Throughput::Elements(1));
 
+        // Build percolators with n queries field=valueN
         //let p = build_percolator::<SimplePercolator>(nqueries);
         let mp = build_percolator::<MultiPercolator>(nqueries);
         //let h = build_hashmap(nqueries);
+
+        // Find the first decile value.
+        let mid_value: Rc<str> = format!("value{}", nqueries / 10).into();
+        let d = Document::new().with_value("field", mid_value.clone());
 
         //group.bench_with_input(BenchmarkId::new("perc_dyna", &p), &p, |b, p| {
         //    b.iter(|| p.qids_from_document(&d).next())
