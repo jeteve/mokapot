@@ -14,7 +14,7 @@ Skipped: 0, Matched: 1145, Churn per match: 0
 */
 
 use rand::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use fake::faker::address::en::*;
@@ -125,6 +125,11 @@ fn test_percolator() {
         let res_i = p.tracked_qids_from_document(d);
 
         let res = res_i.collect::<Vec<_>>();
+
+        assert!(
+            res.iter().map(|tqid| tqid.qid).collect::<HashSet<_>>()
+                == p.bs_qids_from_document(d).collect::<HashSet<_>>()
+        );
 
         // Same sets of Query IDs in both cases
         //println!("Matching queries:");

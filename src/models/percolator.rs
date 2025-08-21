@@ -88,6 +88,8 @@ impl MultiPercolator {
             .collect_vec();
 
         clause_bss.reverse();
+
+        // There is at least one index, so at least one clause bitset
         let mut res = clause_bss.pop().unwrap();
         for other_bs in clause_bss.iter().rev() {
             res.intersect_with(other_bs);
