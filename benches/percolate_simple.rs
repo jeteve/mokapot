@@ -4,7 +4,7 @@ use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use mokapot::models::percolator::{MultiPercolator, SimplePercolator};
-use mokapot::models::queries::{ConjunctionQuery, DisjunctionQuery};
+use mokapot::models::queries::ConjunctionQuery;
 use mokapot::models::{documents::Document, percolator::Percolator, queries::TermQuery};
 
 const FIELD: &str = "field";
@@ -55,7 +55,7 @@ fn build_hashmap(n: u64) -> JustAMap {
 fn percolate_simple(c: &mut Criterion) {
     let mut group = c.benchmark_group("Onefield_matching");
 
-    for nqueries in [100, 1000, 2000, 5000, 10000, 20000, 50000] {
+    for nqueries in [100, 10000, 50000] {
         group.throughput(Throughput::Elements(1));
 
         // Build percolators with n queries field=valueN
@@ -75,12 +75,7 @@ fn percolate_simple(c: &mut Criterion) {
         });
 
         group.bench_with_input(BenchmarkId::new("multi_perc", &mp), &mp, |b, mp| {
-            b.iter(|| {
-                mp.bs_from_document(&d)
-                    .ones() // mp.qids_from_document(&d)
-                    .next()
-                    .unwrap()
-            })
+            b.iter(|| mp.bs_qids_from_document(&d).next().unwrap())
         });
 
         /*group.bench_with_input(BenchmarkId::new("simple_perc", &p), &p, |b, p| {

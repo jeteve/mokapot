@@ -4,7 +4,7 @@ use std::rc::Rc;
 use itertools::Itertools;
 
 use crate::models::{
-    cnf::Clause,
+    cnf::{CNFQuery, Clause},
     documents::Document,
     index::Index,
     iterators::ConjunctionIterator,
@@ -41,6 +41,7 @@ pub trait Percolator: fmt::Display {
 #[derive(Debug)]
 pub struct MultiPercolator {
     queries: Vec<Rc<dyn Query>>,
+    cnf_queries: Vec<CNFQuery>,
     clause_idxs: Vec<Index>,
 }
 
@@ -48,6 +49,7 @@ impl std::default::Default for MultiPercolator {
     fn default() -> Self {
         Self {
             queries: Vec::new(),
+            cnf_queries: Vec::new(),
             clause_idxs: (0..3).map(|_| Index::new()).collect(),
         }
     }
@@ -65,6 +67,14 @@ impl TrackedQid {
 }
 
 impl MultiPercolator {
+    pub fn bs_qids_from_document<'b>(
+        &self,
+        d: &'b Document,
+    ) -> impl Iterator<Item = Qid> + use<'b, '_> {
+        self.bs_from_document(d)
+            .into_ones()
+            .filter(|&qid| self.cnf_queries[qid].matches(d))
+    }
     pub fn bs_from_document(&self, d: &Document) -> fixedbitset::FixedBitSet {
         // This is where the magic happens.
         let mut dclause = d.to_clause();
@@ -79,7 +89,7 @@ impl MultiPercolator {
 
         clause_bss.reverse();
         let mut res = clause_bss.pop().unwrap();
-        for other_bs in clause_bss.iter() {
+        for other_bs in clause_bss.iter().rev() {
             res.intersect_with(other_bs);
         }
 
@@ -149,6 +159,8 @@ impl Percolator for MultiPercolator {
                 assert_eq!(idx.len(), self.queries.len());
             });
 
+        self.cnf_queries.push(cnf);
+
         new_doc_id
     }
 
@@ -178,7 +190,7 @@ impl Percolator for MultiPercolator {
                 // For each document ID, we check if it matches the query.
                 // This is a bit inefficient, but we can optimize later.
                 //println!("MULTIMATCH: {}", self.queries[query_id].to_cnf());
-                self.queries[query_id].matches(d)
+                self.cnf_queries[query_id].matches(d)
             })
     }
 }

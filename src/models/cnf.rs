@@ -149,6 +149,12 @@ impl CNFQuery {
             .map(|c| c.to_document())
             .chain(iter::repeat(Document::match_all()).take(1000))
     }
+
+    ///
+    /// Does this query match a document?
+    pub fn matches(&self, d: &Document) -> bool {
+        self.0.iter().all(|c| c.matches(d))
+    }
 }
 
 #[cfg(test)]
