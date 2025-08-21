@@ -65,6 +65,27 @@ impl TrackedQid {
 }
 
 impl MultiPercolator {
+    pub fn bs_from_document(&self, d: &Document) -> fixedbitset::FixedBitSet {
+        // This is where the magic happens.
+        let mut dclause = d.to_clause();
+        // Add the match all to match all queries
+        dclause.add_termquery(TermQuery::match_all());
+
+        let mut clause_bss = self
+            .clause_idxs
+            .iter()
+            .map(|idx| dclause.bs_from_idx(idx))
+            .collect_vec();
+
+        clause_bss.reverse();
+        let mut res = clause_bss.pop().unwrap();
+        for other_bs in clause_bss.iter() {
+            res.intersect_with(other_bs);
+        }
+
+        res
+    }
+
     pub fn tracked_qids_from_document<'b>(
         &self,
         d: &'b Document,

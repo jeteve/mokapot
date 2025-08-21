@@ -34,6 +34,11 @@ impl TermQuery {
     // in the concrete impl implementation.
     pub fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
         index.term_iter(self.field.clone(), self.term.clone())
+        //index.term_bs(self.field.clone(), self.term.clone()).ones()
+    }
+
+    pub fn bs_from_idx<'a>(&self, index: &'a Index) -> &'a fixedbitset::FixedBitSet {
+        index.term_bs(self.field.clone(), self.term.clone())
     }
 }
 

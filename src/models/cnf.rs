@@ -58,6 +58,23 @@ impl Clause {
         //DisjunctionIterator::new(self.0.iter().map(|q| q.0.dids_from_idx(index)).collect())
     }
 
+    pub fn bs_from_idx(&self, index: &Index) -> fixedbitset::FixedBitSet {
+        if self.0.is_empty() {
+            return fixedbitset::FixedBitSet::default();
+        }
+
+        let sub_bss = self.0.iter().map(|q| q.0.bs_from_idx(index)).collect_vec();
+        // Unwrap is safe (empty case above)
+        let max_size = sub_bss.iter().map(|b| b.len()).max().unwrap();
+
+        let mut bs = fixedbitset::FixedBitSet::with_capacity(max_size);
+        for sub_bs in sub_bss {
+            bs.union_with(sub_bs);
+        }
+
+        bs
+    }
+
     pub fn matches(&self, d: &Document) -> bool {
         self.0.iter().any(|q| q.0.matches(d))
     }

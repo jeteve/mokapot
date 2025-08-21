@@ -4,19 +4,27 @@ use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use mokapot::models::percolator::{MultiPercolator, SimplePercolator};
+use mokapot::models::queries::{ConjunctionQuery, DisjunctionQuery};
 use mokapot::models::{documents::Document, percolator::Percolator, queries::TermQuery};
 
-fn build_percolator<P>(n: u64) -> P
+const FIELD: &str = "field";
+const FIELD2: &str = "second_field";
+
+fn build_query(n: usize) -> ConjunctionQuery {
+    let q1 = TermQuery::new(FIELD.into(), format!("value{n}").into());
+    // Only 4 values for this one.
+    let q2 = TermQuery::new(FIELD2.into(), format!("value{}", n % 4).into());
+    ConjunctionQuery::new(vec![Box::new(q1), Box::new(q2)])
+}
+
+fn build_percolator<P>(n: usize) -> P
 where
     P: Percolator + std::fmt::Display + Default,
 {
     let mut p = P::default();
-    let field: Rc<str> = "field".into();
-    (0..n)
-        .map(|n| Rc::new(TermQuery::new(field.clone(), format!("value{n}").into())))
-        .for_each(|q| {
-            p.add_query(q);
-        });
+    (0..n).map(build_query).for_each(|q| {
+        p.add_query(Rc::new(q));
+    });
     p
 }
 
@@ -47,7 +55,7 @@ fn build_hashmap(n: u64) -> JustAMap {
 fn percolate_simple(c: &mut Criterion) {
     let mut group = c.benchmark_group("Onefield_matching");
 
-    for nqueries in [100, 1000, 2000, 5000, 10000] {
+    for nqueries in [100, 1000, 2000, 5000, 10000, 20000, 50000] {
         group.throughput(Throughput::Elements(1));
 
         // Build percolators with n queries field=valueN
@@ -57,14 +65,22 @@ fn percolate_simple(c: &mut Criterion) {
 
         // Find the first decile value.
         let mid_value: Rc<str> = format!("value{}", nqueries / 10).into();
-        let d = Document::new().with_value("field", mid_value.clone());
+        let second_value: Rc<str> = format!("value{}", nqueries / 10 % 4).into();
+        let d = Document::new()
+            .with_value("field", mid_value.clone())
+            .with_value("second_field", second_value);
 
         group.bench_with_input(BenchmarkId::new("perc_dyna", &p), &p, |b, p| {
-            b.iter(|| p.qids_from_document(&d).next())
+            b.iter(|| p.qids_from_document(&d).next().unwrap())
         });
 
         group.bench_with_input(BenchmarkId::new("multi_perc", &mp), &mp, |b, mp| {
-            b.iter(|| mp.qids_from_document(&d).next())
+            b.iter(|| {
+                mp.bs_from_document(&d)
+                    .ones() // mp.qids_from_document(&d)
+                    .next()
+                    .unwrap()
+            })
         });
 
         /*group.bench_with_input(BenchmarkId::new("simple_perc", &p), &p, |b, p| {

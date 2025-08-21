@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use fixedbitset::FixedBitSet;
+
 //use rustc_hash::FxHashMap;
 
 use super::documents::Document;
@@ -13,6 +15,8 @@ pub struct Index {
     documents: Vec<Document>,
     // The inverted indices for each ( field,  value)
     inverted_indices: HashMap<(Rc<str>, Rc<str>), Vec<DocId>>,
+    inverted_idx_bs: HashMap<(Rc<str>, Rc<str>), FixedBitSet>,
+    empty_bs: FixedBitSet,
 }
 
 impl Index {
@@ -36,6 +40,12 @@ impl Index {
             .unwrap_or_default()
     }
 
+    pub fn term_bs(&self, field: Rc<str>, term: Rc<str>) -> &FixedBitSet {
+        self.inverted_idx_bs
+            .get(&(field, term))
+            .unwrap_or(&self.empty_bs)
+    }
+
     pub fn index_document(&mut self, d: &Document) -> DocId {
         // Save the new document
         self.documents.push(d.clone());
@@ -50,6 +60,13 @@ impl Index {
                     .entry((field.clone(), value.clone()))
                     .or_default();
                 value_index.push(new_doc_id);
+
+                let value_bs = self
+                    .inverted_idx_bs
+                    .entry((field.clone(), value.clone()))
+                    .or_default();
+
+                value_bs.grow_and_insert(new_doc_id);
             }
         }
         new_doc_id

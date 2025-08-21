@@ -2,7 +2,6 @@ use super::query::*;
 use crate::models::cnf::CNFQuery;
 use crate::models::documents::Document;
 use crate::models::index::{DocId, Index};
-use crate::models::iterators;
 use itertools::*;
 
 #[derive(Debug)]
