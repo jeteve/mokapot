@@ -132,7 +132,7 @@ fn test_percolator() {
         for tqid in res.iter() {
             tot_skipped += tqid.n_skipped();
             tot_matched += 1;
-            let q = p.get_query(tqid.qid);
+            //let q = p.get_query(tqid.qid);
             //println!("{:?}", q);
         }
     }
