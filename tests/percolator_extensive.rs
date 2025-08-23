@@ -128,7 +128,7 @@ fn test_percolator() {
 
         assert!(
             res.iter().map(|tqid| tqid.qid).collect::<HashSet<_>>()
-                == p.bs_qids_from_document(d).collect::<HashSet<_>>()
+                == HashSet::from_iter(p.vec_qids_from_document(d).into_iter()),
         );
 
         // Same sets of Query IDs in both cases

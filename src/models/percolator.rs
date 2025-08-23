@@ -6,10 +6,13 @@ use itertools::Itertools;
 use crate::models::{
     cnf::{CNFQuery, Clause},
     documents::Document,
-    index::Index,
+    index::{BitSet, Index},
     iterators::ConjunctionIterator,
     queries::{Query, TermQuery},
 };
+
+use hi_sparse_bitset::reduce;
+use hi_sparse_bitset::{ops::*, BitSetInterface};
 
 pub type Qid = usize;
 
@@ -66,36 +69,41 @@ impl TrackedQid {
     }
 }
 
-impl MultiPercolator {
-    pub fn bs_qids_from_document<'b>(
-        &self,
-        d: &'b Document,
-    ) -> impl Iterator<Item = Qid> + use<'b, '_> {
-        self.bs_from_document(d)
-            .into_ones()
-            .filter(|&qid| self.cnf_queries[qid].matches(d))
-    }
-    pub fn bs_from_document(&self, d: &Document) -> fixedbitset::FixedBitSet {
-        // This is where the magic happens.
-        let mut dclause = d.to_clause();
-        // Add the match all to match all queries
-        dclause.add_termquery(TermQuery::match_all());
+fn ensure_fn<F, T, R>(f: F) -> F
+where
+    F: Fn(T) -> R,
+{
+    f
+}
 
-        let mut clause_bss = self
+impl MultiPercolator {
+    pub fn vec_qids_from_document(&self, d: &Document) -> Vec<Qid> {
+        self.bs_qids_from_document(d)
+            .map_or(Vec::new(), |i| i.collect_vec())
+    }
+
+    pub fn bs_qids_from_document<'a, 'b>(
+        &'a self,
+        d: &'b Document,
+    ) -> Option<impl Iterator<Item = Qid> + use<'a, 'b>> {
+        let bs = self.bs_from_document(d);
+        bs.map(|i| i.into_iter().filter(|&did| self.queries[did].matches(d)))
+    }
+
+    pub fn bs_from_document<'a, 'b>(
+        &'a self,
+        d: &'b Document,
+    ) -> Option<impl BitSetInterface + use<'a, 'b>> {
+        // This is where the magic happens.
+        let dclause = d.to_clause().with_termquery(TermQuery::match_all());
+
+        // Add the match all to match all queries
+        let clause_bss = self
             .clause_idxs
             .iter()
-            .map(|idx| dclause.bs_from_idx(idx))
-            .collect_vec();
-
-        clause_bss.reverse();
-
-        // There is at least one index, so at least one clause bitset
-        let mut res = clause_bss.pop().unwrap();
-        for other_bs in clause_bss.iter().rev() {
-            res.intersect_with(other_bs);
-        }
-
-        res
+            // It's ok to clone the clause here.
+            .filter_map(move |idx| dclause.clone().owned_bs_from_idx(idx)); //.collect::<Vec<_>>();
+        reduce(And, clause_bss)
     }
 
     pub fn tracked_qids_from_document<'b>(

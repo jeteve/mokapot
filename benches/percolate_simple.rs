@@ -75,7 +75,11 @@ fn percolate_simple(c: &mut Criterion) {
         });
 
         group.bench_with_input(BenchmarkId::new("multi_perc", &mp), &mp, |b, mp| {
-            b.iter(|| mp.bs_qids_from_document(&d).next().unwrap())
+            b.iter(|| {
+                mp.bs_qids_from_document(&d)
+                    .and_then(|mut i| i.next())
+                    .unwrap()
+            })
         });
 
         /*group.bench_with_input(BenchmarkId::new("simple_perc", &p), &p, |b, p| {

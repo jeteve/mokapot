@@ -39,7 +39,7 @@ fn test_few_docs() {
 
     assert!(index
         .term_bs("shape".into(), "sausage".into())
-        .ones()
+        .iter()
         .next()
         .is_none());
 
@@ -50,7 +50,7 @@ fn test_few_docs() {
 
     assert!(index
         .term_bs(colour.clone(), "purple".into())
-        .ones()
+        .iter()
         .next()
         .is_none());
 
@@ -61,7 +61,7 @@ fn test_few_docs() {
 
     assert!(index
         .term_bs(colour.clone(), "blue".into())
-        .ones()
+        .iter()
         .next()
         .is_some());
 
@@ -72,7 +72,7 @@ fn test_few_docs() {
 
     assert!(index
         .term_bs(taste.clone(), "sweet".into())
-        .ones()
+        .iter()
         .next()
         .is_some());
 
@@ -84,7 +84,7 @@ fn test_few_docs() {
 
     let sweet_docs = index
         .term_bs(taste.clone(), "sweet".into())
-        .ones()
+        .iter()
         .collect::<Vec<_>>();
 
     assert_eq!(sweet_docs, vec![2]);
@@ -96,7 +96,7 @@ fn test_few_docs() {
 
     let blue_docs = index
         .term_bs(colour.clone(), "blue".into())
-        .ones()
+        .iter()
         .collect::<Vec<_>>();
     assert_eq!(blue_docs, vec![0, 2]);
 }

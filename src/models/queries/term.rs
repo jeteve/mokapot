@@ -37,7 +37,7 @@ impl TermQuery {
         //index.term_bs(self.field.clone(), self.term.clone()).ones()
     }
 
-    pub fn bs_from_idx<'a>(&self, index: &'a Index) -> &'a fixedbitset::FixedBitSet {
+    pub fn bs_from_idx<'a>(&self, index: &'a Index) -> &'a BitSet {
         index.term_bs(self.field.clone(), self.term.clone())
     }
 }

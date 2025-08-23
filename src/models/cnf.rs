@@ -1,12 +1,15 @@
 // Strongly inspired by https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
 use crate::models::{
     documents::Document,
-    index::{DocId, Index},
+    index::{BitSet, DocId, Index},
     percolator::Qid,
     queries::{Query, TermQuery},
 };
 
-use fixedbitset::FixedBitSet;
+use hi_sparse_bitset::reduce;
+use hi_sparse_bitset::{ops::*, BitSetInterface};
+
+//use fixedbitset::FixedBitSet;
 use itertools::Itertools;
 
 use std::{fmt, iter};
@@ -35,7 +38,7 @@ impl fmt::Display for Literal {
     }
 }
 
-static EMPTY_BS: FixedBitSet = FixedBitSet::new();
+// Not possible with the type.. static EMPTY_BS: BitSet = BitSet::default();
 
 #[derive(Debug, Clone)]
 pub struct Clause(Vec<Literal>);
@@ -46,6 +49,11 @@ impl Clause {
 
     pub fn add_termquery(&mut self, tq: TermQuery) {
         self.0.push(Literal(tq));
+    }
+
+    pub fn with_termquery(mut self, tq: TermQuery) -> Self {
+        self.add_termquery(tq);
+        self
     }
 
     pub fn match_all() -> Self {
@@ -61,12 +69,19 @@ impl Clause {
         itertools::kmerge(subits).dedup()
     }
 
-    pub fn bs_from_idx(&self, index: &Index) -> FixedBitSet {
-        let mut ret = EMPTY_BS.clone();
-        self.0.iter().for_each(|q| {
-            ret.union_with(q.0.bs_from_idx(index));
-        });
-        ret
+    pub fn bs_from_idx<'a>(
+        &self,
+        index: &'a Index,
+    ) -> Option<impl BitSetInterface + Clone + use<'a, '_>> {
+        reduce(Or, self.0.iter().map(|q| q.0.bs_from_idx(index)))
+    }
+
+    pub fn owned_bs_from_idx<'a>(
+        self,
+        index: &'a Index,
+    ) -> Option<impl BitSetInterface + Clone + use<'a>> {
+        let bitsets = self.0.iter().map(|q| q.0.bs_from_idx(index)).collect_vec();
+        reduce(Or, bitsets.into_iter())
     }
 
     pub fn matches(&self, d: &Document) -> bool {

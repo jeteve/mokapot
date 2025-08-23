@@ -11,7 +11,8 @@ default-run="mokapot"
 [dependencies]
 itertools = ">= 0.9.0"
 rustc-hash = ">= 2.1.1"
-fixedbitset = "0.5.7"
+hi_sparse_bitset = "0.7.2"
+
 
 [dev-dependencies]
 criterion = "0.5.1"
@@ -23,6 +24,9 @@ fake = "4.4.0"
 
 [profile.release]
 # debug = true
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-feature=+popcnt,+bmi1"]
 
 [profile.bench]
 # Uncomment and build again if you want to profile

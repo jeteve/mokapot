@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use fixedbitset::FixedBitSet;
+//use fixedbitset::FixedBitSet;
 
+// Doesn't work great with Rc<str> as keys.
 //use rustc_hash::FxHashMap;
 
 use super::documents::Document;
 
 pub type DocId = usize;
+
+pub type BitSet = hi_sparse_bitset::BitSet<hi_sparse_bitset::config::_128bit>;
 
 #[derive(Debug, Default)]
 pub struct Index {
@@ -15,8 +18,8 @@ pub struct Index {
     documents: Vec<Document>,
     // The inverted indices for each ( field,  value)
     inverted_indices: HashMap<(Rc<str>, Rc<str>), Vec<DocId>>,
-    inverted_idx_bs: HashMap<(Rc<str>, Rc<str>), FixedBitSet>,
-    empty_bs: FixedBitSet,
+    inverted_idx_bs: HashMap<(Rc<str>, Rc<str>), BitSet>,
+    empty_bs: BitSet,
 }
 
 impl Index {
@@ -40,7 +43,7 @@ impl Index {
             .unwrap_or_default()
     }
 
-    pub fn term_bs(&self, field: Rc<str>, term: Rc<str>) -> &FixedBitSet {
+    pub fn term_bs(&self, field: Rc<str>, term: Rc<str>) -> &BitSet {
         self.inverted_idx_bs
             .get(&(field, term))
             .unwrap_or(&self.empty_bs)
@@ -66,7 +69,7 @@ impl Index {
                     .entry((field.clone(), value.clone()))
                     .or_default();
 
-                value_bs.grow_and_insert(new_doc_id);
+                value_bs.insert(new_doc_id);
             }
         }
         new_doc_id
