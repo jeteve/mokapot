@@ -93,3 +93,12 @@ perf report --no-children
 # Project URL
 
 mokapot is developped at https://github.com/jeteve/mokapot/.
+
+
+# Performance notes.
+
+## On simple benchmark
+
+Simple percolator =~ 5M Percolation/s
+(vector based) Multi percolator: 50K Perc/s
+(fixedbitset based) Multi percolator =~ 1M Perc/s 
