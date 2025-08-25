@@ -32,3 +32,7 @@ debug = true
 [[bench]]
 name = "percolate_simple"
 harness = false
+
+[[bench]]
+name = "percolate_real"
+harness = false
