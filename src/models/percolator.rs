@@ -12,7 +12,7 @@ use crate::models::{
     queries::{Query, TermQuery},
 };
 
-pub type Qid = u64;
+pub type Qid = u32;
 
 pub trait Percolator: fmt::Display {
     /**
@@ -74,7 +74,6 @@ impl MultiPercolator {
     ) -> impl Iterator<Item = Qid> + use<'b, '_> {
         self.bs_from_document(d)
             .into_iter()
-            .map(|x| u64::from(x))
             .filter(|&qid| self.cnf_queries[qid as usize].matches(d))
     }
     pub fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
@@ -145,6 +144,10 @@ impl fmt::Display for MultiPercolator {
 }
 
 impl Percolator for MultiPercolator {
+    ///
+    /// Adds a query to this percolator. Will panic if
+    /// there is more than u32::MAX queries.
+    ///
     fn add_query(&mut self, q: Rc<dyn Query>) -> Qid {
         // Get the document from the query
         // and index in the query index.
@@ -165,7 +168,7 @@ impl Percolator for MultiPercolator {
 
         self.cnf_queries.push(cnf);
 
-        new_doc_id as u64
+        new_doc_id.try_into().unwrap()
     }
 
     fn get_query(&self, qid: Qid) -> Rc<dyn Query> {
@@ -196,7 +199,7 @@ impl Percolator for MultiPercolator {
                 //println!("MULTIMATCH: {}", self.queries[query_id].to_cnf());
                 self.cnf_queries[query_id].matches(d)
             })
-            .map(|x| x as u64)
+            .map(|x| x as Qid)
     }
 }
 
@@ -237,7 +240,7 @@ impl SimplePercolator {
             .map(|(post_idx, (pre_idx, qid))| TrackedQid {
                 pre_idx,
                 post_idx,
-                qid: qid as u64,
+                qid: qid as Qid,
             })
     }
 }
@@ -256,7 +259,7 @@ impl Percolator for SimplePercolator {
 
         assert_eq!(self.queries.len(), self.qindex.len());
 
-        doc_id as u64
+        doc_id as Qid
     }
 
     ///
