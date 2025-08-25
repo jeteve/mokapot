@@ -6,8 +6,9 @@ use crate::models::{
     queries::{Query, TermQuery},
 };
 
-use fixedbitset::FixedBitSet;
+//use fixedbitset::FixedBitSet;
 use itertools::Itertools;
+use roaring::RoaringBitmap;
 
 use std::{fmt, iter};
 
@@ -35,8 +36,6 @@ impl fmt::Display for Literal {
     }
 }
 
-static EMPTY_BS: FixedBitSet = FixedBitSet::new();
-
 #[derive(Debug, Clone)]
 pub struct Clause(Vec<Literal>);
 impl Clause {
@@ -61,10 +60,10 @@ impl Clause {
         itertools::kmerge(subits).dedup()
     }
 
-    pub fn bs_from_idx(&self, index: &Index) -> FixedBitSet {
-        let mut ret = EMPTY_BS.clone();
+    pub fn bs_from_idx(&self, index: &Index) -> RoaringBitmap {
+        let mut ret = RoaringBitmap::new();
         self.0.iter().for_each(|q| {
-            ret.union_with(q.0.bs_from_idx(index));
+            ret |= q.0.bs_from_idx(index);
         });
         ret
     }

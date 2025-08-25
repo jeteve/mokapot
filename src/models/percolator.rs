@@ -2,6 +2,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use itertools::Itertools;
+use roaring::RoaringBitmap;
 
 use crate::models::{
     cnf::{CNFQuery, Clause},
@@ -11,7 +12,7 @@ use crate::models::{
     queries::{Query, TermQuery},
 };
 
-pub type Qid = usize;
+pub type Qid = u64;
 
 pub trait Percolator: fmt::Display {
     /**
@@ -72,10 +73,11 @@ impl MultiPercolator {
         d: &'b Document,
     ) -> impl Iterator<Item = Qid> + use<'b, '_> {
         self.bs_from_document(d)
-            .into_ones()
-            .filter(|&qid| self.cnf_queries[qid].matches(d))
+            .into_iter()
+            .map(|x| u64::from(x))
+            .filter(|&qid| self.cnf_queries[qid as usize].matches(d))
     }
-    pub fn bs_from_document(&self, d: &Document) -> fixedbitset::FixedBitSet {
+    pub fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
         // This is where the magic happens.
         let mut dclause = d.to_clause();
         // Add the match all to match all queries
@@ -92,7 +94,7 @@ impl MultiPercolator {
         // There is at least one index, so at least one clause bitset
         let mut res = clause_bss.pop().unwrap();
         for other_bs in clause_bss.iter().rev() {
-            res.intersect_with(other_bs);
+            res &= other_bs;
         }
 
         res
@@ -126,7 +128,7 @@ impl MultiPercolator {
             .map(|(post_idx, (pre_idx, qid))| TrackedQid {
                 pre_idx,
                 post_idx,
-                qid,
+                qid: qid.try_into().unwrap(),
             })
     }
 }
@@ -163,11 +165,11 @@ impl Percolator for MultiPercolator {
 
         self.cnf_queries.push(cnf);
 
-        new_doc_id
+        new_doc_id as u64
     }
 
     fn get_query(&self, qid: Qid) -> Rc<dyn Query> {
-        self.queries[qid].clone()
+        self.queries[qid as usize].clone()
     }
 
     fn qids_from_document(&self, d: &Document) -> impl Iterator<Item = Qid> {
@@ -194,6 +196,7 @@ impl Percolator for MultiPercolator {
                 //println!("MULTIMATCH: {}", self.queries[query_id].to_cnf());
                 self.cnf_queries[query_id].matches(d)
             })
+            .map(|x| x as u64)
     }
 }
 
@@ -234,14 +237,14 @@ impl SimplePercolator {
             .map(|(post_idx, (pre_idx, qid))| TrackedQid {
                 pre_idx,
                 post_idx,
-                qid,
+                qid: qid as u64,
             })
     }
 }
 
 impl Percolator for SimplePercolator {
     fn get_query(&self, qid: Qid) -> Rc<dyn Query> {
-        self.queries[qid].clone()
+        self.queries[qid as usize].clone()
     }
 
     fn add_query(&mut self, q: Rc<dyn Query>) -> Qid {
@@ -253,7 +256,7 @@ impl Percolator for SimplePercolator {
 
         assert_eq!(self.queries.len(), self.qindex.len());
 
-        doc_id
+        doc_id as u64
     }
 
     ///

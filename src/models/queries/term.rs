@@ -1,3 +1,5 @@
+use roaring::RoaringBitmap;
+
 use crate::models::cnf::CNFQuery;
 use crate::models::documents::Document;
 use crate::models::index::*;
@@ -37,7 +39,7 @@ impl TermQuery {
         //index.term_bs(self.field.clone(), self.term.clone()).ones()
     }
 
-    pub fn bs_from_idx<'a>(&self, index: &'a Index) -> &'a fixedbitset::FixedBitSet {
+    pub fn bs_from_idx<'a>(&self, index: &'a Index) -> &'a RoaringBitmap {
         index.term_bs(self.field.clone(), self.term.clone())
     }
 }
