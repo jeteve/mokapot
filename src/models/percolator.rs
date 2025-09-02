@@ -77,6 +77,8 @@ impl MultiPercolator {
             .filter(|&qid| self.cnf_queries[qid as usize].matches(d))
     }
 
+    // Clearly not a good idea..
+    // DO NOT use this..
     pub fn hybrid_qids_from_document<'b>(
         &self,
         d: &'b Document,
