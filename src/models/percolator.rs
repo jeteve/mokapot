@@ -76,6 +76,21 @@ impl MultiPercolator {
             .into_iter()
             .filter(|&qid| self.cnf_queries[qid as usize].matches(d))
     }
+
+    pub fn hybrid_qids_from_document<'b>(
+        &self,
+        d: &'b Document,
+    ) -> impl Iterator<Item = Qid> + use<'b, '_> {
+        let dclause = d.to_clause();
+        let clause_bss = self
+            .clause_idxs
+            .iter()
+            .map(|idx| dclause.bs_from_idx(idx).into_iter())
+            .collect_vec();
+
+        ConjunctionIterator::new(clause_bss)
+    }
+
     pub fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
         // This is where the magic happens.
         let mut dclause = d.to_clause();
