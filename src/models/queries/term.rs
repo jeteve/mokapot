@@ -35,8 +35,11 @@ impl TermQuery {
     // Specialized method. Cannot be part of a trait for use of lifetime
     // in the concrete impl implementation.
     pub fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
-        index.term_iter(self.field.clone(), self.term.clone())
-        //index.term_bs(self.field.clone(), self.term.clone()).ones()
+        //index.term_iter(self.field.clone(), self.term.clone())
+        index
+            .term_bs(self.field.clone(), self.term.clone())
+            .iter()
+            .clone()
     }
 
     pub fn bs_from_idx<'a>(&self, index: &'a Index) -> &'a RoaringBitmap {

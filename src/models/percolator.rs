@@ -138,13 +138,13 @@ impl MultiPercolator {
                 // For each document ID, we check if it matches the query.
                 // This is a bit inefficient, but we can optimize later.
                 //println!("MULTIMATCH: {}", self.queries[query_id].to_cnf());
-                self.queries[query_id].matches(d)
+                self.queries[query_id as usize].matches(d)
             })
             .enumerate()
             .map(|(post_idx, (pre_idx, qid))| TrackedQid {
                 pre_idx,
                 post_idx,
-                qid: qid.try_into().unwrap(),
+                qid,
             })
     }
 }
@@ -214,7 +214,7 @@ impl Percolator for MultiPercolator {
                 // For each document ID, we check if it matches the query.
                 // This is a bit inefficient, but we can optimize later.
                 //println!("MULTIMATCH: {}", self.queries[query_id].to_cnf());
-                self.cnf_queries[query_id].matches(d)
+                self.cnf_queries[query_id as usize].matches(d)
             })
             .map(|x| x as Qid)
     }
@@ -251,7 +251,7 @@ impl SimplePercolator {
             .enumerate()
             .filter(|(_, qid)| {
                 //println!("SIMPLEMATCH: {}", self.queries[*qid].to_cnf());
-                self.queries[*qid].matches(d)
+                self.queries[*qid as usize].matches(d)
             })
             .enumerate()
             .map(|(post_idx, (pre_idx, qid))| TrackedQid {

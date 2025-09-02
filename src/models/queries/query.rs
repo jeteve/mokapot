@@ -35,14 +35,14 @@ pub struct DocPredicate {
 pub trait Query: std::fmt::Debug {
     fn to_cnf(&self) -> CNFQuery;
 
-    /**
-     * An iterator on all the DocIds matching this query in the index.
-     */
+    ///
+    ///An iterator on all the DocIds matching this query in the index.
+    ///
     fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a>;
 
-    /**
-     * An iterator on all the Documents matching this query in the index.
-     */
+    ///
+    ///An iterator on all the Documents matching this query in the index.
+    ///
     fn docs_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = &'a Document> + 'a> {
         Box::new(
             self.docids_from_index(index)

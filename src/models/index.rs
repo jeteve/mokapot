@@ -9,7 +9,7 @@ use roaring::RoaringBitmap;
 
 use super::documents::Document;
 
-pub type DocId = usize;
+pub type DocId = u32;
 
 #[derive(Debug, Default)]
 pub struct Index {
@@ -52,7 +52,9 @@ impl Index {
         // Save the new document
         self.documents.push(d.clone());
 
-        let new_doc_id = self.documents.len() - 1;
+        let new_doc_id = (self.documents.len() - 1)
+            .try_into()
+            .expect("Exceeded max size for index");
 
         // Update the right inverted indices.
         for field in d.fields() {
@@ -68,14 +70,14 @@ impl Index {
                     .entry((field.clone(), value.clone()))
                     .or_default();
 
-                value_bs.insert(new_doc_id.try_into().unwrap());
+                value_bs.insert(new_doc_id); // Note this only works with u32s
             }
         }
         new_doc_id
     }
 
     pub fn get_document(&self, doc_id: DocId) -> Option<&Document> {
-        self.documents.get(doc_id)
+        self.documents.get(doc_id as usize)
     }
 
     pub fn get_documents(&self) -> &[Document] {
