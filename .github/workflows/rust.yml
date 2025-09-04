@@ -18,6 +18,17 @@ jobs:
     - uses: actions/checkout@v4
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+      with:
+        # Optional: specify additional cache key components
+        key: "v1" # bump this to invalidate cache
+        # Cache on a per-job basis
+        shared-key: "stable"
+        # Don't cache the target/ directory of workspace members
+        cache-targets: "true"
+        # Cache ~/.cargo/registry/src
+        cache-all-crates: "true"
     - name: Build
       run: cargo build
     - name: Run tests
