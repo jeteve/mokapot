@@ -5,7 +5,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use mokapot::models::percolator::MultiPercolator;
 use mokapot::models::queries::ConjunctionQuery;
-use mokapot::models::{documents::Document, percolator::Percolator, queries::TermQuery};
+use mokapot::models::{documents::Document, queries::TermQuery};
 
 const FIELD: &str = "field";
 const FIELD2: &str = "second_field";
@@ -17,11 +17,8 @@ fn build_query(n: usize) -> ConjunctionQuery {
     ConjunctionQuery::new(vec![Box::new(q1), Box::new(q2)])
 }
 
-fn build_percolator<P>(n: usize) -> P
-where
-    P: Percolator + std::fmt::Display + Default,
-{
-    let mut p = P::default();
+fn build_percolator(n: usize) -> MultiPercolator {
+    let mut p = MultiPercolator::default();
     (0..n).map(build_query).for_each(|q| {
         p.add_query(Rc::new(q));
     });
@@ -59,7 +56,7 @@ fn percolate_simple(c: &mut Criterion) {
         group.throughput(Throughput::Elements(1));
 
         // Build percolators with n queries field=valueN
-        let mp = build_percolator::<MultiPercolator>(nqueries);
+        let mp = build_percolator(nqueries);
         //let h = build_hashmap(nqueries);
 
         // Find the first decile value.

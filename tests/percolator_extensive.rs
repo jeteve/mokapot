@@ -21,7 +21,7 @@ use fake::faker::address::en::*;
 use fake::Fake;
 
 use mokapot::models::documents::Document;
-use mokapot::models::percolator::{MultiPercolator, Percolator};
+use mokapot::models::percolator::MultiPercolator;
 use mokapot::models::queries::{ConjunctionQuery, Query, TermQuery};
 
 fn one_random_data<T: Clone>(d: &[T]) -> T {

@@ -14,29 +14,6 @@ use crate::models::{
 
 pub type Qid = u32;
 
-pub trait Percolator: fmt::Display {
-    /// Adds a query
-    fn add_query(&mut self, q: Rc<dyn Query>) -> Qid;
-
-    /**
-    Get the query by the ID returned earlier.
-    Panics if the ID is invalid.
-    */
-    fn get_query(&self, qid: Qid) -> Rc<dyn Query>;
-
-    /**
-    The Query IDs matching the given Document as an iterator.
-
-    This is the *main* feature of a percolator.
-    */
-    fn qids_from_document(&self, d: &Document) -> impl Iterator<Item = Qid>;
-
-    /*
-    The specificity of the indexing strategy. Its more an internal metric really.
-     */
-    //fn indexing_specificity(&self) -> f64;
-}
-
 fn clause_to_document(c: &Clause) -> Document {
     c.literals().iter().fold(Document::default(), |a, l| {
         a.with_value(l.field(), l.term())
@@ -185,12 +162,12 @@ impl fmt::Display for MultiPercolator {
     }
 }
 
-impl Percolator for MultiPercolator {
+impl MultiPercolator {
     ///
     /// Adds a query to this percolator. Will panic if
     /// there is more than u32::MAX queries.
     ///
-    fn add_query(&mut self, q: Rc<dyn Query>) -> Qid {
+    pub fn add_query(&mut self, q: Rc<dyn Query>) -> Qid {
         // Get the document from the query
         // and index in the query index.
         let cnf = q.to_cnf();
@@ -213,11 +190,14 @@ impl Percolator for MultiPercolator {
         new_doc_id.try_into().unwrap()
     }
 
-    fn get_query(&self, qid: Qid) -> Rc<dyn Query> {
+    pub fn get_query(&self, qid: Qid) -> Rc<dyn Query> {
         self.queries[qid as usize].clone()
     }
 
-    fn qids_from_document(&self, d: &Document) -> impl Iterator<Item = Qid> {
+    pub fn qids_from_document<'a>(
+        &self,
+        d: &'a Document,
+    ) -> impl Iterator<Item = Qid> + use<'_, 'a> {
         // This is where the magic happens.
         let mut dclause = d.to_clause();
         // Add the match all to match all queries

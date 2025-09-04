@@ -8,7 +8,7 @@ use fake::faker::address::en::CountryName;
 use fake::Fake;
 use mokapot::models::percolator::MultiPercolator;
 use mokapot::models::queries::ConjunctionQuery;
-use mokapot::models::{documents::Document, percolator::Percolator, queries::TermQuery};
+use mokapot::models::{documents::Document, queries::TermQuery};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -46,15 +46,12 @@ fn build_query<R: Rng + ?Sized>(
     ConjunctionQuery::new(vec![Box::new(q1), Box::new(q1b), Box::new(q3)])
 }
 
-fn build_percolator<P, R: Rng + ?Sized>(
+fn build_percolator<R: Rng + ?Sized>(
     n: usize,
     third_fields: &HashMap<&str, Vec<String>>,
     rng: &mut R,
-) -> P
-where
-    P: Percolator + std::fmt::Display + Default,
-{
-    let mut p = P::default();
+) -> MultiPercolator {
+    let mut p = MultiPercolator::default();
     (0..n)
         .map(|n| build_query(n, third_fields, rng))
         .for_each(|q| {
@@ -115,7 +112,7 @@ fn percolate_real(c: &mut Criterion) {
         let mut rng = StdRng::seed_from_u64(42);
 
         // Build percolators with n queries field=valueN
-        let mp = build_percolator::<MultiPercolator, StdRng>(nqueries, &third_fields, &mut rng);
+        let mp = build_percolator::<StdRng>(nqueries, &third_fields, &mut rng);
 
         let input_size = criterion::BatchSize::SmallInput;
 
