@@ -1,5 +1,5 @@
-use std::fmt;
 use std::rc::Rc;
+use std::{fmt, iter};
 
 use itertools::Itertools;
 use roaring::RoaringBitmap;
@@ -37,6 +37,16 @@ pub trait Percolator: fmt::Display {
     The specificity of the indexing strategy. Its more an internal metric really.
      */
     //fn indexing_specificity(&self) -> f64;
+}
+
+/*
+    From a CNFQuery, The documents that are meant to be indexed in the percolator
+*/
+fn cnf_to_documents(q: &CNFQuery) -> impl Iterator<Item = Document> + use<'_> {
+    q.clauses()
+        .iter()
+        .map(|c| c.to_document())
+        .chain(iter::repeat(Document::match_all()).take(1000))
 }
 
 #[derive(Debug)]
@@ -187,7 +197,7 @@ impl Percolator for MultiPercolator {
         // The Clause index is controlling the zip.
         self.clause_idxs
             .iter_mut()
-            .zip(cnf.to_documents())
+            .zip(cnf_to_documents(&cnf))
             .for_each(|(idx, doc)| {
                 //rintln!("For CNF={} -IDXDOC- {:?}", cnf, doc);
                 idx.index_document(&doc);
@@ -295,5 +305,103 @@ impl Percolator for SimplePercolator {
     /// as a Document ALWAYS turn into a TermDisjunction anyway.
     fn qids_from_document(&self, d: &Document) -> impl Iterator<Item = Qid> {
         self.tracked_qids_from_document(d).map(|tq| tq.qid)
+    }
+}
+
+mod test_cnf {
+
+    #[test]
+    fn test_empty() {
+        use super::*;
+        let cnf = CNFQuery::default();
+        assert_eq!(cnf_to_documents(&cnf).next(), Some(Document::match_all()));
+    }
+
+    #[test]
+    fn test_literal() {
+        use super::*;
+        let term_query = TermQuery::new("field".into(), "value".into());
+        let cnf_query = CNFQuery::from_literal(term_query);
+        let mut docs = cnf_to_documents(&cnf_query);
+        assert_eq!(
+            docs.next(),
+            Some(Document::default().with_value("field", "value"))
+        );
+    }
+
+    #[test]
+    fn test_from_and() {
+        use super::*;
+        let term_query1 = TermQuery::new("field1".into(), "value1".into());
+        let term_query2 = TermQuery::new("field2".into(), "value2".into());
+        let cnf_query1 = CNFQuery::from_literal(term_query1);
+        let cnf_query2 = CNFQuery::from_literal(term_query2);
+        let combined = CNFQuery::from_and(vec![cnf_query1, cnf_query2]);
+        // Structure would be:
+        assert_eq!(
+            combined.to_string(),
+            "(AND (OR field1=value1) (OR field2=value2))"
+        );
+        let mut docs = cnf_to_documents(&combined);
+        assert_eq!(
+            docs.next(),
+            Some(Document::default().with_value("field1", "value1"))
+        );
+        assert_eq!(
+            docs.next(),
+            Some(Document::default().with_value("field2", "value2"))
+        );
+        assert_eq!(docs.next(), Some(Document::match_all()));
+    }
+
+    #[test]
+    fn test_from_or() {
+        use super::*;
+        let x = TermQuery::new("X".into(), "x".into());
+        let y = TermQuery::new("Y".into(), "y".into());
+        let cnf_query1 = CNFQuery::from_literal(x.clone());
+        let cnf_query2 = CNFQuery::from_literal(y.clone());
+        let combined = CNFQuery::from_or_two(cnf_query1, cnf_query2);
+
+        let mut docs = cnf_to_documents(&combined);
+        assert_eq!(
+            docs.next(),
+            Some(
+                Document::default()
+                    .with_value("X", "x")
+                    .with_value("Y", "y")
+            )
+        );
+        assert_eq!(docs.next(), Some(Document::match_all()));
+
+        // (x AND Y) OR Z:
+        // The Z
+        let z = TermQuery::new("Z".into(), "z".into());
+        let q = CNFQuery::from_or_two(
+            CNFQuery::from_and(vec![
+                CNFQuery::from_literal(x.clone()),
+                CNFQuery::from_literal(y.clone()),
+            ]),
+            CNFQuery::from_literal(z.clone()),
+        );
+        assert_eq!(q.to_string(), "(AND (OR X=x Z=z) (OR Y=y Z=z))");
+        let mut docs = cnf_to_documents(&q);
+        assert_eq!(
+            docs.next(),
+            Some(
+                Document::default()
+                    .with_value("X", "x")
+                    .with_value("Z", "z")
+            )
+        );
+        assert_eq!(
+            docs.next(),
+            Some(
+                Document::default()
+                    .with_value("Y", "y")
+                    .with_value("Z", "z")
+            )
+        );
+        assert_eq!(docs.next(), Some(Document::match_all()));
     }
 }
