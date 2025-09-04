@@ -67,7 +67,7 @@ fn percolate_simple(c: &mut Criterion) {
             .with_value("second_field", second_value);
 
         group.bench_with_input(BenchmarkId::new("multi_perc", &mp), &mp, |b, mp| {
-            b.iter(|| mp.bs_qids_from_document(&d).next().unwrap())
+            b.iter(|| mp.percolate(&d).next().unwrap())
         });
 
         /*group.bench_with_input(BenchmarkId::new("simple_perc", &p), &p, |b, p| {

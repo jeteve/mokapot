@@ -59,10 +59,9 @@ impl TrackedQid {
 }
 
 impl Percolator {
-    pub fn bs_qids_from_document<'b>(
-        &self,
-        d: &'b Document,
-    ) -> impl Iterator<Item = Qid> + use<'b, '_> {
+    /// Percolate a document through this, returning an iterator
+    /// of the matching query IDs
+    pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = Qid> + use<'b, '_> {
         self.bs_from_document(d)
             .into_iter()
             .filter(|&qid| self.cnf_queries[qid as usize].matches(d))

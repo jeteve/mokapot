@@ -119,7 +119,7 @@ fn percolate_real(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("multi_perc", &mp), |b| {
             b.iter_batched(
                 || build_document(nqueries, &third_fields, &mut rng),
-                |d| black_box(mp.bs_qids_from_document(&d).next()),
+                |d| black_box(mp.percolate(&d).next()),
                 //|d| black_box(mp.hybrid_qids_from_document(&d).next()),
                 //|d| black_box(mp.qids_from_document(&d).next()),
                 //|d| black_box(mp.it_from_document(&d).next()),
