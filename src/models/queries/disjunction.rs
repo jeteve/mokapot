@@ -28,17 +28,7 @@ impl Query for DisjunctionQuery {
             .map(|q| q.dids_from_idx(index))
             .collect();
         Box::new(itertools::kmerge(iterators).dedup())
-        //Box::new(iterators::DisjunctionIterator::new(iterators))
     }
-
-    /* fn to_document(&self) -> Document {
-        // Returns all fields from the queries,
-        // as the incoming document will turn into a Disjunction query.
-        self.0
-            .clauses()
-            .iter()
-            .fold(Document::default(), |a, q| a.merge_with(&q.to_document()))
-    } */
 
     fn to_cnf(&self) -> CNFQuery {
         self.0.clone()
