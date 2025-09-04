@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -23,30 +23,6 @@ fn build_percolator(n: usize) -> Percolator {
         p.add_query(Rc::new(q));
     });
     p
-}
-
-// Compare with simple hashmap access
-struct JustAMap(HashMap<Rc<str>, Vec<usize>>);
-impl JustAMap {
-    fn as_hashmap(&self) -> &HashMap<Rc<str>, Vec<usize>> {
-        &self.0
-    }
-}
-impl std::fmt::Display for JustAMap {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "HashMap-{} strings", self.0.len())
-    }
-}
-
-fn build_hashmap(n: u64) -> JustAMap {
-    let mut h: HashMap<Rc<str>, Vec<usize>> = HashMap::new();
-    for pretend_qid in 0..n {
-        h.insert(
-            format!("value{pretend_qid}").into(),
-            vec![pretend_qid.try_into().unwrap()],
-        );
-    }
-    JustAMap(h)
 }
 
 fn percolate_simple(c: &mut Criterion) {

@@ -106,7 +106,7 @@ fn percolate_real(c: &mut Criterion) {
         ),
     ]);
 
-    for nqueries in [10000, 50000] {
+    for nqueries in [10000, 50000, 100000] {
         group.throughput(Throughput::Elements(1));
 
         let mut rng = StdRng::seed_from_u64(42);
