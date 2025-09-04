@@ -6,7 +6,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use fake::faker::address::en::CountryName;
 use fake::Fake;
-use mokapot::models::percolator::MultiPercolator;
+use mokapot::models::percolator::Percolator;
 use mokapot::models::queries::ConjunctionQuery;
 use mokapot::models::{documents::Document, queries::TermQuery};
 use rand::rngs::StdRng;
@@ -50,8 +50,8 @@ fn build_percolator<R: Rng + ?Sized>(
     n: usize,
     third_fields: &HashMap<&str, Vec<String>>,
     rng: &mut R,
-) -> MultiPercolator {
-    let mut p = MultiPercolator::default();
+) -> Percolator {
+    let mut p = Percolator::default();
     (0..n)
         .map(|n| build_query(n, third_fields, rng))
         .for_each(|q| {

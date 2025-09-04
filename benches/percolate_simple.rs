@@ -3,7 +3,7 @@ use std::{collections::HashMap, rc::Rc};
 use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
-use mokapot::models::percolator::MultiPercolator;
+use mokapot::models::percolator::Percolator;
 use mokapot::models::queries::ConjunctionQuery;
 use mokapot::models::{documents::Document, queries::TermQuery};
 
@@ -17,8 +17,8 @@ fn build_query(n: usize) -> ConjunctionQuery {
     ConjunctionQuery::new(vec![Box::new(q1), Box::new(q2)])
 }
 
-fn build_percolator(n: usize) -> MultiPercolator {
-    let mut p = MultiPercolator::default();
+fn build_percolator(n: usize) -> Percolator {
+    let mut p = Percolator::default();
     (0..n).map(build_query).for_each(|q| {
         p.add_query(Rc::new(q));
     });

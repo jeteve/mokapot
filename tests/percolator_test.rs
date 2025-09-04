@@ -2,13 +2,13 @@ use std::rc::Rc;
 
 use mokapot::models::{
     documents::Document,
-    percolator::{MultiPercolator, Qid},
+    percolator::{Percolator, Qid},
     queries::{ConjunctionQuery, DisjunctionQuery, TermQuery},
 };
 
 #[test]
 fn test_percolator() {
-    let mut mp = MultiPercolator::default();
+    let mut mp = Percolator::default();
     let q1 = Rc::new(TermQuery::new("colour".into(), "blue".into()));
     let q1_id = mp.add_query(q1.clone());
     assert_eq!(q1_id, 0);

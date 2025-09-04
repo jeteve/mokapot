@@ -21,7 +21,7 @@ use fake::faker::address::en::*;
 use fake::Fake;
 
 use mokapot::models::documents::Document;
-use mokapot::models::percolator::MultiPercolator;
+use mokapot::models::percolator::Percolator;
 use mokapot::models::queries::{ConjunctionQuery, Query, TermQuery};
 
 fn one_random_data<T: Clone>(d: &[T]) -> T {
@@ -80,7 +80,7 @@ fn test_percolator() {
         docs.push(d);
     }
 
-    let mut p = MultiPercolator::default();
+    let mut p = Percolator::default();
 
     // Add 5000 documents as a sample
     //for d in docs.iter().take(10000) {

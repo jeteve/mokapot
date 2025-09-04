@@ -31,13 +31,13 @@ fn cnf_to_documents(q: &CNFQuery) -> impl Iterator<Item = Document> + use<'_> {
 }
 
 #[derive(Debug)]
-pub struct MultiPercolator {
+pub struct Percolator {
     queries: Vec<Rc<dyn Query>>,
     cnf_queries: Vec<CNFQuery>,
     clause_idxs: Vec<Index>,
 }
 
-impl std::default::Default for MultiPercolator {
+impl std::default::Default for Percolator {
     fn default() -> Self {
         Self {
             queries: Vec::new(),
@@ -58,7 +58,7 @@ impl TrackedQid {
     }
 }
 
-impl MultiPercolator {
+impl Percolator {
     pub fn bs_qids_from_document<'b>(
         &self,
         d: &'b Document,
@@ -151,7 +151,7 @@ impl MultiPercolator {
     }
 }
 
-impl fmt::Display for MultiPercolator {
+impl fmt::Display for Percolator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -162,7 +162,7 @@ impl fmt::Display for MultiPercolator {
     }
 }
 
-impl MultiPercolator {
+impl Percolator {
     ///
     /// Adds a query to this percolator. Will panic if
     /// there is more than u32::MAX queries.
