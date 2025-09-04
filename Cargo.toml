@@ -10,8 +10,6 @@ default-run="mokapot"
 
 [dependencies]
 itertools = ">= 0.9.0"
-rustc-hash = ">= 2.1.1"
-#fixedbitset = "0.5.7"
 roaring = "0.11.2"
 num-traits = "0.2.19"
 

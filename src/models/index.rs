@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-// use fixedbitset::FixedBitSet;
-
-//use rustc_hash::FxHashMap;
-
 use roaring::RoaringBitmap;
 
 use super::documents::Document;
