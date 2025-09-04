@@ -14,7 +14,7 @@ Skipped: 0, Matched: 1145, Churn per match: 0
 */
 
 use rand::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use fake::faker::address::en::*;
@@ -116,37 +116,4 @@ fn test_percolator() {
         //println!("Adding query={}", q.to_cnf());
         p.add_query(Rc::new(q));
     }
-
-    let mut tot_skipped = 0;
-    let mut tot_matched = 0;
-
-    for d in docs.iter().rev().take(5000) {
-        //println!("Percolating {:?}", d);
-        let res_i = p.tracked_qids_from_document(d);
-
-        let res = res_i.collect::<Vec<_>>();
-
-        assert!(
-            res.iter().map(|tqid| tqid.qid).collect::<HashSet<_>>()
-                == p.bs_qids_from_document(d).collect::<HashSet<_>>()
-        );
-
-        // Same sets of Query IDs in both cases
-        //println!("Matching queries:");
-
-        for tqid in res.iter() {
-            tot_skipped += tqid.n_skipped();
-            tot_matched += 1;
-            //let q = p.get_query(tqid.qid);
-            //println!("{:?}", q);
-        }
-    }
-
-    assert!(tot_matched > 0);
-    println!(
-        "Skipped: {}, Matched: {}, Churn per match: {}",
-        tot_skipped,
-        tot_matched,
-        tot_skipped as f64 / tot_matched as f64,
-    );
 }

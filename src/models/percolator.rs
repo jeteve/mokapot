@@ -68,34 +68,7 @@ impl Percolator {
             .filter(|&qid| self.cnf_queries[qid as usize].matches(d))
     }
 
-    // This is catastrophic compared to bs_qids_from_document.
-    pub fn it_from_document<'a>(&self, d: &'a Document) -> impl Iterator<Item = Qid> + use<'a, '_> {
-        let clause_its = self
-            .clause_idxs
-            .iter()
-            .map(|idx| d.to_clause().it_from_idx(idx))
-            .collect_vec();
-        ConjunctionIterator::new(clause_its)
-            .filter(|&qid| self.cnf_queries[qid as usize].matches(d))
-    }
-
-    // Clearly not a good idea..
-    // DO NOT use this..
-    pub fn hybrid_qids_from_document<'b>(
-        &self,
-        d: &'b Document,
-    ) -> impl Iterator<Item = Qid> + use<'b, '_> {
-        let dclause = d.to_clause();
-        let clause_bss = self
-            .clause_idxs
-            .iter()
-            .map(|idx| dclause.bs_from_idx(idx).into_iter())
-            .collect_vec();
-
-        ConjunctionIterator::new(clause_bss)
-    }
-
-    pub fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
+    fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
         // This is where the magic happens.
         let mut dclause = d.to_clause();
         // Add the match all to match all queries
@@ -116,38 +89,6 @@ impl Percolator {
         }
 
         res
-    }
-
-    pub fn tracked_qids_from_document<'b>(
-        &self,
-        d: &'b Document,
-    ) -> impl Iterator<Item = TrackedQid> + use<'b, '_> {
-        // This is where the magic happens.
-        let dclause = Clause::from_clauses(vec![d.to_clause(), Clause::match_all()]);
-
-        // We are going to search this clause in all the clause indices
-        let clause_its = self
-            .clause_idxs
-            .iter()
-            .map(|idx| dclause.dids_from_idx(idx))
-            .collect_vec();
-
-        // And wrap all clauses into a ConjunctionIterator
-        ConjunctionIterator::new(clause_its)
-            // And a final filter, just to make sure.
-            .enumerate()
-            .filter(|&(_, query_id)| {
-                // For each document ID, we check if it matches the query.
-                // This is a bit inefficient, but we can optimize later.
-                //println!("MULTIMATCH: {}", self.queries[query_id].to_cnf());
-                self.queries[query_id as usize].matches(d)
-            })
-            .enumerate()
-            .map(|(post_idx, (pre_idx, qid))| TrackedQid {
-                pre_idx,
-                post_idx,
-                qid,
-            })
     }
 }
 
