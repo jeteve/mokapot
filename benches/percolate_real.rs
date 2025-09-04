@@ -6,7 +6,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use fake::faker::address::en::CountryName;
 use fake::Fake;
-use mokapot::models::percolator::{MultiPercolator, SimplePercolator};
+use mokapot::models::percolator::MultiPercolator;
 use mokapot::models::queries::ConjunctionQuery;
 use mokapot::models::{documents::Document, percolator::Percolator, queries::TermQuery};
 use rand::rngs::StdRng;
@@ -115,18 +115,9 @@ fn percolate_real(c: &mut Criterion) {
         let mut rng = StdRng::seed_from_u64(42);
 
         // Build percolators with n queries field=valueN
-        let p = build_percolator::<SimplePercolator, StdRng>(nqueries, &third_fields, &mut rng);
         let mp = build_percolator::<MultiPercolator, StdRng>(nqueries, &third_fields, &mut rng);
 
         let input_size = criterion::BatchSize::SmallInput;
-
-        group.bench_function(BenchmarkId::new("perc_dyna", &p), |b| {
-            b.iter_batched(
-                || build_document(nqueries, &third_fields, &mut rng),
-                |d| black_box(p.qids_from_document(&d).next()),
-                input_size,
-            )
-        });
 
         group.bench_function(BenchmarkId::new("multi_perc", &mp), |b| {
             b.iter_batched(

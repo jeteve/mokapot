@@ -15,9 +15,7 @@ use crate::models::{
 pub type Qid = u32;
 
 pub trait Percolator: fmt::Display {
-    /**
-    Index a query in the percolator
-    */
+    /// Adds a query
     fn add_query(&mut self, q: Rc<dyn Query>) -> Qid;
 
     /**
@@ -244,73 +242,6 @@ impl Percolator for MultiPercolator {
                 self.cnf_queries[query_id as usize].matches(d)
             })
             .map(|x| x as Qid)
-    }
-}
-
-#[derive(Default, Debug)]
-pub struct SimplePercolator {
-    qindex: Index,
-    sample_docs: Index,
-    // The box of query objects.
-    queries: Vec<Rc<dyn Query>>,
-}
-
-impl fmt::Display for SimplePercolator {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SimplePerc-{}Qs", self.queries.len())
-    }
-}
-
-impl SimplePercolator {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    pub fn add_sample_document(&mut self, d: &Document) {
-        self.sample_docs.index_document(d);
-    }
-
-    pub fn tracked_qids_from_document<'b>(
-        &self,
-        d: &'b Document,
-    ) -> impl Iterator<Item = TrackedQid> + use<'b, '_> {
-        d.to_clause()
-            .dids_from_idx(&self.qindex)
-            .enumerate()
-            .filter(|(_, qid)| {
-                //println!("SIMPLEMATCH: {}", self.queries[*qid].to_cnf());
-                self.queries[*qid as usize].matches(d)
-            })
-            .enumerate()
-            .map(|(post_idx, (pre_idx, qid))| TrackedQid {
-                pre_idx,
-                post_idx,
-                qid: qid as Qid,
-            })
-    }
-}
-
-impl Percolator for SimplePercolator {
-    fn get_query(&self, qid: Qid) -> Rc<dyn Query> {
-        self.queries[qid as usize].clone()
-    }
-
-    fn add_query(&mut self, q: Rc<dyn Query>) -> Qid {
-        // Get the document from the query
-        // and index in the query index.
-        let doc_id = self.qindex.index_document(&q.to_document());
-        //.index_document(&q.to_document_with_sample(&self.sample_docs));
-        self.queries.push(q);
-
-        assert_eq!(self.queries.len(), self.qindex.len());
-
-        doc_id as Qid
-    }
-
-    ///
-    /// Uses the specially optimised TermDisjunction that doesn't use dynamic objects.
-    /// as a Document ALWAYS turn into a TermDisjunction anyway.
-    fn qids_from_document(&self, d: &Document) -> impl Iterator<Item = Qid> {
-        self.tracked_qids_from_document(d).map(|tq| tq.qid)
     }
 }
 

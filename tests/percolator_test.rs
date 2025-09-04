@@ -2,36 +2,28 @@ use std::rc::Rc;
 
 use mokapot::models::{
     documents::Document,
-    percolator::{MultiPercolator, Percolator, Qid, SimplePercolator},
+    percolator::{MultiPercolator, Percolator, Qid},
     queries::{ConjunctionQuery, DisjunctionQuery, TermQuery},
 };
 
 #[test]
 fn test_percolator() {
-    let mut p = SimplePercolator::default();
     let mut mp = MultiPercolator::default();
     let q1 = Rc::new(TermQuery::new("colour".into(), "blue".into()));
-    let q1_id = p.add_query(q1.clone());
-    assert_eq!(mp.add_query(q1.clone()), q1_id);
+    let q1_id = mp.add_query(q1.clone());
     assert_eq!(q1_id, 0);
 
     let d = Document::new().with_value("colour", "blue");
-
-    let q_ids = p.qids_from_document(&d).collect::<Vec<Qid>>();
-    assert_eq!(q_ids, vec![0]);
 
     let q_ids = mp.qids_from_document(&d).collect::<Vec<Qid>>();
     assert_eq!(mp.bs_qids_from_document(&d).collect::<Vec<_>>(), q_ids);
     assert_eq!(q_ids, vec![0]);
 
-    let q_ids = p.qids_from_document(&d).collect::<Vec<Qid>>();
-    assert_eq!(q_ids, vec![0]);
     let q_ids = mp.qids_from_document(&d).collect::<Vec<Qid>>();
     assert_eq!(mp.bs_qids_from_document(&d).collect::<Vec<_>>(), q_ids);
     assert_eq!(q_ids, vec![0]);
 
     let d = Document::new().with_value("colour", "green");
-    assert_eq!(p.qids_from_document(&d).collect::<Vec<Qid>>(), vec![]);
     assert_eq!(mp.qids_from_document(&d).collect::<Vec<Qid>>(), vec![]);
     assert_eq!(mp.bs_qids_from_document(&d).collect::<Vec<_>>(), vec![]);
 
@@ -40,10 +32,9 @@ fn test_percolator() {
         Box::new(TermQuery::new("colour".into(), "green".into())),
     ]));
 
-    assert_eq!(p.add_query(disj.clone()), mp.add_query(disj.clone()));
+    mp.add_query(disj.clone());
 
     // The colour=green document will match the disjunction query.
-    assert_eq!(p.qids_from_document(&d).collect::<Vec<Qid>>(), vec![1]);
     assert_eq!(mp.qids_from_document(&d).collect::<Vec<Qid>>(), vec![1]);
     assert_eq!(mp.bs_qids_from_document(&d).collect::<Vec<_>>(), vec![1]);
 
@@ -58,13 +49,11 @@ fn test_percolator() {
         Box::new(TermQuery::new("taste".into(), "bitter".into())),
     ]));
 
-    let cid = p.add_query(conj.clone());
-    assert_eq!(mp.add_query(conj.clone()), cid);
+    let cid = mp.add_query(conj.clone());
 
     // A document that is green will not match. but generate a failed candidate
     // as the conjunction would have mached, because it just indexes the bitter taste,
     // as this is more specific than the conjunction side.
-    assert_eq!(p.qids_from_document(&d).collect::<Vec<Qid>>(), vec![1]);
     assert_eq!(mp.qids_from_document(&d).collect::<Vec<Qid>>(), vec![1]);
     assert_eq!(mp.bs_qids_from_document(&d).collect::<Vec<_>>(), vec![1]);
 
@@ -74,10 +63,6 @@ fn test_percolator() {
         .with_value("taste", "bitter");
 
     // This time it also matches the conjunction
-    assert_eq!(
-        p.qids_from_document(&sprout).collect::<Vec<Qid>>(),
-        vec![1, cid]
-    );
     assert_eq!(
         mp.qids_from_document(&sprout).collect::<Vec<Qid>>(),
         vec![1, cid]
