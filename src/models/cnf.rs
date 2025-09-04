@@ -100,7 +100,7 @@ impl fmt::Display for Clause {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct CNFQuery(Vec<Clause>);
 impl fmt::Display for CNFQuery {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

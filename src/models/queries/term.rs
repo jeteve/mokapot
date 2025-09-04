@@ -65,14 +65,6 @@ impl Query for TermQuery {
         Box::new(self.dids_from_idx(index))
     }
 
-    fn to_document(&self) -> Document {
-        Document::default().with_value(self.field.clone(), self.term.clone())
-    }
-
-    fn specificity(&self) -> f64 {
-        1.0
-    }
-
     fn to_cnf(&self) -> CNFQuery {
         CNFQuery::from_termquery(self.clone())
     }

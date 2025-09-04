@@ -10,7 +10,6 @@ fn test_query() {
 
     let q = TermQuery::new("colour".into(), "blue".into());
     assert!(q.matches(&d));
-    assert_eq!(q.to_document().field_values("colour"), vec!["blue".into()]);
     assert_eq!(q.to_cnf().to_string(), "(AND (OR colour=blue))");
 
     let q2 = TermQuery::new("colour".into(), "red".into());
@@ -60,16 +59,6 @@ fn test_conjunction_disjunction_query() {
         green_or_bitter.to_cnf().to_string(),
         "(AND (OR colour=green taste=bitter))"
     );
-    assert_eq!(
-        green_or_bitter.to_document().field_values("colour"),
-        vec!["green".into()]
-    );
-    assert_eq!(
-        green_or_bitter.to_document().field_values("taste"),
-        vec!["bitter".into()]
-    );
-
-    approx::assert_relative_eq!(green_or_bitter.specificity(), 0.5);
 
     // a disjunction of conjunctions
     let blue_and_sweet = ConjunctionQuery::new(vec![
@@ -98,11 +87,6 @@ fn test_conjunction_disjunction_query() {
         Box::new(TermQuery::new("taste".into(), "bitter".into())),
     ]);
     assert!(!purple_or_bitter.matches(&d));
-
-    let gob_and_b_doc = gob_and_b.to_document();
-    // The single colour=blue is more specific a priori
-    assert_eq!(gob_and_b_doc.field_values("colour"), vec!["blue".into()]);
-    assert!(gob_and_b_doc.field_values("taste").is_empty());
 
     // The document to match this query
     let other_d: Document = Document::default()
