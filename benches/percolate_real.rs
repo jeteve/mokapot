@@ -134,6 +134,7 @@ fn percolate_real(c: &mut Criterion) {
                 |d| black_box(mp.bs_qids_from_document(&d).next()),
                 //|d| black_box(mp.hybrid_qids_from_document(&d).next()),
                 //|d| black_box(mp.qids_from_document(&d).next()),
+                //|d| black_box(mp.it_from_document(&d).next()),
                 input_size,
             )
         });

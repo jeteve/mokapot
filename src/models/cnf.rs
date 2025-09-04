@@ -67,6 +67,11 @@ impl Clause {
         ret
     }
 
+    pub fn it_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + 'a {
+        let its = self.0.iter().map(|q| q.0.bs_from_idx(index).iter());
+        itertools::kmerge(its).dedup()
+    }
+
     pub fn matches(&self, d: &Document) -> bool {
         self.0.iter().any(|q| q.0.matches(d))
     }

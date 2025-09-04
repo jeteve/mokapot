@@ -1,4 +1,8 @@
+use std::iter;
+
 use fake::faker::lorem::en::*;
+use itertools::kmerge;
+use itertools::Itertools;
 
 trait Doggy {
     fn bark(&self) -> String;
@@ -32,6 +36,16 @@ fn test_boxed_traits() {
     let boxed_dog: Box<dyn Doggy> = Box::new(Dog::default());
     let k2 = Kennel { dog: boxed_dog };
     assert_eq!(k2.dog.bark(), "Woof!".to_string());
+}
+
+#[test]
+fn test_kmerge() {
+    assert_eq!(
+        kmerge(vec![vec![1, 2, 3, 4], vec![4, 5, 6]])
+            .dedup()
+            .collect::<Vec<_>>(),
+        vec![1, 2, 3, 4, 5, 6]
+    )
 }
 
 #[test]

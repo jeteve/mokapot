@@ -77,6 +77,17 @@ impl MultiPercolator {
             .filter(|&qid| self.cnf_queries[qid as usize].matches(d))
     }
 
+    // This is catastrophic compared to bs_qids_from_document.
+    pub fn it_from_document<'a>(&self, d: &'a Document) -> impl Iterator<Item = Qid> + use<'a, '_> {
+        let clause_its = self
+            .clause_idxs
+            .iter()
+            .map(|idx| d.to_clause().it_from_idx(idx))
+            .collect_vec();
+        ConjunctionIterator::new(clause_its)
+            .filter(|&qid| self.cnf_queries[qid as usize].matches(d))
+    }
+
     // Clearly not a good idea..
     // DO NOT use this..
     pub fn hybrid_qids_from_document<'b>(
