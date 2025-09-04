@@ -12,7 +12,6 @@ pub struct Index {
     // Remember the documents
     documents: Vec<Document>,
     // The inverted indices for each ( field,  value)
-    inverted_indices: HashMap<(Rc<str>, Rc<str>), Vec<DocId>>,
     inverted_idx_bs: HashMap<(Rc<str>, Rc<str>), RoaringBitmap>,
     empty_bs: RoaringBitmap,
 }
@@ -31,11 +30,7 @@ impl Index {
     }
 
     pub fn term_iter(&self, field: Rc<str>, term: Rc<str>) -> impl Iterator<Item = DocId> + '_ {
-        self.inverted_indices
-            .get(&(field, term))
-            // Copied will turn the &usize into usize
-            .map(|doc_ids| doc_ids.iter().copied())
-            .unwrap_or_default()
+        self.term_bs(field, term).iter()
     }
 
     pub fn term_bs(&self, field: Rc<str>, term: Rc<str>) -> &RoaringBitmap {
@@ -53,21 +48,11 @@ impl Index {
             .expect("Exceeded max size for index");
 
         // Update the right inverted indices.
-        for field in d.fields() {
-            for value in d.field_values_iter(field.as_ref()).unwrap() {
-                let value_index = self
-                    .inverted_indices
-                    .entry((field.clone(), value.clone()))
-                    .or_default();
-                value_index.push(new_doc_id);
-
-                let value_bs = self
-                    .inverted_idx_bs
-                    .entry((field.clone(), value.clone()))
-                    .or_default();
-
-                value_bs.insert(new_doc_id); // Note this only works with u32s
-            }
+        for (field, value) in d.fv_pairs() {
+            self.inverted_idx_bs
+                .entry((field, value))
+                .or_default()
+                .insert(new_doc_id);
         }
         new_doc_id
     }
