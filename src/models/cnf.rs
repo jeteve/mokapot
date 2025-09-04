@@ -9,10 +9,18 @@ use crate::models::{
 use itertools::Itertools;
 use roaring::RoaringBitmap;
 
-use std::fmt;
+use std::{fmt, rc::Rc};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct Literal(TermQuery);
+pub struct Literal(TermQuery);
+impl Literal {
+    pub fn field(&self) -> Rc<str> {
+        self.0.field()
+    }
+    pub fn term(&self) -> Rc<str> {
+        self.0.term()
+    }
+}
 
 impl Ord for Literal {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
@@ -46,6 +54,11 @@ impl Clause {
         self.0.push(Literal(tq));
     }
 
+    /// The literals making this clause
+    pub fn literals(&self) -> &[Literal] {
+        &self.0
+    }
+
     pub fn match_all() -> Self {
         Self(vec![Literal(TermQuery::match_all())])
     }
@@ -75,13 +88,8 @@ impl Clause {
     pub fn matches(&self, d: &Document) -> bool {
         self.0.iter().any(|q| q.0.matches(d))
     }
-
-    pub fn to_document(&self) -> Document {
-        self.0.iter().fold(Document::default(), |a, l| {
-            a.with_value(l.0.field(), l.0.term())
-        })
-    }
 }
+
 impl fmt::Display for Clause {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

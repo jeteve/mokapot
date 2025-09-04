@@ -39,13 +39,19 @@ pub trait Percolator: fmt::Display {
     //fn indexing_specificity(&self) -> f64;
 }
 
+fn clause_to_document(c: &Clause) -> Document {
+    c.literals().iter().fold(Document::default(), |a, l| {
+        a.with_value(l.field(), l.term())
+    })
+}
+
 /*
     From a CNFQuery, The documents that are meant to be indexed in the percolator
 */
 fn cnf_to_documents(q: &CNFQuery) -> impl Iterator<Item = Document> + use<'_> {
     q.clauses()
         .iter()
-        .map(|c| c.to_document())
+        .map(clause_to_document)
         .chain(iter::repeat(Document::match_all()).take(1000))
 }
 
