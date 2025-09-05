@@ -11,12 +11,9 @@ fn test_document_merge() {
 
     let d3 = d1.merge_with(&d2);
 
-    assert_eq!(d3.field_values("size").len(), 0);
-    assert_eq!(
-        d3.field_values("colour"),
-        vec!["blue".into(), "beige".into()]
-    );
-    assert_eq!(d3.field_values("taste"), vec!["bitter".into()]);
+    assert_eq!(d3.values("size").len(), 0);
+    assert_eq!(d3.values("colour"), vec!["blue".into(), "beige".into()]);
+    assert_eq!(d3.values("taste"), vec!["bitter".into()]);
 }
 
 #[test]

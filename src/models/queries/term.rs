@@ -57,7 +57,7 @@ impl Query for TermQuery {
     }
 
     fn matches(&self, d: &Document) -> bool {
-        d.field_values_iter(&self.field)
+        d.iter_values(&self.field)
             .is_some_and(|mut i| i.any(|v| v == self.term))
     }
 

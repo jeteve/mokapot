@@ -13,7 +13,7 @@ pub struct Document {
     fvs_count: usize,
 }
 
-type DocFieldValue = (Rc<str>, Rc<str>);
+type FieldValue = (Rc<str>, Rc<str>);
 
 const MATCH_ALL: (&str, &str) = ("__match_all__", "true");
 
@@ -34,13 +34,17 @@ impl Document {
     }
 
     pub fn to_clause(&self) -> Clause {
-        Clause::from_termqueries(self.fv_pairs().map(|(f, v)| TermQuery::new(f, v)).collect())
+        Clause::from_termqueries(
+            self.field_values()
+                .map(|(f, v)| TermQuery::new(f, v))
+                .collect(),
+        )
     }
 
     /// An iterator on all the (field,value) tuples of this document.
-    pub fn fv_pairs(&self) -> impl Iterator<Item = DocFieldValue> + use<'_> {
+    pub fn field_values(&self) -> impl Iterator<Item = FieldValue> + use<'_> {
         self.fields()
-            .map(|f| (f.clone(), self.field_values_iter(f.as_ref())))
+            .map(|f| (f.clone(), self.iter_values(f.as_ref())))
             .filter_map(|(f, ovit)| ovit.map(|vit| (f, vit)))
             .flat_map(|(f, vit)| vit.map(move |v| (f.clone(), v)))
     }
@@ -48,8 +52,8 @@ impl Document {
     /// The merge of this document with another one.
     pub fn merge_with(&self, other: &Self) -> Self {
         // Find all the (key,value) of a document.
-        self.fv_pairs()
-            .chain(other.fv_pairs())
+        self.field_values()
+            .chain(other.field_values())
             .unique()
             .fold(Document::new(), |a, (f, v)| a.with_value(f, v.clone()))
     }
@@ -76,8 +80,8 @@ impl Document {
     }
 
     /// All values of the field
-    pub fn field_values(&self, field: &str) -> Vec<Rc<str>> {
-        if let Some(it) = self.field_values_iter(field) {
+    pub fn values(&self, field: &str) -> Vec<Rc<str>> {
+        if let Some(it) = self.iter_values(field) {
             it.collect()
         } else {
             vec![]
@@ -85,7 +89,7 @@ impl Document {
     }
 
     /// All values of the field if it exists
-    pub fn field_values_iter(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_> {
+    pub fn iter_values(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_> {
         self.fields.get(field).map(|v| v.iter().cloned())
     }
 }

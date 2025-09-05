@@ -48,7 +48,7 @@ impl Index {
             .expect("Exceeded max size for index");
 
         // Update the right inverted indices.
-        for (field, value) in d.fv_pairs() {
+        for (field, value) in d.field_values() {
             self.inverted_idx_bs
                 .entry((field, value))
                 .or_default()
