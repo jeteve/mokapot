@@ -138,10 +138,6 @@ impl CNFQuery {
         )
     }
 
-    pub fn from_or_two(a: CNFQuery, b: CNFQuery) -> Self {
-        Self::from_or(vec![a, b])
-    }
-
     ///
     /// Does this query match a document?
     pub fn matches(&self, d: &Document) -> bool {
@@ -154,7 +150,7 @@ impl CNFQuery {
     }
 }
 
-trait CNFQueryable: Into<Rc<str>> + Clone {
+pub trait CNFQueryable: Into<Rc<str>> {
     fn has_value<T: Into<Rc<str>>>(self, v: T) -> CNFQuery;
 }
 
@@ -255,9 +251,8 @@ mod test {
     fn test_or_with_multiple_values() {
         use super::*;
         let xsq = CNFQuery::from_or((0..5).map(|i| "X".has_value(format!("x_{}", i))).collect());
-        let oney = "Y".has_value("y");
 
-        let combined = xsq & oney;
+        let combined = xsq & "Y".has_value("y");
         assert_eq!(
             combined.to_string(),
             "(AND (OR X=x_0 X=x_1 X=x_2 X=x_3 X=x_4) (OR Y=y))"

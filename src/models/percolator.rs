@@ -5,7 +5,7 @@ use itertools::Itertools;
 use roaring::RoaringBitmap;
 
 use crate::models::{
-    cnf::{CNFQuery, Clause},
+    cnf::{CNFQuery, CNFQueryable, Clause},
     document::Document,
     index::Index,
     iterators::ConjunctionIterator,
@@ -214,11 +214,7 @@ mod test_cnf {
     #[test]
     fn test_from_or() {
         use super::*;
-        let x = TermQuery::new("X".into(), "x".into());
-        let y = TermQuery::new("Y".into(), "y".into());
-        let cnf_query1 = CNFQuery::from_literal(x.clone());
-        let cnf_query2 = CNFQuery::from_literal(y.clone());
-        let combined = CNFQuery::from_or_two(cnf_query1, cnf_query2);
+        let combined = "X".has_value("y") | "Y".has_value("y");
 
         let mut docs = cnf_to_documents(&combined);
         assert_eq!(
@@ -233,14 +229,7 @@ mod test_cnf {
 
         // (x AND Y) OR Z:
         // The Z
-        let z = TermQuery::new("Z".into(), "z".into());
-        let q = CNFQuery::from_or_two(
-            CNFQuery::from_and(vec![
-                CNFQuery::from_literal(x.clone()),
-                CNFQuery::from_literal(y.clone()),
-            ]),
-            CNFQuery::from_literal(z.clone()),
-        );
+        let q = ("X".has_value("x") & "Y".has_value("y")) | "Z".has_value("z");
         assert_eq!(q.to_string(), "(AND (OR X=x Z=z) (OR Y=y Z=z))");
         let mut docs = cnf_to_documents(&q);
         assert_eq!(
