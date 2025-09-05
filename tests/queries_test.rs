@@ -1,4 +1,4 @@
-use mokapot::models::documents::Document;
+use mokapot::models::document::Document;
 use mokapot::models::queries::{ConjunctionQuery, DisjunctionQuery, Query, TermQuery};
 
 #[test]

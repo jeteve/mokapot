@@ -8,7 +8,7 @@ use fake::faker::address::en::CountryName;
 use fake::Fake;
 use mokapot::models::percolator::Percolator;
 use mokapot::models::queries::ConjunctionQuery;
-use mokapot::models::{documents::Document, queries::TermQuery};
+use mokapot::models::{document::Document, queries::TermQuery};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 

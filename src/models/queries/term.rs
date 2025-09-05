@@ -1,7 +1,7 @@
 use roaring::RoaringBitmap;
 
 use crate::models::cnf::CNFQuery;
-use crate::models::documents::Document;
+use crate::models::document::Document;
 use crate::models::index::*;
 use crate::models::queries::query::*;
 use std::rc::Rc;

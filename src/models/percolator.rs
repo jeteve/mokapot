@@ -6,7 +6,7 @@ use roaring::RoaringBitmap;
 
 use crate::models::{
     cnf::{CNFQuery, Clause},
-    documents::Document,
+    document::Document,
     index::Index,
     iterators::ConjunctionIterator,
     queries::{Query, TermQuery},

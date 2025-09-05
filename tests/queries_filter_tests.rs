@@ -1,5 +1,5 @@
 use mokapot::models::{
-    documents::Document,
+    document::Document,
     index::Index,
     queries::{ConjunctionQuery, DisjunctionQuery, Query, TermQuery},
 };

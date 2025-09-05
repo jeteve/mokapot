@@ -1,6 +1,6 @@
 use super::query::*;
 use crate::models::cnf::CNFQuery;
-use crate::models::documents::Document;
+use crate::models::document::Document;
 use crate::models::index::*;
 use crate::models::iterators;
 

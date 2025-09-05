@@ -1,5 +1,5 @@
 use crate::models::cnf::CNFQuery;
-use crate::models::documents::Document;
+use crate::models::document::Document;
 use crate::models::index::{DocId, Index};
 
 use std::rc::Rc;

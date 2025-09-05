@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use mokapot::models::{
-    documents::Document,
+    document::Document,
     percolator::{Percolator, Qid},
     queries::{ConjunctionQuery, DisjunctionQuery, TermQuery},
 };
@@ -28,10 +28,7 @@ fn test_percolator() {
         mp.qids_from_document(&d).collect::<Vec<Qid>>(),
         Vec::<Qid>::new()
     );
-    assert_eq!(
-        mp.percolate(&d).collect::<Vec<Qid>>(),
-        Vec::<Qid>::new()
-    );
+    assert_eq!(mp.percolate(&d).collect::<Vec<Qid>>(), Vec::<Qid>::new());
 
     let disj = Rc::new(DisjunctionQuery::new(vec![
         Box::new(TermQuery::new("colour".into(), "blue".into())),
@@ -73,8 +70,5 @@ fn test_percolator() {
         mp.qids_from_document(&sprout).collect::<Vec<Qid>>(),
         vec![1, cid]
     );
-    assert_eq!(
-        mp.percolate(&sprout).collect::<Vec<_>>(),
-        vec![1, cid]
-    );
+    assert_eq!(mp.percolate(&sprout).collect::<Vec<_>>(), vec![1, cid]);
 }

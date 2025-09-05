@@ -5,7 +5,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use mokapot::models::percolator::Percolator;
 use mokapot::models::queries::ConjunctionQuery;
-use mokapot::models::{documents::Document, queries::TermQuery};
+use mokapot::models::{document::Document, queries::TermQuery};
 
 const FIELD: &str = "field";
 const FIELD2: &str = "second_field";

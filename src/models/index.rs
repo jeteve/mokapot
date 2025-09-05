@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use roaring::RoaringBitmap;
 
-use super::documents::Document;
+use super::document::Document;
 
 pub type DocId = u32;
 

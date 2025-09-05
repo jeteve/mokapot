@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use mokapot::models::documents::Document;
+use mokapot::models::document::Document;
 use mokapot::models::index::Index;
 
 #[test]

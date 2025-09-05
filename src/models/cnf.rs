@@ -1,6 +1,6 @@
 // Strongly inspired by https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
 use crate::models::{
-    documents::Document,
+    document::Document,
     index::{DocId, Index},
     queries::{Query, TermQuery},
 };

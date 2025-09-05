@@ -20,7 +20,7 @@ use std::rc::Rc;
 use fake::faker::address::en::*;
 use fake::Fake;
 
-use mokapot::models::documents::Document;
+use mokapot::models::document::Document;
 use mokapot::models::percolator::Percolator;
 use mokapot::models::queries::{ConjunctionQuery, Query, TermQuery};
 

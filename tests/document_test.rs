@@ -1,4 +1,4 @@
-use mokapot::models::documents::Document;
+use mokapot::models::document::Document;
 
 #[test]
 fn test_document_merge() {

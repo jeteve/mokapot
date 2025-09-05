@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use mokapot::models::{
     cnf::Clause,
-    documents::Document,
+    document::Document,
     index::{DocId, Index},
     queries::TermQuery,
 };
