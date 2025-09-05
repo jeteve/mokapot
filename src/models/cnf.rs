@@ -154,8 +154,32 @@ impl CNFQuery {
     }
 }
 
+trait CNFQueryable: Into<Rc<str>> + Clone {
+    fn has_value<T: Into<Rc<str>>>(self, v: T) -> CNFQuery;
+}
+
+impl CNFQueryable for &str {
+    fn has_value<T: Into<Rc<str>>>(self, v: T) -> CNFQuery {
+        let tq = TermQuery::new(self.into(), v.into());
+        CNFQuery::from_literal(tq)
+    }
+}
+
 #[cfg(test)]
 mod test {
+
+    #[test]
+    fn test_queryable() {
+        use super::CNFQueryable;
+        let q = "bla".has_value("foo");
+
+        assert_eq!(q.to_string(), "(AND (OR bla=foo))");
+
+        let bla = "taste".to_string();
+        let foo = "sweet".to_string();
+        let q2 = bla.has_value(foo);
+        assert_eq!(q2.to_string(), "(AND (OR taste=sweet))");
+    }
 
     #[test]
     fn test_empty() {
