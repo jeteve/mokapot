@@ -165,6 +165,20 @@ impl CNFQueryable for &str {
     }
 }
 
+impl std::ops::BitAnd for CNFQuery {
+    type Output = CNFQuery;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        CNFQuery::from_and(vec![self, rhs])
+    }
+}
+
+impl std::ops::BitOr for CNFQuery {
+    type Output = CNFQuery;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        CNFQuery::from_or(vec![self, rhs])
+    }
+}
+
 #[cfg(test)]
 mod test {
 
@@ -191,8 +205,7 @@ mod test {
     #[test]
     fn test_literal() {
         use super::*;
-        let term_query = TermQuery::new("field".into(), "value".into());
-        let cnf_query = CNFQuery::from_literal(term_query);
+        let cnf_query = "field".has_value("value");
         assert_eq!(cnf_query.0.len(), 1);
         assert_eq!(cnf_query.0[0].0.len(), 1);
         assert_eq!(cnf_query.to_string(), "(AND (OR field=value))");
@@ -201,11 +214,7 @@ mod test {
     #[test]
     fn test_from_and() {
         use super::*;
-        let term_query1 = TermQuery::new("field1".into(), "value1".into());
-        let term_query2 = TermQuery::new("field2".into(), "value2".into());
-        let cnf_query1 = CNFQuery::from_literal(term_query1);
-        let cnf_query2 = CNFQuery::from_literal(term_query2);
-        let combined = CNFQuery::from_and(vec![cnf_query1, cnf_query2]);
+        let combined = "field1".has_value("value1") & "field2".has_value("value2");
         assert_eq!(combined.0.len(), 2);
         assert_eq!(combined.0[0].0.len(), 1);
         // Structure would be:
@@ -218,51 +227,26 @@ mod test {
     #[test]
     fn test_from_or() {
         use super::*;
-        let x = TermQuery::new("X".into(), "x".into());
-        let y = TermQuery::new("Y".into(), "y".into());
-        let cnf_query1 = CNFQuery::from_literal(x.clone());
-        let cnf_query2 = CNFQuery::from_literal(y.clone());
-        let combined = CNFQuery::from_or_two(cnf_query1, cnf_query2);
+        let combined = "X".has_value("x") | "Y".has_value("y");
+        //CNFQuery::from_or_two(cnf_query1, cnf_query2);
         assert_eq!(combined.0.len(), 1); // Only one clause in the top level and.
         assert_eq!(combined.0[0].0.len(), 2); // Two litteral in the clause.
                                               // In this shape: AND (OR field1:value1 field2:value2)
         assert_eq!(combined.to_string(), "(AND (OR X=x Y=y))");
 
         // (x AND Y) OR Z:
-        // The Z
-        let z = TermQuery::new("Z".into(), "z".into());
-        let q = CNFQuery::from_or_two(
-            CNFQuery::from_and(vec![
-                CNFQuery::from_literal(x.clone()),
-                CNFQuery::from_literal(y.clone()),
-            ]),
-            CNFQuery::from_literal(z.clone()),
-        );
+        let q = ("X".has_value("x") & "Y".has_value("y")) | "Z".has_value("z");
+
         assert_eq!(q.to_string(), "(AND (OR X=x Z=z) (OR Y=y Z=z))");
 
         // (X OR Y) OR Z
-        let q = CNFQuery::from_or_two(
-            CNFQuery::from_or_two(
-                CNFQuery::from_literal(x.clone()),
-                CNFQuery::from_literal(y.clone()),
-            ),
-            CNFQuery::from_literal(z.clone()),
-        );
+        let q = ("X".has_value("x") | "Y".has_value("y")) | "Z".has_value("z");
         // Note how the parentheses are removed magically
         assert_eq!(q.to_string(), "(AND (OR X=x Y=y Z=z))");
 
         // X AND (Y OR (Z AND W))
-        let w = TermQuery::new("W".into(), "w".into());
-        let q = CNFQuery::from_and(vec![
-            CNFQuery::from_literal(x.clone()),
-            CNFQuery::from_or(vec![
-                CNFQuery::from_literal(y.clone()),
-                CNFQuery::from_and(vec![
-                    CNFQuery::from_literal(z.clone()),
-                    CNFQuery::from_literal(w.clone()),
-                ]),
-            ]),
-        ]);
+        let q =
+            "X".has_value("x") & ("Y".has_value("y") | ("Z".has_value("z") & "W".has_value("w")));
         assert_eq!(q.to_string(), "(AND (OR X=x) (OR Y=y Z=z) (OR W=w Y=y))");
     }
 
