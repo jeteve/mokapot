@@ -15,7 +15,7 @@ pub struct Document {
 
 type FieldValue = (Rc<str>, Rc<str>);
 
-const MATCH_ALL: (&str, &str) = ("__match_all__", "true");
+pub(crate) const MATCH_ALL: (&str, &str) = ("__match_all__", "true");
 
 impl Document {
     /// Alias for default. An empty document.

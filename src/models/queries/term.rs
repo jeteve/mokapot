@@ -2,6 +2,7 @@ use roaring::RoaringBitmap;
 
 use crate::models::cnf::CNFQuery;
 use crate::models::document::Document;
+use crate::models::document::MATCH_ALL;
 use crate::models::index::*;
 use crate::models::queries::query::*;
 use std::rc::Rc;
@@ -19,8 +20,8 @@ impl TermQuery {
 
     pub fn match_all() -> Self {
         TermQuery {
-            field: "__match_all__".into(),
-            term: "true".into(),
+            field: MATCH_ALL.0.into(),
+            term: MATCH_ALL.1.into(),
         }
     }
 
