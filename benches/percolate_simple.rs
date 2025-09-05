@@ -3,24 +3,25 @@ use std::rc::Rc;
 use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
+use mokapot::models::document::Document;
 use mokapot::models::percolator::Percolator;
-use mokapot::models::queries::ConjunctionQuery;
-use mokapot::models::{document::Document, queries::TermQuery};
+
+use mokapot::models::cnf::*;
 
 const FIELD: &str = "field";
 const FIELD2: &str = "second_field";
 
-fn build_query(n: usize) -> ConjunctionQuery {
-    let q1 = TermQuery::new(FIELD.into(), format!("value{n}").into());
+fn build_query(n: usize) -> CNFQuery {
+    let q1 = FIELD.has_value(format!("value{n}"));
     // Only 4 values for this one.
-    let q2 = TermQuery::new(FIELD2.into(), format!("value{}", n % 4).into());
-    ConjunctionQuery::new(vec![Box::new(q1), Box::new(q2)])
+    let q2 = FIELD2.has_value(format!("value{}", n % 4));
+    q1 & q2
 }
 
 fn build_percolator(n: usize) -> Percolator {
     let mut p = Percolator::default();
     (0..n).map(build_query).for_each(|q| {
-        p.add_query(Rc::new(q));
+        p.add_query(q);
     });
     p
 }

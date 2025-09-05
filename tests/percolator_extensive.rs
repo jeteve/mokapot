@@ -2,27 +2,18 @@
 
 Extensive test for percolating lots of documents against lot of queries.
 
-Using Simple Percolator with sampling:
-
-Skipped: 130145, Matched: 1154, Churn per match: 112.77729636048527
-
-Using plain MultiPercolator:
-
-Skipped: 0, Matched: 1145, Churn per match: 0
-
-
 */
 
 use rand::prelude::*;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use fake::faker::address::en::*;
 use fake::Fake;
 
+use mokapot::models::cnf::CNFQuery;
 use mokapot::models::document::Document;
 use mokapot::models::percolator::Percolator;
-use mokapot::models::queries::{ConjunctionQuery, Query, TermQuery};
+use mokapot::models::queries::TermQuery;
 
 fn one_random_data<T: Clone>(d: &[T]) -> T {
     d[(0..d.len()).fake::<usize>()].clone()
@@ -106,14 +97,14 @@ fn test_percolator() {
         let f_value = one_random_data(field_values.get(f2).unwrap());
         let q2 = TermQuery::new(f2.into(), f_value.into());
 
-        let mut qs: Vec<Box<dyn Query>> = vec![q1, q1b, q2]
+        let mut qs: Vec<CNFQuery> = vec![q1, q1b, q2]
             .into_iter()
-            .map(|q| Box::new(q) as Box<dyn Query>)
+            .map(CNFQuery::from_literal)
             .collect();
         qs.shuffle(&mut rng);
 
-        let q = ConjunctionQuery::new(qs);
+        let q = CNFQuery::from_and(qs);
         //println!("Adding query={}", q.to_cnf());
-        p.add_query(Rc::new(q));
+        p.add_query(q);
     }
 }

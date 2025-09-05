@@ -1,7 +1,9 @@
 use mokapot::models::{
+    cnf::*,
     document::Document,
+    index::DocId,
     index::Index,
-    queries::{ConjunctionQuery, DisjunctionQuery, Query, TermQuery},
+    queries::{Query, TermQuery},
 };
 
 #[test]
@@ -18,7 +20,7 @@ fn test_term_query() {
 
     let mut index = Index::new();
     // A query on an empty index.
-    let q = TermQuery::new("colour".into(), "blue".into());
+    let q = "colour".has_value("blue");
     assert_eq!(q.docids_from_index(&index).count(), 0);
 
     index.index_document(&d);
@@ -61,16 +63,16 @@ fn test_conjunction_query() {
         .with_value("colour", "blue")
         .with_value("taste", "sweet");
 
-    let q = TermQuery::new("colour".into(), "blue".into());
-    let q2 = TermQuery::new("taste".into(), "sweet".into());
-    let conjunction_query = ConjunctionQuery::new(vec![Box::new(q), Box::new(q2)]);
+    let q = "colour".has_value("blue");
+    let q2 = "taste".has_value("sweet");
+    let conjunction_query = q & q2;
 
     assert!(conjunction_query.matches(&d));
 
     // Index the document
     let mut index = Index::new();
-    let doc_ids: Vec<_> = conjunction_query.docids_from_index(&index).collect();
-    assert_eq!(doc_ids, vec![]);
+    let doc_ids: Vec<DocId> = conjunction_query.docids_from_index(&index).collect();
+    assert_eq!(doc_ids, vec![] as Vec<DocId>);
 
     index.index_document(&d);
     index.index_document(&d1);
@@ -106,10 +108,9 @@ fn test_disjunction_query() {
         .with_value("colour", "yellow")
         .with_value("taste", "bitter");
 
-    let q = TermQuery::new("colour".into(), "blue".into());
-    let q2 = TermQuery::new("taste".into(), "sweet".into());
-    let disq = DisjunctionQuery::new(vec![Box::new(q), Box::new(q2)]);
-
+    let q = "colour".has_value("blue");
+    let q2 = "taste".has_value("sweet");
+    let disq = q | q2;
     assert!(disq.matches(&d));
 
     let mut index = Index::new();

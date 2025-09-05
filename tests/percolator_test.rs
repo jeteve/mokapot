@@ -1,16 +1,14 @@
-use std::rc::Rc;
-
 use mokapot::models::{
+    cnf::*,
     document::Document,
     percolator::{Percolator, Qid},
-    queries::{ConjunctionQuery, DisjunctionQuery, TermQuery},
 };
 
 #[test]
 fn test_percolator() {
     let mut mp = Percolator::default();
-    let q1 = Rc::new(TermQuery::new("colour".into(), "blue".into()));
-    let q1_id = mp.add_query(q1.clone());
+    let q1 = "colour".has_value("blue");
+    let q1_id = mp.add_query(q1);
     assert_eq!(q1_id, 0);
 
     let d = Document::new().with_value("colour", "blue");
@@ -30,10 +28,7 @@ fn test_percolator() {
     );
     assert_eq!(mp.percolate(&d).collect::<Vec<Qid>>(), Vec::<Qid>::new());
 
-    let disj = Rc::new(DisjunctionQuery::new(vec![
-        Box::new(TermQuery::new("colour".into(), "blue".into())),
-        Box::new(TermQuery::new("colour".into(), "green".into())),
-    ]));
+    let disj = "colour".has_value("blue") | "colour".has_value("green");
 
     mp.add_query(disj.clone());
 
@@ -43,15 +38,8 @@ fn test_percolator() {
 
     // Now a simple conjunction query
     // ( blue or green ) AND bitter
-    let disj = DisjunctionQuery::new(vec![
-        Box::new(TermQuery::new("colour".into(), "blue".into())),
-        Box::new(TermQuery::new("colour".into(), "green".into())),
-    ]);
-    let conj = Rc::new(ConjunctionQuery::new(vec![
-        Box::new(disj),
-        Box::new(TermQuery::new("taste".into(), "bitter".into())),
-    ]));
-
+    let conj =
+        ("colour".has_value("green") | "colour".has_value("blue")) & "taste".has_value("bitter");
     let cid = mp.add_query(conj.clone());
 
     // A document that is green will not match. but generate a failed candidate

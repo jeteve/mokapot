@@ -1,14 +1,15 @@
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use criterion::{black_box, Throughput};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use fake::faker::address::en::CountryName;
 use fake::Fake;
+use mokapot::models::cnf::CNFQuery;
+use mokapot::models::cnf::CNFQueryable;
+
+use mokapot::models::document::Document;
 use mokapot::models::percolator::Percolator;
-use mokapot::models::queries::ConjunctionQuery;
-use mokapot::models::{document::Document, queries::TermQuery};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -30,20 +31,15 @@ fn build_query<R: Rng + ?Sized>(
     _n: usize,
     third_fields: &HashMap<&str, Vec<String>>,
     rng: &mut R,
-) -> ConjunctionQuery {
-    let q1 = TermQuery::new(
-        FIELD.into(),
-        CountryName().fake_with_rng::<String, _>(rng).into(),
-    );
-    let q1b = TermQuery::new(FIELD2.into(), one_random_data(&TASTE_VALUES, rng).into());
-    //let q1 = TermQuery::new(FIELD.into(), format!("value{n}").into());
-    // Only 4 values for this one.
-    //let q2 = TermQuery::new(FIELD2.into(), format!("value{}", n % 4).into());
+) -> CNFQuery {
+    let q1 = FIELD.has_value(CountryName().fake_with_rng::<String, _>(rng));
+    let q1b = FIELD2.has_value(one_random_data(&TASTE_VALUES, rng));
+
     let q3_field = one_random_data(&THIRD_FIELDS, rng);
     let q3_value = one_random_from_vec(third_fields.get(q3_field).unwrap(), rng);
-    let q3 = TermQuery::new(q3_field.into(), q3_value.into());
+    let q3 = q3_field.has_value(q3_value);
 
-    ConjunctionQuery::new(vec![Box::new(q1), Box::new(q1b), Box::new(q3)])
+    q1 & q1b & q3
 }
 
 fn build_percolator<R: Rng + ?Sized>(
@@ -55,7 +51,7 @@ fn build_percolator<R: Rng + ?Sized>(
     (0..n)
         .map(|n| build_query(n, third_fields, rng))
         .for_each(|q| {
-            p.add_query(Rc::new(q));
+            p.add_query(q);
         });
     p
 }

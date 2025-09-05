@@ -1,15 +1,14 @@
-use std::rc::Rc;
 use std::{fmt, iter};
 
 use itertools::Itertools;
 use roaring::RoaringBitmap;
 
 use crate::models::{
-    cnf::{CNFQuery, CNFQueryable, Clause},
+    cnf::{CNFQuery, Clause},
     document::Document,
     index::Index,
     iterators::ConjunctionIterator,
-    queries::{Query, TermQuery},
+    queries::TermQuery,
 };
 
 pub type Qid = u32;
@@ -32,7 +31,6 @@ fn cnf_to_documents(q: &CNFQuery) -> impl Iterator<Item = Document> + use<'_> {
 
 #[derive(Debug)]
 pub struct Percolator {
-    queries: Vec<Rc<dyn Query>>,
     cnf_queries: Vec<CNFQuery>,
     clause_idxs: Vec<Index>,
 }
@@ -40,7 +38,6 @@ pub struct Percolator {
 impl std::default::Default for Percolator {
     fn default() -> Self {
         Self {
-            queries: Vec::new(),
             cnf_queries: Vec::new(),
             clause_idxs: (0..3).map(|_| Index::new()).collect(),
         }
@@ -96,7 +93,7 @@ impl fmt::Display for Percolator {
         write!(
             f,
             "MultiPerc-{}Qs/{}IDXs",
-            self.queries.len(),
+            self.cnf_queries.len(),
             self.clause_idxs.len()
         )
     }
@@ -107,31 +104,28 @@ impl Percolator {
     /// Adds a query to this percolator. Will panic if
     /// there is more than u32::MAX queries.
     ///
-    pub fn add_query(&mut self, q: Rc<dyn Query>) -> Qid {
+    pub fn add_query(&mut self, q: CNFQuery) -> Qid {
         // Get the document from the query
-        // and index in the query index.
-        let cnf = q.to_cnf();
-
-        let new_doc_id = self.queries.len();
-        self.queries.push(q);
-
+        // and index in the query index
         // The Clause index is controlling the zip.
+        let expected_index_len = self.cnf_queries.len() + 1;
+
         self.clause_idxs
             .iter_mut()
-            .zip(cnf_to_documents(&cnf))
+            .zip(cnf_to_documents(&q))
             .for_each(|(idx, doc)| {
                 //rintln!("For CNF={} -IDXDOC- {:?}", cnf, doc);
                 idx.index_document(&doc);
-                assert_eq!(idx.len(), self.queries.len());
+                assert_eq!(idx.len(), expected_index_len);
             });
 
-        self.cnf_queries.push(cnf);
-
-        new_doc_id.try_into().unwrap()
+        let new_doc_id = self.cnf_queries.len();
+        self.cnf_queries.push(q);
+        new_doc_id.try_into().expect("Too many queries")
     }
 
-    pub fn get_query(&self, qid: Qid) -> Rc<dyn Query> {
-        self.queries[qid as usize].clone()
+    pub fn get_query(&self, qid: Qid) -> &CNFQuery {
+        &self.cnf_queries[qid as usize]
     }
 
     pub fn qids_from_document<'a>(
@@ -213,8 +207,10 @@ mod test_cnf {
 
     #[test]
     fn test_from_or() {
+        use super::super::cnf::CNFQueryable;
         use super::*;
-        let combined = "X".has_value("y") | "Y".has_value("y");
+
+        let combined = "Y".has_value("y") | "X".has_value("x");
 
         let mut docs = cnf_to_documents(&combined);
         assert_eq!(

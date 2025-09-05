@@ -7,6 +7,7 @@ use crate::models::{
 
 //use fixedbitset::FixedBitSet;
 use itertools::Itertools;
+use roaring::MultiOps;
 use roaring::RoaringBitmap;
 
 use std::{fmt, rc::Rc};
@@ -147,6 +148,12 @@ impl CNFQuery {
     /// The clauses of this CNFQuery
     pub fn clauses(&self) -> &[Clause] {
         &self.0
+    }
+
+    pub fn docids_from_index<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
+        // And multi and between all clauses.
+        let subits = self.0.iter().map(|c| c.bs_from_idx(index));
+        MultiOps::intersection(subits).into_iter()
     }
 }
 
