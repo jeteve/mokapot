@@ -7,7 +7,7 @@ use crate::models::index::*;
 use crate::models::queries::query::*;
 use std::rc::Rc;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct TermQuery {
     field: Rc<str>,
     term: Rc<str>,

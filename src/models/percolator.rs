@@ -172,7 +172,7 @@ mod test_cnf {
     fn test_literal() {
         use super::*;
         let term_query = TermQuery::new("field".into(), "value".into());
-        let cnf_query = CNFQuery::from_literal(term_query);
+        let cnf_query = CNFQuery::from_termquery(term_query);
         let mut docs = cnf_to_documents(&cnf_query);
         assert_eq!(
             docs.next(),
@@ -185,8 +185,8 @@ mod test_cnf {
         use super::*;
         let term_query1 = TermQuery::new("field1".into(), "value1".into());
         let term_query2 = TermQuery::new("field2".into(), "value2".into());
-        let cnf_query1 = CNFQuery::from_literal(term_query1);
-        let cnf_query2 = CNFQuery::from_literal(term_query2);
+        let cnf_query1 = CNFQuery::from_termquery(term_query1);
+        let cnf_query2 = CNFQuery::from_termquery(term_query2);
         let combined = CNFQuery::from_and(vec![cnf_query1, cnf_query2]);
         // Structure would be:
         assert_eq!(

@@ -12,23 +12,33 @@ use roaring::RoaringBitmap;
 
 use std::{fmt, rc::Rc};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Literal(TermQuery);
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct Literal {
+    negated: bool,
+    tq: TermQuery,
+}
 impl Literal {
     pub fn field(&self) -> Rc<str> {
-        self.0.field()
+        self.tq.field()
     }
     pub fn term(&self) -> Rc<str> {
-        self.0.term()
+        self.tq.term()
+    }
+
+    pub fn negate(self) -> Self {
+        Self {
+            negated: !self.negated,
+            tq: self.tq,
+        }
     }
 }
 
 impl Ord for Literal {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0
+        self.tq
             .field()
-            .cmp(&other.0.field())
-            .then_with(|| self.0.term().cmp(&other.0.term()))
+            .cmp(&other.tq.field())
+            .then_with(|| self.tq.term().cmp(&other.tq.term()))
     }
 }
 
@@ -40,19 +50,27 @@ impl PartialOrd for Literal {
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}={}", self.0.field(), self.0.term())
+        if self.negated {
+            write!(f, "~{}={}", self.tq.field(), self.tq.term())
+        } else {
+            write!(f, "{}={}", self.tq.field(), self.tq.term())
+        }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Clause(Vec<Literal>);
 impl Clause {
     pub fn from_termqueries(ts: Vec<TermQuery>) -> Self {
-        Self(ts.into_iter().map(Literal).collect())
+        Self(
+            ts.into_iter()
+                .map(|tq| Literal { negated: false, tq })
+                .collect(),
+        )
     }
 
     pub fn add_termquery(&mut self, tq: TermQuery) {
-        self.0.push(Literal(tq));
+        self.0.push(Literal { negated: false, tq });
     }
 
     /// The literals making this clause
@@ -61,7 +79,10 @@ impl Clause {
     }
 
     pub fn match_all() -> Self {
-        Self(vec![Literal(TermQuery::match_all())])
+        Self(vec![Literal {
+            negated: false,
+            tq: TermQuery::match_all(),
+        }])
     }
 
     pub fn from_clauses(cs: Vec<Clause>) -> Self {
@@ -69,25 +90,39 @@ impl Clause {
     }
 
     pub fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
-        let subits = self.0.iter().map(|q| q.0.dids_from_idx(index));
+        let subits = self.0.iter().map(|q| q.tq.dids_from_idx(index));
         itertools::kmerge(subits).dedup()
     }
 
     pub fn bs_from_idx(&self, index: &Index) -> RoaringBitmap {
         let mut ret = RoaringBitmap::new();
         self.0.iter().for_each(|q| {
-            ret |= q.0.bs_from_idx(index);
+            ret |= q.tq.bs_from_idx(index);
         });
         ret
     }
 
     pub fn it_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + 'a {
-        let its = self.0.iter().map(|q| q.0.bs_from_idx(index).iter());
+        let its = self.0.iter().map(|q| q.tq.bs_from_idx(index).iter());
         itertools::kmerge(its).dedup()
     }
 
     pub fn matches(&self, d: &Document) -> bool {
-        self.0.iter().any(|q| q.0.matches(d))
+        self.0.iter().any(|q| q.tq.matches(d))
+    }
+
+    // NOT (OR L1 L2) = (AND (NOT L1) (NOT L2))
+    pub fn negate(self) -> CNFQuery {
+        let negated_lits = self
+            .0
+            .into_iter()
+            .map(|l| CNFQuery::from_literal(l.negate()))
+            .collect();
+        CNFQuery::from_and(negated_lits)
+    }
+
+    pub fn cleanse(self) -> Self {
+        Self(self.0.into_iter().unique().collect())
     }
 }
 
@@ -116,11 +151,28 @@ impl fmt::Display for CNFQuery {
 impl CNFQuery {
     // Just an alias
     pub fn from_termquery(q: TermQuery) -> Self {
-        Self::from_literal(q)
+        Self::from_literal(Literal {
+            negated: false,
+            tq: q,
+        })
     }
-    pub fn from_literal(q: TermQuery) -> Self {
-        Self(vec![Clause(vec![Literal(q)])])
+
+    pub fn from_literal(l: Literal) -> Self {
+        Self(vec![Clause(vec![l])])
     }
+
+    // CNF is (AND (OR ..) (OR ..))
+    // De Morgan law
+    // NOT (AND C1 C2) = (OR (NOT C1) (NOT C2))
+    pub fn negation(q: CNFQuery) -> Self {
+        let clause_negations = q.0.into_iter().map(|c| c.negate());
+        Self::from_or(clause_negations.collect()).cleanse()
+    }
+
+    fn cleanse(self) -> Self {
+        Self(self.0.into_iter().map(|c| c.cleanse()).unique().collect())
+    }
+
     pub fn from_and(qs: Vec<CNFQuery>) -> Self {
         Self(qs.into_iter().flat_map(|q| q.0).collect())
     }
@@ -164,7 +216,7 @@ pub trait CNFQueryable: Into<Rc<str>> {
 impl CNFQueryable for &str {
     fn has_value<T: Into<Rc<str>>>(self, v: T) -> CNFQuery {
         let tq = TermQuery::new(self.into(), v.into());
-        CNFQuery::from_literal(tq)
+        CNFQuery::from_termquery(tq)
     }
 }
 
@@ -182,6 +234,13 @@ impl std::ops::BitOr for CNFQuery {
     }
 }
 
+impl std::ops::Not for CNFQuery {
+    type Output = CNFQuery;
+    fn not(self) -> Self::Output {
+        CNFQuery::negation(self)
+    }
+}
+
 #[cfg(test)]
 mod test {
 
@@ -191,6 +250,7 @@ mod test {
         let q = "bla".has_value("foo");
 
         assert_eq!(q.to_string(), "(AND (OR bla=foo))");
+        assert_eq!((!q).to_string(), "(AND (OR ~bla=foo))");
 
         let bla = "taste".to_string();
         let foo = "sweet".to_string();
@@ -203,6 +263,7 @@ mod test {
         use super::*;
         let cnf = CNFQuery(vec![]);
         assert_eq!(cnf.to_string(), "(AND )");
+        assert_eq!((!cnf).to_string(), "(AND )");
     }
 
     #[test]
@@ -225,6 +286,13 @@ mod test {
             combined.to_string(),
             "(AND (OR field1=value1) (OR field2=value2))"
         );
+
+        // De Morgan law
+        // NOT (AND C1 C2) = (OR (NOT C1) (NOT C2))
+        assert_eq!(
+            (!combined).to_string(),
+            "(AND (OR ~field1=value1 ~field2=value2))"
+        );
     }
 
     #[test]
@@ -236,11 +304,18 @@ mod test {
         assert_eq!(combined.0[0].0.len(), 2); // Two litteral in the clause.
                                               // In this shape: AND (OR field1:value1 field2:value2)
         assert_eq!(combined.to_string(), "(AND (OR X=x Y=y))");
+        // Second De Morgan law
+        // NOT A OR B = NOT A AND NOT B
+        assert_eq!((!combined).to_string(), "(AND (OR ~X=x) (OR ~Y=y))");
 
-        // (x AND Y) OR Z:
-        let q = ("X".has_value("x") & "Y".has_value("y")) | "Z".has_value("z");
+        // (x AND Y) OR (NOT Z):
+        let q = ("X".has_value("x") & "Y".has_value("y")) | (!"Z".has_value("z"));
 
-        assert_eq!(q.to_string(), "(AND (OR X=x Z=z) (OR Y=y Z=z))");
+        assert_eq!(q.to_string(), "(AND (OR X=x ~Z=z) (OR Y=y ~Z=z))");
+        assert_eq!(
+            (!q.clone()).to_string(),
+            "(AND (OR ~X=x ~Y=y) (OR ~X=x Z=z) (OR ~Y=y Z=z) (OR Z=z))"
+        );
 
         // (X OR Y) OR Z
         let q = ("X".has_value("x") | "Y".has_value("y")) | "Z".has_value("z");

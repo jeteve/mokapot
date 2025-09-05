@@ -99,7 +99,7 @@ fn test_percolator() {
 
         let mut qs: Vec<CNFQuery> = vec![q1, q1b, q2]
             .into_iter()
-            .map(CNFQuery::from_literal)
+            .map(CNFQuery::from_termquery)
             .collect();
         qs.shuffle(&mut rng);
 
