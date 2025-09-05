@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::{fmt, iter};
 
 use itertools::Itertools;
+use roaring::MultiOps;
 use roaring::RoaringBitmap;
 
 use crate::models::{
@@ -27,7 +28,7 @@ fn cnf_to_documents(q: &CNFQuery) -> impl Iterator<Item = Document> + use<'_> {
     q.clauses()
         .iter()
         .map(clause_to_document)
-        .chain(iter::repeat(Document::match_all()).take(1000))
+        .chain(iter::repeat_n(Document::match_all(), 1000))
 }
 
 #[derive(Debug)]
@@ -73,6 +74,12 @@ impl Percolator {
         // Add the match all to match all queries
         dclause.add_termquery(TermQuery::match_all());
 
+        self.clause_idxs
+            .iter()
+            .map(|i| dclause.bs_from_idx(i))
+            .intersection()
+
+        /*
         let mut clause_bss = self
             .clause_idxs
             .iter()
@@ -88,6 +95,7 @@ impl Percolator {
         }
 
         res
+        */
     }
 }
 

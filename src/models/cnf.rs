@@ -7,6 +7,7 @@ use crate::models::{
 
 //use fixedbitset::FixedBitSet;
 use itertools::Itertools;
+use roaring::MultiOps;
 use roaring::RoaringBitmap;
 
 use std::{fmt, rc::Rc};
@@ -73,11 +74,13 @@ impl Clause {
     }
 
     pub fn bs_from_idx(&self, index: &Index) -> RoaringBitmap {
-        let mut ret = RoaringBitmap::new();
+        self.0.iter().map(|q| q.0.bs_from_idx(index)).union()
+
+        /* let mut ret = RoaringBitmap::new();
         self.0.iter().for_each(|q| {
             ret |= q.0.bs_from_idx(index);
         });
-        ret
+        ret */
     }
 
     pub fn it_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + 'a {
