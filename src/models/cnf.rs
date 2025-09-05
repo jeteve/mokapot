@@ -254,15 +254,10 @@ mod test {
     #[test]
     fn test_or_with_multiple_values() {
         use super::*;
-        let xsq = CNFQuery::from_or(
-            (0..5)
-                .map(|i| TermQuery::new("X".into(), format!("x_{}", i).into()))
-                .map(CNFQuery::from_literal)
-                .collect(),
-        );
-        let oney = CNFQuery::from_literal(TermQuery::new("Y".into(), "y".into()));
+        let xsq = CNFQuery::from_or((0..5).map(|i| "X".has_value(format!("x_{}", i))).collect());
+        let oney = "Y".has_value("y");
 
-        let combined = CNFQuery::from_and(vec![xsq, oney]);
+        let combined = xsq & oney;
         assert_eq!(
             combined.to_string(),
             "(AND (OR X=x_0 X=x_1 X=x_2 X=x_3 X=x_4) (OR Y=y))"
