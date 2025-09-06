@@ -44,7 +44,7 @@ impl Document {
     /// An iterator on all the (field,value) tuples of this document.
     pub fn field_values(&self) -> impl Iterator<Item = FieldValue> + use<'_> {
         self.fields()
-            .map(|f| (f.clone(), self.iter_values(f.as_ref())))
+            .map(|f| (f.clone(), self.values_iter(f.as_ref())))
             .filter_map(|(f, ovit)| ovit.map(|vit| (f, vit)))
             .flat_map(|(f, vit)| vit.map(move |v| (f.clone(), v)))
     }
@@ -81,7 +81,7 @@ impl Document {
 
     /// All values of the field
     pub fn values(&self, field: &str) -> Vec<Rc<str>> {
-        if let Some(it) = self.iter_values(field) {
+        if let Some(it) = self.values_iter(field) {
             it.collect()
         } else {
             vec![]
@@ -89,7 +89,7 @@ impl Document {
     }
 
     /// All values of the field if it exists
-    pub fn iter_values(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_> {
+    pub fn values_iter(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_> {
         self.fields.get(field).map(|v| v.iter().cloned())
     }
 }
