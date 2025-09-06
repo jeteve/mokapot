@@ -14,7 +14,7 @@ pub type Qid = u32;
 
 fn clause_to_document(c: &Clause) -> Document {
     c.literals().iter().fold(Document::default(), |a, l| {
-        a.with_value(l.field(), l.term())
+        a.with_value(l.field(), l.value())
     })
 }
 
@@ -140,7 +140,7 @@ mod test_cnf {
     #[test]
     fn test_literal() {
         use super::*;
-        let term_query = TermQuery::new("field".into(), "value".into());
+        let term_query = TermQuery::new("field", "value");
         let cnf_query = CNFQuery::from_termquery(term_query);
         let mut docs = cnf_to_documents(&cnf_query);
         assert_eq!(
@@ -152,8 +152,8 @@ mod test_cnf {
     #[test]
     fn test_from_and() {
         use super::*;
-        let term_query1 = TermQuery::new("field1".into(), "value1".into());
-        let term_query2 = TermQuery::new("field2".into(), "value2".into());
+        let term_query1 = TermQuery::new("field1", "value1");
+        let term_query2 = TermQuery::new("field2", "value2");
         let cnf_query1 = CNFQuery::from_termquery(term_query1);
         let cnf_query2 = CNFQuery::from_termquery(term_query2);
         let combined = CNFQuery::from_and(vec![cnf_query1, cnf_query2]);

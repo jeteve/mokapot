@@ -15,14 +15,14 @@ fn test_clause_match() {
         .with_value("taste", "sweet");
 
     let green_or_bitter = Clause::from_termqueries(vec![
-        TermQuery::new("colour".into(), "green".into()),
-        TermQuery::new("taste".into(), "bitter".into()),
+        TermQuery::new("colour", "green"),
+        TermQuery::new("taste", "bitter"),
     ]);
     assert!(green_or_bitter.matches(&d));
 
     let red_or_bitter = Clause::from_termqueries(vec![
-        TermQuery::new("colour".into(), "red".into()),
-        TermQuery::new("taste".into(), "bitter".into()),
+        TermQuery::new("colour", "red"),
+        TermQuery::new("taste", "bitter"),
     ]);
     assert!(!red_or_bitter.matches(&d));
 }
@@ -49,7 +49,7 @@ fn test_clause() {
         .with_value("colour", "yellow")
         .with_value("taste", "bitter");
 
-    let one_clause = Clause::from_termqueries(vec![TermQuery::new("colour".into(), "blue".into())]);
+    let one_clause = Clause::from_termqueries(vec![TermQuery::new("colour", "blue")]);
     assert!(one_clause.matches(&d));
 
     let mut index = Index::new();
@@ -58,8 +58,8 @@ fn test_clause() {
     let doc_ids: Vec<_> = one_clause.dids_from_idx(&index).collect();
     assert_eq!(doc_ids, vec![]);
 
-    let q = TermQuery::new("colour".into(), "blue".into());
-    let q2 = TermQuery::new("taste".into(), "sweet".into());
+    let q = TermQuery::new("colour", "blue");
+    let q2 = TermQuery::new("taste", "sweet");
     let disq = Clause::from_termqueries(vec![q, q2]);
 
     assert!(disq.matches(&d));

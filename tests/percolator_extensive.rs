@@ -85,17 +85,14 @@ fn test_percolator() {
 
         // WARNING. There will be no difference in efficiency
         // with that. The order of q1/e
-        let q1 = TermQuery::new("city".into(), CountryName().fake::<String>().into());
+        let q1 = TermQuery::new("city", CountryName().fake::<String>());
 
-        let q1b = TermQuery::new(
-            "taste".into(),
-            one_random_data(&field_values["taste"]).into(),
-        );
+        let q1b = TermQuery::new("taste", one_random_data(&field_values["taste"]));
 
         // The last field is random.
         let f2 = one_random_data(&field_names);
         let f_value = one_random_data(field_values.get(f2).unwrap());
-        let q2 = TermQuery::new(f2.into(), f_value.into());
+        let q2 = TermQuery::new(f2, f_value);
 
         let mut qs: Vec<CNFQuery> = vec![q1, q1b, q2]
             .into_iter()

@@ -1,10 +1,6 @@
-use mokapot::models::{
-    cnf::*,
-    document::Document,
-    index::DocId,
-    index::Index,
-    queries::{Query, TermQuery},
-};
+use std::rc::Rc;
+
+use mokapot::models::{cnf::*, document::Document, index::DocId, index::Index, queries::TermQuery};
 
 #[test]
 fn test_term_query() {
@@ -30,19 +26,21 @@ fn test_term_query() {
     assert!(q.docids_from_index(&index).next().is_some());
     assert_eq!(q.docids_from_index(&index).count(), 1);
 
-    let q2 = TermQuery::new("colour".into(), "green".into());
+    let colour: Rc<str> = "colour".into();
+
+    let q2 = TermQuery::new(colour, "green");
     assert!(q2.matches(&d));
     assert!(q2.matches(&d2));
-    assert_eq!(q2.docs_from_index(&index).count(), 2);
+    assert_eq!(q2.dids_from_idx(&index).count(), 2);
 
-    let q2 = TermQuery::new("colour".into(), "red".into());
+    let q2 = TermQuery::new("colour", "red");
     assert!(!q2.matches(&d));
-    assert!(q2.docids_from_index(&index).next().is_none());
-    assert_eq!(q2.docids_from_index(&index).count(), 0);
+    assert!(q2.dids_from_idx(&index).next().is_none());
+    assert_eq!(q2.dids_from_idx(&index).count(), 0);
 
-    let q3 = TermQuery::new("another_key".into(), "sausage".into());
+    let q3 = TermQuery::new("another_key", "sausage");
     assert!(!q3.matches(&d));
-    assert!(q3.docids_from_index(&index).next().is_none());
+    assert!(q3.dids_from_idx(&index).next().is_none());
 }
 
 #[test]

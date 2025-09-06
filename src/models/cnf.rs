@@ -2,7 +2,7 @@
 use crate::models::{
     document::Document,
     index::{DocId, Index},
-    queries::{Query, TermQuery},
+    queries::TermQuery,
 };
 
 //use fixedbitset::FixedBitSet;
@@ -18,10 +18,13 @@ pub struct Literal {
     tq: TermQuery,
 }
 impl Literal {
+    /// The field of this litteral when the clause is turned into a document.
     pub fn field(&self) -> Rc<str> {
         self.tq.field()
     }
-    pub fn term(&self) -> Rc<str> {
+
+    /// The value for this litteral when the clause is turned into a document.
+    pub fn value(&self) -> Rc<str> {
         self.tq.term()
     }
 
@@ -215,7 +218,7 @@ pub trait CNFQueryable: Into<Rc<str>> {
 
 impl CNFQueryable for &str {
     fn has_value<T: Into<Rc<str>>>(self, v: T) -> CNFQuery {
-        let tq = TermQuery::new(self.into(), v.into());
+        let tq = TermQuery::new(self, v);
         CNFQuery::from_termquery(tq)
     }
 }

@@ -1,10 +1,9 @@
 use roaring::RoaringBitmap;
 
-use crate::models::cnf::CNFQuery;
 use crate::models::document::Document;
 use crate::models::document::MATCH_ALL;
 use crate::models::index::*;
-use crate::models::queries::query::*;
+
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -14,21 +13,25 @@ pub struct TermQuery {
 }
 
 impl TermQuery {
-    pub fn new(field: Rc<str>, term: Rc<str>) -> Self {
-        TermQuery { field, term }
-    }
-
-    pub fn match_all() -> Self {
+    /// Constructor
+    pub fn new<T: Into<Rc<str>>, U: Into<Rc<str>>>(field: T, term: U) -> Self {
         TermQuery {
-            field: MATCH_ALL.0.into(),
-            term: MATCH_ALL.1.into(),
+            field: field.into(),
+            term: term.into(),
         }
     }
 
+    /// A match all term query. Just a special symbol.
+    pub fn match_all() -> Self {
+        TermQuery::new(MATCH_ALL.0, MATCH_ALL.1)
+    }
+
+    /// The field
     pub fn field(&self) -> Rc<str> {
         self.field.clone()
     }
 
+    /// The term
     pub fn term(&self) -> Rc<str> {
         self.term.clone()
     }
@@ -42,27 +45,9 @@ impl TermQuery {
     pub fn bs_from_idx<'a>(&self, index: &'a Index) -> &'a RoaringBitmap {
         index.term_bs(self.field.clone(), self.term.clone())
     }
-}
 
-impl Query for TermQuery {
-    fn doc_enrichers(&self) -> Vec<DocPredicate> {
-        // vec![DocPredicate {
-        //     name: "{self.field}_is_{self.term}".into(),
-        //     query: self,
-        // }]
-        vec![]
-    }
-
-    fn matches(&self, d: &Document) -> bool {
+    pub fn matches(&self, d: &Document) -> bool {
         d.iter_values(&self.field)
             .is_some_and(|mut i| i.any(|v| v == self.term))
-    }
-
-    fn docids_from_index<'a>(&self, index: &'a Index) -> Box<dyn Iterator<Item = DocId> + 'a> {
-        Box::new(self.dids_from_idx(index))
-    }
-
-    fn to_cnf(&self) -> CNFQuery {
-        CNFQuery::from_termquery(self.clone())
     }
 }
