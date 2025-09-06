@@ -17,14 +17,14 @@ fn test_term_query() {
     let mut index = Index::new();
     // A query on an empty index.
     let q = "colour".has_value("blue");
-    assert_eq!(q.docids_from_index(&index).count(), 0);
+    assert_eq!(q.docs_from_idx_iter(&index).count(), 0);
 
     index.index_document(&d);
     index.index_document(&d2);
 
     assert!(q.matches(&d));
-    assert!(q.docids_from_index(&index).next().is_some());
-    assert_eq!(q.docids_from_index(&index).count(), 1);
+    assert!(q.docs_from_idx_iter(&index).next().is_some());
+    assert_eq!(q.docs_from_idx_iter(&index).count(), 1);
 
     let colour: Rc<str> = "colour".into();
 
@@ -69,7 +69,7 @@ fn test_conjunction_query() {
 
     // Index the document
     let mut index = Index::new();
-    let doc_ids: Vec<DocId> = conjunction_query.docids_from_index(&index).collect();
+    let doc_ids: Vec<DocId> = conjunction_query.docs_from_idx_iter(&index).collect();
     assert_eq!(doc_ids, vec![] as Vec<DocId>);
 
     index.index_document(&d);
@@ -77,7 +77,7 @@ fn test_conjunction_query() {
     index.index_document(&d2);
     index.index_document(&d3);
 
-    let mut doc_ids = conjunction_query.docids_from_index(&index);
+    let mut doc_ids = conjunction_query.docs_from_idx_iter(&index);
     assert_eq!(doc_ids.next(), Some(0));
     assert_eq!(doc_ids.next(), Some(3));
     assert_eq!(doc_ids.next(), None);
@@ -113,7 +113,7 @@ fn test_disjunction_query() {
 
     let mut index = Index::new();
     // Query against the empty index.
-    let doc_ids: Vec<_> = disq.docids_from_index(&index).collect();
+    let doc_ids: Vec<_> = disq.docs_from_idx_iter(&index).collect();
     assert_eq!(doc_ids, vec![]);
 
     index.index_document(&d);
@@ -123,7 +123,7 @@ fn test_disjunction_query() {
     index.index_document(&d4);
 
     // colour = blue or taste = sweet.
-    let mut doc_ids = disq.docids_from_index(&index);
+    let mut doc_ids = disq.docs_from_idx_iter(&index);
     assert_eq!(doc_ids.next(), Some(0));
     assert_eq!(doc_ids.next(), Some(2));
     assert_eq!(doc_ids.next(), Some(3));

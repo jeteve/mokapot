@@ -227,7 +227,13 @@ impl CNFQuery {
         &self.0
     }
 
-    pub fn docids_from_index<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
+    /// The docs matching this CNFQuery in the whole index.
+    /// This should be rarely used, and is only there for completeness, in the
+    /// case you want to use this crate as a very basic search library.
+    pub fn docs_from_idx_iter<'a>(
+        &self,
+        index: &'a Index,
+    ) -> impl Iterator<Item = DocId> + use<'a> {
         // And multi and between all clauses.
         let subits = self.0.iter().map(|c| c.docs_from_idx(index));
         MultiOps::intersection(subits).into_iter()
