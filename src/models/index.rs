@@ -32,18 +32,22 @@ impl Index {
     }
 
     /// An iterator on matching (field,value) docs IDs
-    pub fn docs_from_fv_iter(
-        &self,
-        field: Rc<str>,
-        value: Rc<str>,
-    ) -> impl Iterator<Item = DocId> + '_ {
+    pub fn docs_from_fv_iter<T, U>(&self, field: T, value: U) -> impl Iterator<Item = DocId> + '_
+    where
+        T: Into<Rc<str>>,
+        U: Into<Rc<str>>,
+    {
         self.docs_from_fv(field, value).iter()
     }
 
     /// A RoaringBitmap of doc IDs matching the field value.
-    pub fn docs_from_fv(&self, field: Rc<str>, value: Rc<str>) -> &RoaringBitmap {
+    pub fn docs_from_fv<T, U>(&self, field: T, value: U) -> &RoaringBitmap
+    where
+        T: Into<Rc<str>>,
+        U: Into<Rc<str>>,
+    {
         self.inverted_idx_bs
-            .get(&(field, value))
+            .get(&(field.into(), value.into()))
             .unwrap_or(&self.empty_bs)
     }
 
