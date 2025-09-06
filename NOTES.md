@@ -10,6 +10,8 @@ When a document comes in with `field=foo` -> No exclusion.
 
 An index is a Clause index.
 
+No Vacuous truth.
+
 field=bla IMPLIES the existence of field
 ~field=bla IMPLIES the existence of field
 
