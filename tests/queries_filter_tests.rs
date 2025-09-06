@@ -31,16 +31,16 @@ fn test_term_query() {
     let q2 = TermQuery::new(colour, "green");
     assert!(q2.matches(&d));
     assert!(q2.matches(&d2));
-    assert_eq!(q2.dids_from_idx(&index).count(), 2);
+    assert_eq!(q2.docs_from_idx_iter(&index).count(), 2);
 
     let q2 = TermQuery::new("colour", "red");
     assert!(!q2.matches(&d));
-    assert!(q2.dids_from_idx(&index).next().is_none());
-    assert_eq!(q2.dids_from_idx(&index).count(), 0);
+    assert!(q2.docs_from_idx_iter(&index).next().is_none());
+    assert_eq!(q2.docs_from_idx_iter(&index).count(), 0);
 
     let q3 = TermQuery::new("another_key", "sausage");
     assert!(!q3.matches(&d));
-    assert!(q3.dids_from_idx(&index).next().is_none());
+    assert!(q3.docs_from_idx_iter(&index).next().is_none());
 }
 
 #[test]

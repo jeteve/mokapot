@@ -93,20 +93,20 @@ impl Clause {
     }
 
     pub fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
-        let subits = self.0.iter().map(|q| q.tq.dids_from_idx(index));
+        let subits = self.0.iter().map(|q| q.tq.docs_from_idx_iter(index));
         itertools::kmerge(subits).dedup()
     }
 
     pub fn bs_from_idx(&self, index: &Index) -> RoaringBitmap {
         let mut ret = RoaringBitmap::new();
         self.0.iter().for_each(|q| {
-            ret |= q.tq.bs_from_idx(index);
+            ret |= q.tq.docs_from_idx(index);
         });
         ret
     }
 
     pub fn it_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + 'a {
-        let its = self.0.iter().map(|q| q.tq.bs_from_idx(index).iter());
+        let its = self.0.iter().map(|q| q.tq.docs_from_idx(index).iter());
         itertools::kmerge(its).dedup()
     }
 
