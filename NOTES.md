@@ -1,3 +1,69 @@
+# Design principles
+
+The goal of mokapot is to take queries, index them somehow and have incoming documents match their queries
+as fast as possible.
+
+## Entities at play
+
+### What is a query?
+
+A query is represented by a Conjunctive Normal Form boolean expression (see structure CNFQuery). That is an expression of the form:
+
+(a OR b) AND (c OR d)
+
+where a,b,c and d are Literals that can be tested for truthness against a document somehow.
+
+Example of valid litteral:
+
+f1.has_value(v1)  (this can be tested for truthness against a document)
+TODO: !f1.has_value(v1) (this can be tested for truthness against a document)
+TODO: f1.has_prefix(p1) (this can be tested for truthness against a document)
+TODO: f1.is_lower_than(10000) (this can be tested for truthness against a document)
+
+A query can ALWAYS be tested for matching against a single document, as only literal matching need to be addressed. The rest is simple boolean stuff.
+
+A CNFQuery, despite being a static/flat data structure can be built from a tree-like expression for convenience and parsing.
+
+Converting a CNFQuery to a tree like boolean expression is NOT in scope.
+
+
+### What is a document?
+
+A simple collection of (field,value) tuples, all strings.
+
+
+### What is an Index?
+
+A data structure that allows to retrieve for a given (field,value) the full list of documents that matches this property.
+
+### What is a Percolator?
+
+A data structure that allows the retrieval of all queries matching a given document. In its trivial form, a percolator is just a query 
+
+## Current Percolator implementation.
+
+Ideas stem from the observation that matching a disjunction of plain litterals is easy:
+
+Let's say the query is (OR f1.has_value(v1))
+
+We can turn this into a document (f1,v1) that we index.
+
+When a document comes in with lets say (f1,v1), we can turn this into a clause (OR f1.has_value(v1)). It is then trivial to run this clause against the index.
+
+So for this simple case, the flows are the following:
+
+Index time: Clause -> Document -> Index
+Percolate time: Document -> Clause -> Index -> Matching Clauses -> check match on Document
+
+Observing that an index is ever only good at matching Clause against Documents (or Document against clauses), we can use several indices to deal with CNFs:
+
+N is FIXED for the percolator.
+
+Index time: CNF -> n x Clauses -> N x Documents -> N x Indices. If n < N , a 'MATCH_ALL' docuemnts are backfilled.
+
+Percolate time: Document -> Clause with MATCHALL added -> N x Index -> Conjunction of matches -> Check match of CNF on Document.
+
+
 # Ideas for NOT field=bla
 
 A query NOT field=bla means:
