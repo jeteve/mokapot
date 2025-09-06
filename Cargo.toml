@@ -9,12 +9,12 @@ readme = "README.md"
 default-run="mokapot"
 
 [dependencies]
-itertools = ">= 0.9.0"
+itertools = "0.9.0"
 roaring = "0.11.2"
 num-traits = "0.2.19"
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = "0.7.0"
 approx = "0.5.1"
 proptest = "1.7.0"
 flamegraph = "0.6.8"

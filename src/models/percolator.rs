@@ -26,7 +26,7 @@ fn cnf_to_documents(q: &CNFQuery) -> impl Iterator<Item = Document> + use<'_> {
     q.clauses()
         .iter()
         .map(clause_to_document)
-        .chain(iter::repeat(Document::match_all()).take(1000))
+        .chain(iter::repeat_n(Document::match_all(), 1000))
 }
 
 #[derive(Debug)]
