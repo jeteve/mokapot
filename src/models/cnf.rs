@@ -170,7 +170,7 @@ impl CNFQuery {
     }
 
     fn cleanse(self) -> Self {
-        Self(self.0.into_iter().map(|c| c.cleanse()).unique().collect())
+        Self(self.0.into_iter().map(|c| c.cleanse()).collect())
     }
 
     pub fn from_and(qs: Vec<CNFQuery>) -> Self {
@@ -261,7 +261,7 @@ mod test {
     #[test]
     fn test_empty() {
         use super::*;
-        let cnf = CNFQuery(vec![]);
+        let cnf = CNFQuery::default();
         assert_eq!(cnf.to_string(), "(AND )");
         assert_eq!((!cnf).to_string(), "(AND )");
     }
