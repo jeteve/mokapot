@@ -171,7 +171,7 @@ impl fmt::Display for CNFQuery {
 }
 
 impl CNFQuery {
-    // Just an alias
+    /// A new CNFQuery from a plain TermQuery
     pub fn from_termquery(q: TermQuery) -> Self {
         Self::from_literal(Literal {
             negated: false,
@@ -183,9 +183,8 @@ impl CNFQuery {
         Self(vec![Clause(vec![l])])
     }
 
-    // CNF is (AND (OR ..) (OR ..))
-    // De Morgan law
-    // NOT (AND C1 C2) = (OR (NOT C1) (NOT C2))
+    /// Applies the second De Morgan law
+    /// to build a CNFQuery representing the negation of this one.
     pub fn negation(q: CNFQuery) -> Self {
         let clause_negations = q.0.into_iter().map(|c| c.negate());
         Self::from_or(clause_negations.collect()).cleanse()
@@ -195,10 +194,14 @@ impl CNFQuery {
         Self(self.0.into_iter().map(|c| c.cleanse()).collect())
     }
 
+    /// conjunction of all the given CNFQueries
     pub fn from_and(qs: Vec<CNFQuery>) -> Self {
         Self(qs.into_iter().flat_map(|q| q.0).collect())
     }
 
+    /// Disjunction of all the given CNFQueries
+    /// Applies distributivity of Conjunctions over disjunctions
+    /// https://proofwiki.org/wiki/Rule_of_Distribution#Conjunction_Distributes_over_Disjunction
     pub fn from_or(qs: Vec<CNFQuery>) -> Self {
         // Combine all CNF queries into a single CNF query
         Self(
@@ -321,7 +324,6 @@ mod test {
     fn test_from_or() {
         use super::*;
         let combined = "X".has_value("x") | "Y".has_value("y");
-        //CNFQuery::from_or_two(cnf_query1, cnf_query2);
         assert_eq!(combined.0.len(), 1); // Only one clause in the top level and.
         assert_eq!(combined.0[0].0.len(), 2); // Two litteral in the clause.
                                               // In this shape: AND (OR field1:value1 field2:value2)
@@ -348,6 +350,15 @@ mod test {
         let q =
             "X".has_value("x") & ("Y".has_value("y") | ("Z".has_value("z") & "W".has_value("w")));
         assert_eq!(q.to_string(), "(AND (OR X=x) (OR Y=y Z=z) (OR W=w Y=y))");
+
+        // ( X AND Y ) OR ( Z AND W )
+        // Turns into
+        let q =
+            ("X".has_value("x") & "Y".has_value("y")) | ("Z".has_value("z") & "W".has_value("w"));
+        assert_eq!(
+            q.to_string(),
+            "(AND (OR X=x Z=z) (OR W=w X=x) (OR Y=y Z=z) (OR W=w Y=y))"
+        )
     }
 
     // Different values OR
