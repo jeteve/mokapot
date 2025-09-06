@@ -1,6 +1,7 @@
 use std::collections::HashMap;
+use std::hint::black_box;
 
-use criterion::{black_box, Throughput};
+use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use fake::faker::address::en::CountryName;

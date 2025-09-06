@@ -13,19 +13,12 @@ fn test_percolator() {
 
     let d = Document::new().with_value("colour", "blue");
 
-    let q_ids = mp.qids_from_document(&d).collect::<Vec<Qid>>();
-    assert_eq!(mp.percolate(&d).collect::<Vec<_>>(), q_ids);
-    assert_eq!(q_ids, vec![0]);
+    assert_eq!(mp.percolate(&d).collect::<Vec<_>>(), vec![0]);
 
-    let q_ids = mp.qids_from_document(&d).collect::<Vec<Qid>>();
-    assert_eq!(mp.percolate(&d).collect::<Vec<_>>(), q_ids);
-    assert_eq!(q_ids, vec![0]);
+    assert_eq!(mp.percolate(&d).collect::<Vec<_>>(), vec![0]);
 
     let d = Document::new().with_value("colour", "green");
-    assert_eq!(
-        mp.qids_from_document(&d).collect::<Vec<Qid>>(),
-        Vec::<Qid>::new()
-    );
+
     assert_eq!(mp.percolate(&d).collect::<Vec<Qid>>(), Vec::<Qid>::new());
 
     let disj = "colour".has_value("blue") | "colour".has_value("green");
@@ -33,7 +26,6 @@ fn test_percolator() {
     mp.add_query(disj.clone());
 
     // The colour=green document will match the disjunction query.
-    assert_eq!(mp.qids_from_document(&d).collect::<Vec<Qid>>(), vec![1]);
     assert_eq!(mp.percolate(&d).collect::<Vec<_>>(), vec![1]);
 
     // Now a simple conjunction query
@@ -45,7 +37,6 @@ fn test_percolator() {
     // A document that is green will not match. but generate a failed candidate
     // as the conjunction would have mached, because it just indexes the bitter taste,
     // as this is more specific than the conjunction side.
-    assert_eq!(mp.qids_from_document(&d).collect::<Vec<Qid>>(), vec![1]);
     assert_eq!(mp.percolate(&d).collect::<Vec<_>>(), vec![1]);
 
     // Another document that is bitter and green
@@ -54,9 +45,5 @@ fn test_percolator() {
         .with_value("taste", "bitter");
 
     // This time it also matches the conjunction
-    assert_eq!(
-        mp.qids_from_document(&sprout).collect::<Vec<Qid>>(),
-        vec![1, cid]
-    );
     assert_eq!(mp.percolate(&sprout).collect::<Vec<_>>(), vec![1, cid]);
 }

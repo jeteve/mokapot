@@ -1,6 +1,7 @@
 use num_traits::{Bounded, One};
 use std::ops::AddAssign;
 
+#[allow(dead_code)]
 pub(crate) struct ConjunctionIterator<T, I>
 where
     T: Iterator<Item = I>,
@@ -17,6 +18,7 @@ where
     T: Iterator<Item = I>,
     I: Bounded + Copy + AddAssign<I>,
 {
+    #[allow(dead_code)]
     pub(crate) fn new(iterators: Vec<T>) -> Self {
         let iterator_levels = vec![I::max_value(); iterators.len()];
         ConjunctionIterator {
@@ -86,35 +88,6 @@ where
                     }
                 }
             }
-
-            /* for (idx, level) in self.iterator_levels.iter_mut().enumerate() {
-            match level {
-                Some(doc_id) if *doc_id < self.watermark => {
-                    let next = self.iterators[idx].next();
-                    // Removing this improves the perf..
-                    /*if let Some(next_docid) = next {
-                        assert!(
-                            next_docid >= *doc_id,
-                            "Invariant broken: next_docid={} < doc_id={} for iterator {}",
-                            next_docid,
-                            doc_id,
-                            idx
-                        );
-                    } */
-                    *level = next;
-                }
-                None => {
-                    // We need to advance. We never advanced before
-                    *level = self.iterators[idx].next();
-                }
-                _ => continue, // No need to advance
-            } */
-
-            // Note this has been returned earlier.
-            // Any None means we are done.
-            //if self.iterator_levels.iter().any(|id| id.is_none()) {
-            //    return None;
-            //}
 
             // None of the levels are None.
 

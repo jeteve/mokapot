@@ -7,7 +7,6 @@ use crate::models::{
     cnf::{CNFQuery, Clause},
     document::Document,
     index::Index,
-    iterators::ConjunctionIterator,
     queries::TermQuery,
 };
 
@@ -126,36 +125,6 @@ impl Percolator {
 
     pub fn get_query(&self, qid: Qid) -> &CNFQuery {
         &self.cnf_queries[qid as usize]
-    }
-
-    pub fn qids_from_document<'a>(
-        &self,
-        d: &'a Document,
-    ) -> impl Iterator<Item = Qid> + use<'_, 'a> {
-        // This is where the magic happens.
-        let mut dclause = d.to_clause();
-        // Add the match all to match all queries
-        dclause.add_termquery(TermQuery::match_all());
-
-        // We are going to search this clause in all the clause indices
-        // We indexed the matchall, so indices of a higher rank with no specific clause
-        // for a given request will still match.
-        let clause_its = self
-            .clause_idxs
-            .iter()
-            .map(|idx| dclause.dids_from_idx(idx))
-            .collect_vec();
-
-        // And wrap all clauses into a ConjunctionIterator
-        ConjunctionIterator::new(clause_its)
-            // And a final filter, just to make sure.
-            .filter(|&query_id| {
-                // For each document ID, we check if it matches the query.
-                // This is a bit inefficient, but we can optimize later.
-                //println!("MULTIMATCH: {}", self.queries[query_id].to_cnf());
-                self.cnf_queries[query_id as usize].matches(d)
-            })
-            .map(|x| x as Qid)
     }
 }
 
