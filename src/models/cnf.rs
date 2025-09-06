@@ -126,11 +126,14 @@ impl Clause {
         itertools::kmerge(its).dedup()
     }
 
+    /// Does this clause matches the given document?
+    /// TODO: Implement negation.
     pub fn matches(&self, d: &Document) -> bool {
         self.0.iter().any(|q| q.tq.matches(d))
     }
 
-    // NOT (OR L1 L2) = (AND (NOT L1) (NOT L2))
+    /// Applies De Morgan's first law to produce a CNFQuery representing
+    /// this negated Clause.
     pub fn negate(self) -> CNFQuery {
         let negated_lits = self
             .0
@@ -140,7 +143,7 @@ impl Clause {
         CNFQuery::from_and(negated_lits)
     }
 
-    pub fn cleanse(self) -> Self {
+    fn cleanse(self) -> Self {
         Self(self.0.into_iter().unique().collect())
     }
 }
