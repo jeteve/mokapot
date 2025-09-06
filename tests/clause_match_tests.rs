@@ -55,7 +55,7 @@ fn test_clause() {
     let mut index = Index::new();
     // Query against the empty index.
 
-    let doc_ids: Vec<_> = one_clause.dids_from_idx(&index).collect();
+    let doc_ids: Vec<_> = one_clause.docs_from_idx_iter(&index).collect();
     assert_eq!(doc_ids, vec![]);
 
     let q = TermQuery::new("colour", "blue");
@@ -64,7 +64,7 @@ fn test_clause() {
 
     assert!(disq.matches(&d));
 
-    let doc_ids: Vec<_> = disq.dids_from_idx(&index).collect();
+    let doc_ids: Vec<_> = disq.docs_from_idx_iter(&index).collect();
     assert_eq!(doc_ids, vec![]);
 
     index.index_document(&d);
@@ -74,12 +74,12 @@ fn test_clause() {
     index.index_document(&d4);
 
     // colour = blue or taste = sweet.
-    let doc_ids: HashSet<DocId> = disq.dids_from_idx(&index).collect();
+    let doc_ids: HashSet<DocId> = disq.docs_from_idx_iter(&index).collect();
     // Notice the order does not matter..
     assert_eq!(doc_ids, HashSet::from([0, 2, 3]));
 
     // Test the one term disjunction, to check the
     // optmimisation
-    let doc_ids: HashSet<DocId> = one_clause.dids_from_idx(&index).collect();
+    let doc_ids: HashSet<DocId> = one_clause.docs_from_idx_iter(&index).collect();
     assert_eq!(doc_ids, HashSet::from([0, 2, 3]));
 }

@@ -49,6 +49,7 @@ impl TermQuery {
         index.term_bs(self.field.clone(), self.term.clone())
     }
 
+    /// Does this match the document?
     pub fn matches(&self, d: &Document) -> bool {
         d.iter_values(&self.field)
             .is_some_and(|mut i| i.any(|v| v == self.term))

@@ -72,7 +72,7 @@ impl Percolator {
         let mut clause_bss = self
             .clause_idxs
             .iter()
-            .map(|idx| dclause.bs_from_idx(idx))
+            .map(|idx| dclause.docs_from_idx(idx))
             .collect_vec();
 
         clause_bss.reverse();

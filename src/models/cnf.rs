@@ -28,11 +28,17 @@ impl Literal {
         self.tq.term()
     }
 
+    /// The negation of this literal, which is also a literal
     pub fn negate(self) -> Self {
         Self {
             negated: !self.negated,
             tq: self.tq,
         }
+    }
+
+    /// Is this negated?
+    pub fn is_negated(&self) -> bool {
+        self.negated
     }
 }
 
@@ -53,11 +59,13 @@ impl PartialOrd for Literal {
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.negated {
-            write!(f, "~{}={}", self.tq.field(), self.tq.term())
-        } else {
-            write!(f, "{}={}", self.tq.field(), self.tq.term())
-        }
+        write!(
+            f,
+            "{}{}={}",
+            if self.is_negated() { "~" } else { "" },
+            self.tq.field(),
+            self.tq.term()
+        )
     }
 }
 
@@ -81,6 +89,7 @@ impl Clause {
         &self.0
     }
 
+    /// A matchall clause
     pub fn match_all() -> Self {
         Self(vec![Literal {
             negated: false,
@@ -88,16 +97,23 @@ impl Clause {
         }])
     }
 
+    /// Flattens a collection of clauses. Consumes them
     pub fn from_clauses(cs: Vec<Clause>) -> Self {
         Self(cs.into_iter().flat_map(|c| c.0).collect())
     }
 
-    pub fn dids_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
-        let subits = self.0.iter().map(|q| q.tq.docs_from_idx_iter(index));
-        itertools::kmerge(subits).dedup()
+    /// The docs Ids from the index matching this clause
+    /// TODO: push down the negation when needed.
+    pub fn docs_from_idx_iter<'a>(
+        &self,
+        index: &'a Index,
+    ) -> impl Iterator<Item = DocId> + use<'a> {
+        self.docs_from_idx(index).into_iter()
     }
 
-    pub fn bs_from_idx(&self, index: &Index) -> RoaringBitmap {
+    /// The docs Ids from the index mathing this clause
+    /// TODO: enforce the negation
+    pub fn docs_from_idx(&self, index: &Index) -> RoaringBitmap {
         let mut ret = RoaringBitmap::new();
         self.0.iter().for_each(|q| {
             ret |= q.tq.docs_from_idx(index);
@@ -207,7 +223,7 @@ impl CNFQuery {
 
     pub fn docids_from_index<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
         // And multi and between all clauses.
-        let subits = self.0.iter().map(|c| c.bs_from_idx(index));
+        let subits = self.0.iter().map(|c| c.docs_from_idx(index));
         MultiOps::intersection(subits).into_iter()
     }
 }
