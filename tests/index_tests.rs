@@ -30,72 +30,72 @@ fn test_few_docs() {
 
     assert_eq!(doc_id1, 0);
     assert_eq!(doc_id2, 1);
-    assert_eq!(index.get_documents().len(), 3);
+    assert_eq!(index.len(), 3);
 
     assert!(index
-        .term_iter("shape".into(), "sausage".into())
+        .docs_from_fv_iter("shape".into(), "sausage".into())
         .next()
         .is_none());
 
     assert!(index
-        .term_bs("shape".into(), "sausage".into())
+        .docs_from_fv("shape".into(), "sausage".into())
         .iter()
         .next()
         .is_none());
 
     assert!(index
-        .term_iter(colour.clone(), "purple".into())
+        .docs_from_fv_iter(colour.clone(), "purple".into())
         .next()
         .is_none());
 
     assert!(index
-        .term_bs(colour.clone(), "purple".into())
+        .docs_from_fv(colour.clone(), "purple".into())
         .iter()
         .next()
         .is_none());
 
     assert!(index
-        .term_iter(colour.clone(), "blue".into())
+        .docs_from_fv_iter(colour.clone(), "blue".into())
         .next()
         .is_some());
 
     assert!(index
-        .term_bs(colour.clone(), "blue".into())
+        .docs_from_fv(colour.clone(), "blue".into())
         .iter()
         .next()
         .is_some());
 
     assert!(index
-        .term_iter(taste.clone(), "sweet".into())
+        .docs_from_fv_iter(taste.clone(), "sweet".into())
         .next()
         .is_some());
 
     assert!(index
-        .term_bs(taste.clone(), "sweet".into())
+        .docs_from_fv(taste.clone(), "sweet".into())
         .iter()
         .next()
         .is_some());
 
     let sweet_docs = index
-        .term_iter(taste.clone(), "sweet".into())
+        .docs_from_fv_iter(taste.clone(), "sweet".into())
         .collect::<Vec<_>>();
 
     assert_eq!(sweet_docs, vec![2]);
 
     let sweet_docs = index
-        .term_bs(taste.clone(), "sweet".into())
+        .docs_from_fv(taste.clone(), "sweet".into())
         .iter()
         .collect::<Vec<_>>();
 
     assert_eq!(sweet_docs, vec![2]);
 
     let blue_docs = index
-        .term_iter(colour.clone(), "blue".into())
+        .docs_from_fv_iter(colour.clone(), "blue".into())
         .collect::<Vec<_>>();
     assert_eq!(blue_docs, vec![0, 2]);
 
     let blue_docs = index
-        .term_bs(colour.clone(), "blue".into())
+        .docs_from_fv(colour.clone(), "blue".into())
         .iter()
         .collect::<Vec<_>>();
     assert_eq!(blue_docs, vec![0, 2]);

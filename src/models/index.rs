@@ -10,10 +10,11 @@ pub type DocId = u32;
 #[derive(Debug, Default)]
 pub struct Index {
     // Remember the documents
-    documents: Vec<Document>,
+    //documents: Vec<Document>,
     // The inverted indices for each ( field,  value)
     inverted_idx_bs: HashMap<(Rc<str>, Rc<str>), RoaringBitmap>,
     empty_bs: RoaringBitmap,
+    n_documents: DocId,
 }
 
 impl Index {
@@ -21,31 +22,38 @@ impl Index {
         Self::default()
     }
 
+    /// How many documents were indexed.
     pub fn len(&self) -> usize {
-        self.documents.len()
+        self.n_documents as usize
     }
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    pub fn term_iter(&self, field: Rc<str>, term: Rc<str>) -> impl Iterator<Item = DocId> + '_ {
-        self.term_bs(field, term).iter()
+    /// An iterator on matching (field,value) docs IDs
+    pub fn docs_from_fv_iter(
+        &self,
+        field: Rc<str>,
+        value: Rc<str>,
+    ) -> impl Iterator<Item = DocId> + '_ {
+        self.docs_from_fv(field, value).iter()
     }
 
-    pub fn term_bs(&self, field: Rc<str>, term: Rc<str>) -> &RoaringBitmap {
+    /// A RoaringBitmap of doc IDs matching the field value.
+    pub fn docs_from_fv(&self, field: Rc<str>, value: Rc<str>) -> &RoaringBitmap {
         self.inverted_idx_bs
-            .get(&(field, term))
+            .get(&(field, value))
             .unwrap_or(&self.empty_bs)
     }
 
     pub fn index_document(&mut self, d: &Document) -> DocId {
-        // Save the new document
-        self.documents.push(d.clone());
+        let new_doc_id = self.n_documents;
 
-        let new_doc_id = (self.documents.len() - 1)
-            .try_into()
-            .expect("Exceeded max size for index");
+        self.n_documents = self
+            .n_documents
+            .checked_add(1)
+            .expect("Too many documents. Max is u32::MAX");
 
         // Update the right inverted indices.
         for (field, value) in d.field_values() {
@@ -55,13 +63,5 @@ impl Index {
                 .insert(new_doc_id);
         }
         new_doc_id
-    }
-
-    pub fn get_document(&self, doc_id: DocId) -> Option<&Document> {
-        self.documents.get(doc_id as usize)
-    }
-
-    pub fn get_documents(&self) -> &[Document] {
-        &self.documents
     }
 }
