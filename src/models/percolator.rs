@@ -4,7 +4,7 @@ use itertools::Itertools;
 use roaring::RoaringBitmap;
 
 use crate::models::{
-    cnf::{CNFQuery, Clause},
+    cnf::{self, CNFQuery, Clause},
     document::Document,
     index::Index,
     queries::TermQuery,
@@ -12,33 +12,49 @@ use crate::models::{
 
 pub type Qid = u32;
 
-fn clause_to_document(c: &Clause) -> Document {
-    c.literals().iter().fold(Document::default(), |a, l| {
-        a.with_value(l.field(), l.value())
-    })
+fn clause_to_document(c: &Clause, negated: bool) -> Document {
+    c.literals()
+        .iter()
+        .filter(|&l| l.is_negated() ^ !negated)
+        .fold(Document::default(), |a, l| {
+            a.with_value(l.field(), l.value())
+        })
 }
 
 /*
     From a CNFQuery, The documents that are meant to be indexed in the percolator
 */
-fn cnf_to_documents(q: &CNFQuery) -> impl Iterator<Item = Document> + use<'_> {
+fn cnf_to_documents(q: &CNFQuery, negated: bool) -> impl Iterator<Item = Document> + use<'_> {
     q.clauses()
         .iter()
-        .map(clause_to_document)
-        .chain(iter::repeat_n(Document::match_all(), 1000))
+        .map(move |c| clause_to_document(c, negated))
+        .chain(iter::repeat_n(
+            if negated {
+                Document::default()
+            } else {
+                Document::match_all()
+            },
+            1000,
+        ))
+}
+
+#[derive(Debug, Default)]
+struct ClauseMatchers {
+    positive_index: Index,
+    negative_index: Index,
 }
 
 #[derive(Debug)]
 pub struct Percolator {
     cnf_queries: Vec<CNFQuery>,
-    clause_idxs: Vec<Index>,
+    clause_idxs: Vec<ClauseMatchers>,
 }
 
 impl std::default::Default for Percolator {
     fn default() -> Self {
         Self {
             cnf_queries: Vec::new(),
-            clause_idxs: (0..3).map(|_| Index::new()).collect(),
+            clause_idxs: (0..3).map(|_| ClauseMatchers::default()).collect(),
         }
     }
 }
@@ -72,7 +88,7 @@ impl Percolator {
         let mut clause_bss = self
             .clause_idxs
             .iter()
-            .map(|idx| dclause.docs_from_idx(idx))
+            .map(|ms| dclause.docs_from_idx(&ms.positive_index))
             .collect_vec();
 
         clause_bss.reverse();
@@ -111,11 +127,14 @@ impl Percolator {
 
         self.clause_idxs
             .iter_mut()
-            .zip(cnf_to_documents(&q))
-            .for_each(|(idx, doc)| {
+            .zip(cnf_to_documents(&q, false))
+            .zip(cnf_to_documents(&q, true))
+            .for_each(|((ms, pos_doc), neg_doc)| {
                 //rintln!("For CNF={} -IDXDOC- {:?}", cnf, doc);
-                idx.index_document(&doc);
-                assert_eq!(idx.len(), expected_index_len);
+                ms.positive_index.index_document(&pos_doc);
+                ms.negative_index.index_document(&neg_doc);
+                assert_eq!(ms.positive_index.len(), expected_index_len);
+                assert_eq!(ms.negative_index.len(), expected_index_len);
             });
 
         let new_doc_id = self.cnf_queries.len();
@@ -134,15 +153,32 @@ mod test_cnf {
     fn test_empty() {
         use super::*;
         let cnf = CNFQuery::default();
-        assert_eq!(cnf_to_documents(&cnf).next(), Some(Document::match_all()));
+        assert_eq!(
+            cnf_to_documents(&cnf, false).next(),
+            Some(Document::match_all())
+        );
+
+        let cnf = CNFQuery::default();
+        assert_eq!(
+            cnf_to_documents(&cnf, true).next(),
+            Some(Document::default())
+        );
     }
 
     #[test]
     fn test_literal() {
         use super::*;
+        use crate::prelude::CNFQueryable;
         let term_query = TermQuery::new("field", "value");
         let cnf_query = CNFQuery::from_termquery(term_query);
-        let mut docs = cnf_to_documents(&cnf_query);
+        let mut docs = cnf_to_documents(&cnf_query, false);
+        assert_eq!(
+            docs.next(),
+            Some(Document::default().with_value("field", "value"))
+        );
+
+        let cnf_query = !"field".has_value("value");
+        let mut docs = cnf_to_documents(&cnf_query, true);
         assert_eq!(
             docs.next(),
             Some(Document::default().with_value("field", "value"))
@@ -162,7 +198,7 @@ mod test_cnf {
             combined.to_string(),
             "(AND (OR field1=value1) (OR field2=value2))"
         );
-        let mut docs = cnf_to_documents(&combined);
+        let mut docs = cnf_to_documents(&combined, false);
         assert_eq!(
             docs.next(),
             Some(Document::default().with_value("field1", "value1"))
@@ -181,7 +217,7 @@ mod test_cnf {
 
         let combined = "Y".has_value("y") | "X".has_value("x");
 
-        let mut docs = cnf_to_documents(&combined);
+        let mut docs = cnf_to_documents(&combined, false);
         assert_eq!(
             docs.next(),
             Some(
@@ -196,7 +232,7 @@ mod test_cnf {
         // The Z
         let q = ("X".has_value("x") & "Y".has_value("y")) | "Z".has_value("z");
         assert_eq!(q.to_string(), "(AND (OR X=x Z=z) (OR Y=y Z=z))");
-        let mut docs = cnf_to_documents(&q);
+        let mut docs = cnf_to_documents(&q, false);
         assert_eq!(
             docs.next(),
             Some(
