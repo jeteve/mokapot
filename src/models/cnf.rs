@@ -40,6 +40,10 @@ impl Literal {
     pub fn is_negated(&self) -> bool {
         self.negated
     }
+
+    pub fn matches(&self, d: &Document) -> bool {
+        self.negated ^ self.tq.matches(d)
+    }
 }
 
 impl Ord for Literal {
@@ -129,7 +133,7 @@ impl Clause {
     /// Does this clause matches the given document?
     /// TODO: Implement negation.
     pub fn matches(&self, d: &Document) -> bool {
-        self.0.iter().any(|q| q.tq.matches(d))
+        self.0.iter().any(|q| q.matches(d))
     }
 
     /// Applies De Morgan's first law to produce a CNFQuery representing

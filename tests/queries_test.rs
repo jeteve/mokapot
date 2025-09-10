@@ -27,6 +27,27 @@ fn test_query() {
 }
 
 #[test]
+fn test_negation_queries() {
+    let q = !"A".has_value("x");
+
+    assert!(q.matches(&Document::default()));
+
+    let q = "A".has_value("a") | !"B".has_value("x");
+    // Vacuous truth
+    assert!(q.matches(&Document::default()));
+    assert!(q.matches(&Document::default().with_value("A", "a")));
+    assert!(q.matches(
+        &Document::default()
+            .with_value("A", "a")
+            .with_value("B", "x")
+    ));
+
+    // Vacuous truth.
+    assert!(!q.matches(&Document::default().with_value("B", "x")));
+    assert!(q.matches(&Document::default().with_value("B", "y")));
+}
+
+#[test]
 fn test_conjunction_disjunction_query() {
     let d: Document = Document::default()
         .with_value("colour", "blue")
