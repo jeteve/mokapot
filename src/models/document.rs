@@ -23,6 +23,10 @@ impl Document {
         Self::default()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.fvs_count == 0
+    }
+
     /// A special document that only contain the match_all field,value
     pub fn match_all() -> Self {
         Self::default().with_value(MATCH_ALL.0, MATCH_ALL.1)

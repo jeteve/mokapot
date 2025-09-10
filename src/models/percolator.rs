@@ -4,7 +4,7 @@ use itertools::Itertools;
 use roaring::RoaringBitmap;
 
 use crate::models::{
-    cnf::{self, CNFQuery, Clause},
+    cnf::{CNFQuery, Clause},
     document::Document,
     index::Index,
     queries::TermQuery,
@@ -13,12 +13,20 @@ use crate::models::{
 pub type Qid = u32;
 
 fn clause_to_document(c: &Clause, negated: bool) -> Document {
-    c.literals()
-        .iter()
-        .filter(|&l| l.is_negated() ^ !negated)
-        .fold(Document::default(), |a, l| {
-            a.with_value(l.field(), l.value())
-        })
+    let lits = c.literals().iter().filter(|&l| l.is_negated() ^ !negated);
+
+    let d = lits.fold(Document::default(), |a, l| {
+        a.with_value(l.field(), l.value())
+    });
+
+    if !negated & d.is_empty() {
+        // There was NO positive clause
+        // We need to match all, because
+        // later on, we need to exclude the negative matching only.
+        Document::match_all()
+    } else {
+        d
+    }
 }
 
 /*
@@ -88,7 +96,15 @@ impl Percolator {
         let mut clause_bss = self
             .clause_idxs
             .iter()
-            .map(|ms| dclause.docs_from_idx(&ms.positive_index))
+            .map(|ms| {
+                // The queries that have been indexed as positive.
+                let mut pos_matches = dclause.docs_from_idx(&ms.positive_index);
+                // The litterals that have been indexed as negative
+                // let neg_matches = dclause.docs_from_idx(&ms.negative_index);
+
+                // When there is no positive match
+                pos_matches
+            })
             .collect_vec();
 
         clause_bss.reverse();

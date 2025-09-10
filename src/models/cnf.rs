@@ -116,7 +116,6 @@ impl Clause {
     }
 
     /// The docs Ids from the index mathing this clause
-    /// TODO: enforce the negation
     pub fn docs_from_idx(&self, index: &Index) -> RoaringBitmap {
         let mut ret = RoaringBitmap::new();
         self.0.iter().for_each(|q| {
