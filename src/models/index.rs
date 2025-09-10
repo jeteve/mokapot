@@ -12,7 +12,7 @@ pub struct Index {
     // Remember the documents
     //documents: Vec<Document>,
     // The inverted indices for each ( field,  value)
-    inverted_idx_bs: HashMap<(Rc<str>, Rc<str>), RoaringBitmap>,
+    term_idxs: HashMap<(Rc<str>, Rc<str>), RoaringBitmap>,
     empty_bs: RoaringBitmap,
     n_documents: DocId,
 }
@@ -46,7 +46,7 @@ impl Index {
         T: Into<Rc<str>>,
         U: Into<Rc<str>>,
     {
-        self.inverted_idx_bs
+        self.term_idxs
             .get(&(field.into(), value.into()))
             .unwrap_or(&self.empty_bs)
     }
@@ -61,7 +61,7 @@ impl Index {
 
         // Update the right inverted indices.
         for (field, value) in d.field_values() {
-            self.inverted_idx_bs
+            self.term_idxs
                 .entry((field, value))
                 .or_default()
                 .insert(new_doc_id);
