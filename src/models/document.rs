@@ -50,6 +50,18 @@ impl Document {
     }
 
     /// The merge of this document with another one.
+    ///
+    /// # Example:
+    /// ```
+    /// use mokapot::models::document::Document;
+    ///
+    /// let d1 = Document::default().with_value("A", "a");
+    /// let d2 = Document::default().with_value("A", "a2").with_value("B", "b");
+    ///
+    /// let d3 = d1.merge_with(&d2);
+    /// assert_eq!(d3.values("A"), vec!["a".into(), "a2".into()]);
+    /// assert_eq!(d3.values("B"), vec!["b".into()]);
+    /// ```
     pub fn merge_with(&self, other: &Self) -> Self {
         // Find all the (key,value) of a document.
         self.field_values()
@@ -58,7 +70,16 @@ impl Document {
             .fold(Document::new(), |a, (f, v)| a.with_value(f, v.clone()))
     }
 
-    /// This document with a new field,value pair
+    /// This document with a new field,value
+    ///
+    /// # Example:
+    /// ```
+    /// use mokapot::models::document::Document;
+    ///
+    /// let d = Document::default().with_value("field", "value");
+    /// assert_eq!(d.values("field"), vec!["value".into()]);
+    /// ```
+    ///
     pub fn with_value<T, U>(mut self, field: T, value: U) -> Self
     where
         T: Into<Rc<str>>,
