@@ -102,7 +102,7 @@ impl Percolator {
     pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = Qid> + use<'b, '_> {
         self.bs_from_document(d)
             .into_iter()
-            .filter(|&qid| self.cnf_queries[qid as usize].matches(d))
+            .filter(|&qid| !self.must_filter.contains(qid) | self.cnf_queries[qid as usize].matches(d))
     }
 
     fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
