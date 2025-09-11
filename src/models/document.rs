@@ -126,3 +126,14 @@ impl Document {
         self.fields.get(field).map(|v| v.iter().cloned())
     }
 }
+
+impl<K, V, const N: usize> From<[(K, V); N]> for Document
+where
+    K: Into<Rc<str>>,
+    V: Into<Rc<str>> + Clone,
+{
+    fn from(arr: [(K, V); N]) -> Self {
+        arr.into_iter()
+            .fold(Document::default(), |a, (k, v)| a.with_value(k, v))
+    }
+}
