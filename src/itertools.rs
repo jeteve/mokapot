@@ -13,4 +13,20 @@ pub trait TheShwartz: Iterator {
     }
 }
 
+pub trait InPlaceReduce: Iterator {
+    fn reduce_inplace<F>(mut self, mut f: F) -> Option<<Self as Iterator>::Item>
+    where
+        F: FnMut(&mut <Self as Iterator>::Item, &<Self as Iterator>::Item),
+        Self: Iterator + Sized,
+    {
+        if let Some(mut i) = self.next() {
+            self.for_each(|e| f(&mut i, &e));
+            Some(i)
+        } else {
+            None
+        }
+    }
+}
+
 impl<T> TheShwartz for T where T: Iterator {}
+impl<T> InPlaceReduce for T where T: Iterator {}

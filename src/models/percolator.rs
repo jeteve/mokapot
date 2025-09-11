@@ -3,6 +3,8 @@ use std::{fmt, iter};
 use itertools::Itertools;
 use roaring::RoaringBitmap;
 
+use crate::itertools::InPlaceReduce;
+
 use crate::models::{
     cnf::{CNFQuery, Clause},
     document::Document,
@@ -12,29 +14,29 @@ use crate::models::{
 
 pub type Qid = u32;
 
-
 #[derive(Clone, Debug, PartialEq)]
-struct MatchItem{
+struct MatchItem {
     must_filter: bool,
-    doc: Document
+    doc: Document,
 }
 
-impl MatchItem{
-
-    fn new(doc: Document) -> Self{
-        MatchItem{ doc , must_filter: false }
+impl MatchItem {
+    fn new(doc: Document) -> Self {
+        MatchItem {
+            doc,
+            must_filter: false,
+        }
     }
 
-    fn match_all() -> Self{
+    fn match_all() -> Self {
         Self::new(Document::match_all())
     }
 
-    fn with_must_filter(mut self) -> Self{
+    fn with_must_filter(mut self) -> Self {
         self.must_filter = true;
         self
     }
 }
-
 
 fn clause_to_mi(c: &Clause) -> MatchItem {
     let lits = c.literals().iter();
@@ -47,18 +49,16 @@ fn clause_to_mi(c: &Clause) -> MatchItem {
         return MatchItem::match_all().with_must_filter();
     }
 
-    MatchItem::new(lits.fold(Document::default(), |a, l| 
+    MatchItem::new(lits.fold(Document::default(), |a, l| {
         a.with_value(l.field(), l.value())
-    ) )
+    }))
 }
 
 /*
     From a CNFQuery, The documents that are meant to be indexed in the percolator
 */
 fn cnf_to_matchitems(q: &CNFQuery) -> impl Iterator<Item = MatchItem> + use<'_> {
-    q.clauses()
-        .iter()
-        .map(clause_to_mi)
+    q.clauses().iter().map(clause_to_mi)
 }
 
 #[derive(Debug, Default)]
@@ -80,7 +80,7 @@ impl std::default::Default for Percolator {
         Self {
             cnf_queries: Vec::new(),
             clause_matchers: (0..3).map(|_| ClauseMatchers::default()).collect(),
-            must_filter: RoaringBitmap::new()
+            must_filter: RoaringBitmap::new(),
         }
     }
 }
@@ -100,9 +100,9 @@ impl Percolator {
     /// Percolate a document through this, returning an iterator
     /// of the matching query IDs
     pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = Qid> + use<'b, '_> {
-        self.bs_from_document(d)
-            .into_iter()
-            .filter(|&qid| !self.must_filter.contains(qid) | self.cnf_queries[qid as usize].matches(d))
+        self.bs_from_document(d).into_iter().filter(|&qid| {
+            !self.must_filter.contains(qid) | self.cnf_queries[qid as usize].matches(d)
+        })
     }
 
     fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
@@ -111,24 +111,13 @@ impl Percolator {
         // Add the match all to match all queries
         dclause.add_termquery(TermQuery::match_all());
 
-        let mut clause_bss = self
-            .clause_matchers
+        self.clause_matchers
             .iter()
-            .map(|ms| 
-                // The queries that have been indexed as positive.
-                dclause.docs_from_idx(&ms.positive_index)
-            )
-            .collect_vec();
-
-        clause_bss.reverse();
-
-        // There is at least one index, so at least one clause bitset
-        let mut res = clause_bss.pop().unwrap();
-        for other_bs in clause_bss.iter().rev() {
-            res &= other_bs;
-        }
-
-        res
+            .map(|ms| dclause.docs_from_idx(&ms.positive_index))
+            .reduce_inplace(|acc, b| {
+                *acc &= b;
+            })
+            .expect("This cannot work with zero clause matchers")
     }
 }
 
@@ -156,7 +145,6 @@ impl Percolator {
 
         let new_doc_id = self.cnf_queries.len().try_into().expect("Too many queries");
 
-        
         let mis = cnf_to_matchitems(&q).collect_vec();
 
         if mis.len() > self.clause_matchers.len() {
@@ -164,8 +152,7 @@ impl Percolator {
         }
 
         let cms = self.clause_matchers.iter_mut();
-        cms
-            .zip(mis.into_iter().chain(iter::repeat(MatchItem::match_all())))
+        cms.zip(mis.into_iter().chain(iter::repeat(MatchItem::match_all())))
             .for_each(|(ms, mi)| {
                 if mi.must_filter {
                     self.must_filter.insert(new_doc_id);
@@ -174,7 +161,6 @@ impl Percolator {
                 assert_eq!(ms.positive_index.len(), expected_index_len);
             });
 
-        
         self.cnf_queries.push(q);
         new_doc_id
     }
@@ -190,21 +176,20 @@ mod test_cnf {
     fn test_empty() {
         use super::*;
         let cnf = CNFQuery::default();
-        assert_eq!(
-            cnf_to_matchitems(&cnf).next(),
-            None
-        );
+        assert_eq!(cnf_to_matchitems(&cnf).next(), None);
     }
 
-
     #[test]
-    fn test_or_with_neg(){
+    fn test_or_with_neg() {
         use super::*;
         use crate::prelude::CNFQueryable;
 
         let q = !"f1".has_value("v1") | "f2".has_value("v2");
         let mut mis = cnf_to_matchitems(&q);
-        assert_eq!(mis.next().unwrap(), MatchItem::match_all().with_must_filter())
+        assert_eq!(
+            mis.next().unwrap(),
+            MatchItem::match_all().with_must_filter()
+        )
     }
 
     #[test]
@@ -216,7 +201,9 @@ mod test_cnf {
         let mut docs = cnf_to_matchitems(&cnf_query);
         assert_eq!(
             docs.next(),
-            Some(MatchItem::new( Document::default().with_value("field", "value")))
+            Some(MatchItem::new(
+                Document::default().with_value("field", "value")
+            ))
         );
 
         let cnf_query = !"field".has_value("value");
@@ -243,11 +230,15 @@ mod test_cnf {
         let mut docs = cnf_to_matchitems(&combined);
         assert_eq!(
             docs.next(),
-            Some(MatchItem::new(Document::default().with_value("field1", "value1")))
+            Some(MatchItem::new(
+                Document::default().with_value("field1", "value1")
+            ))
         );
         assert_eq!(
             docs.next(),
-            Some(MatchItem::new(Document::default().with_value("field2", "value2")))
+            Some(MatchItem::new(
+                Document::default().with_value("field2", "value2")
+            ))
         );
         assert_eq!(docs.next(), None);
     }
@@ -265,8 +256,8 @@ mod test_cnf {
             Some(MatchItem::new(
                 Document::default()
                     .with_value("X", "x")
-                    .with_value("Y", "y"))
-            )
+                    .with_value("Y", "y")
+            ))
         );
         assert_eq!(docs.next(), None);
 

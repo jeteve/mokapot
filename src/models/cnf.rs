@@ -116,6 +116,7 @@ impl Clause {
     }
 
     /// The docs Ids from the index mathing this clause
+    // TODO: Implement negation
     pub fn docs_from_idx(&self, index: &Index) -> RoaringBitmap {
         let mut ret = RoaringBitmap::new();
         self.0.iter().for_each(|q| {
@@ -130,7 +131,6 @@ impl Clause {
     }
 
     /// Does this clause matches the given document?
-    /// TODO: Implement negation.
     pub fn matches(&self, d: &Document) -> bool {
         self.0.iter().any(|q| q.matches(d))
     }
