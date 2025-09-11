@@ -1,11 +1,10 @@
 use itertools::Itertools;
 
-pub trait TheShwartz: Iterator {
+pub trait TheShwartz: Iterator + Sized {
     fn schwartzian<F, K, O>(self, fk: F, ord: O) -> impl Iterator<Item = <Self as Iterator>::Item>
     where
         F: Fn(&Self::Item) -> K,
         O: Fn(&K, &K) -> std::cmp::Ordering,
-        Self: Iterator + Sized,
     {
         self.map(|i| (fk(&i), i))
             .sorted_by(|(ka, _ia), (kb, _ib)| ord(ka, kb))
@@ -13,11 +12,10 @@ pub trait TheShwartz: Iterator {
     }
 }
 
-pub trait InPlaceReduce: Iterator {
+pub trait InPlaceReduce: Iterator + Sized {
     fn reduce_inplace<F>(mut self, mut f: F) -> Option<<Self as Iterator>::Item>
     where
         F: FnMut(&mut <Self as Iterator>::Item, &<Self as Iterator>::Item),
-        Self: Iterator + Sized,
     {
         if let Some(mut i) = self.next() {
             self.for_each(|e| f(&mut i, &e));
@@ -28,8 +26,8 @@ pub trait InPlaceReduce: Iterator {
     }
 }
 
-impl<T> TheShwartz for T where T: Iterator {}
-impl<T> InPlaceReduce for T where T: Iterator {}
+impl<T> TheShwartz for T where T: Iterator + Sized {}
+impl<T> InPlaceReduce for T where T: Iterator + Sized {}
 
 mod test_itertools {
 
