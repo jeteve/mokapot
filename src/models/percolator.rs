@@ -8,7 +8,7 @@ use crate::itertools::InPlaceReduce;
 use crate::models::{
     cnf::{CNFQuery, Clause},
     document::Document,
-    document::ToDocument,
+    document::ToCowDocument,
     index::Index,
     queries::TermQuery,
 };
@@ -102,12 +102,12 @@ impl Percolator {
     /// of the matching query IDs
     ///
     /// The `doc_like` argument can be a `&Document` or any type that implements
-    /// the `ToDocument` trait, like an array of key-value tuples.
-    pub fn percolate<'b, D: ?Sized + ToDocument>(
+    /// the `ToCowDocument` trait, like an array of key-value tuples.
+    pub fn percolate<'b, D: ?Sized + ToCowDocument>(
         &self,
         doc_like: &'b D,
     ) -> impl Iterator<Item = Qid> + use<'b, '_, D> {
-        let d = doc_like.to_document();
+        let d = doc_like.to_cow_document();
         self.bs_from_document(&d).into_iter().filter(move |&qid| {
             !self.must_filter.contains(qid) || self.cnf_queries[qid as usize].matches(&d)
         })

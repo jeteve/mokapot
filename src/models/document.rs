@@ -16,26 +16,26 @@ pub struct Document {
 
 type FieldValue = (Rc<str>, Rc<str>);
 
-/// A trait for types that can be converted into a `Document`.
+/// A trait for types that can be converted into a `Cow<Document>`.
 /// This is used to provide a more ergonomic API for functions that
-/// need a `Document`.
-pub trait ToDocument {
+/// need a refernce to a `Document`.
+pub trait ToCowDocument {
     /// Converts this type into a `Cow<Document>`.
-    fn to_document<'a>(&'a self) -> Cow<'a, Document>;
+    fn to_cow_document<'a>(&'a self) -> Cow<'a, Document>;
 }
 
-impl ToDocument for Document {
-    fn to_document<'a>(&'a self) -> Cow<'a, Document> {
+impl ToCowDocument for Document {
+    fn to_cow_document<'a>(&'a self) -> Cow<'a, Document> {
         Cow::Borrowed(self)
     }
 }
 
-impl<K, V, const N: usize> ToDocument for [(K, V); N]
+impl<K, V, const N: usize> ToCowDocument for [(K, V); N]
 where
     K: Into<Rc<str>> + Clone,
     V: Into<Rc<str>> + Clone,
 {
-    fn to_document<'a>(&'a self) -> Cow<'a, Document> {
+    fn to_cow_document<'a>(&'a self) -> Cow<'a, Document> {
         Cow::Owned(Document::from(self.clone()))
     }
 }
