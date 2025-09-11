@@ -15,12 +15,23 @@ pub type Qid = u32;
 
 #[derive(Clone, Debug, PartialEq)]
 struct MatchItem{
+    must_filter: bool,
     doc: Document
 }
 
 impl MatchItem{
+
+    fn new(doc: Document) -> Self{
+        MatchItem{ doc , must_filter: false }
+    }
+
     fn match_all() -> Self{
-        Self{ doc: Document::match_all()}
+        Self::new(Document::match_all())
+    }
+
+    fn with_must_filter(mut self) -> Self{
+        self.must_filter = true;
+        self
     }
 }
 
@@ -33,12 +44,12 @@ fn clause_to_mi(c: &Clause) -> MatchItem {
     // to get the query candidates. As there might be candidates that have
     // the negated litterals satisfied.
     if lits.clone().any(|l| l.is_negated()) {
-        return MatchItem::match_all();
+        return MatchItem::match_all().with_must_filter();
     }
 
-    MatchItem{ doc: lits.fold(Document::default(), |a, l| {
+    MatchItem::new(lits.fold(Document::default(), |a, l| 
         a.with_value(l.field(), l.value())
-    }) }
+    ) )
 }
 
 /*
@@ -48,11 +59,6 @@ fn cnf_to_matchitems(q: &CNFQuery) -> impl Iterator<Item = MatchItem> + use<'_> 
     q.clauses()
         .iter()
         .map(clause_to_mi)
-        .chain(iter::repeat_n(
-                MatchItem::match_all()
-            ,
-            1000,
-        ))
 }
 
 #[derive(Debug, Default)]
@@ -63,14 +69,18 @@ struct ClauseMatchers {
 #[derive(Debug)]
 pub struct Percolator {
     cnf_queries: Vec<CNFQuery>,
-    clause_idxs: Vec<ClauseMatchers>,
+    clause_matchers: Vec<ClauseMatchers>,
+    // Holds which queries MUST be finally filtered with
+    // their match(document) method.
+    must_filter: RoaringBitmap,
 }
 
 impl std::default::Default for Percolator {
     fn default() -> Self {
         Self {
             cnf_queries: Vec::new(),
-            clause_idxs: (0..3).map(|_| ClauseMatchers::default()).collect(),
+            clause_matchers: (0..3).map(|_| ClauseMatchers::default()).collect(),
+            must_filter: RoaringBitmap::new()
         }
     }
 }
@@ -102,7 +112,7 @@ impl Percolator {
         dclause.add_termquery(TermQuery::match_all());
 
         let mut clause_bss = self
-            .clause_idxs
+            .clause_matchers
             .iter()
             .map(|ms| 
                 // The queries that have been indexed as positive.
@@ -128,7 +138,7 @@ impl fmt::Display for Percolator {
             f,
             "MultiPerc-{}Qs/{}IDXs",
             self.cnf_queries.len(),
-            self.clause_idxs.len()
+            self.clause_matchers.len()
         )
     }
 }
@@ -144,17 +154,29 @@ impl Percolator {
         // The Clause index is controlling the zip.
         let expected_index_len = self.cnf_queries.len() + 1;
 
-        self.clause_idxs
-            .iter_mut()
-            .zip(cnf_to_matchitems(&q))
+        let new_doc_id = self.cnf_queries.len().try_into().expect("Too many queries");
+
+        
+        let mis = cnf_to_matchitems(&q).collect_vec();
+
+        if mis.len() > self.clause_matchers.len() {
+            self.must_filter.insert(new_doc_id);
+        }
+
+        let cms = self.clause_matchers.iter_mut();
+        cms
+            .zip(mis.into_iter().chain(iter::repeat(MatchItem::match_all())))
             .for_each(|(ms, mi)| {
+                if mi.must_filter {
+                    self.must_filter.insert(new_doc_id);
+                }
                 ms.positive_index.index_document(&mi.doc);
                 assert_eq!(ms.positive_index.len(), expected_index_len);
             });
 
-        let new_doc_id = self.cnf_queries.len();
+        
         self.cnf_queries.push(q);
-        new_doc_id.try_into().expect("Too many queries")
+        new_doc_id
     }
 
     pub fn get_query(&self, qid: Qid) -> &CNFQuery {
@@ -170,8 +192,19 @@ mod test_cnf {
         let cnf = CNFQuery::default();
         assert_eq!(
             cnf_to_matchitems(&cnf).next(),
-            Some(MatchItem::match_all())
+            None
         );
+    }
+
+
+    #[test]
+    fn test_or_with_neg(){
+        use super::*;
+        use crate::prelude::CNFQueryable;
+
+        let q = !"f1".has_value("v1") | "f2".has_value("v2");
+        let mut mis = cnf_to_matchitems(&q);
+        assert_eq!(mis.next().unwrap(), MatchItem::match_all().with_must_filter())
     }
 
     #[test]
@@ -183,14 +216,14 @@ mod test_cnf {
         let mut docs = cnf_to_matchitems(&cnf_query);
         assert_eq!(
             docs.next(),
-            Some(MatchItem{doc: Document::default().with_value("field", "value")})
+            Some(MatchItem::new( Document::default().with_value("field", "value")))
         );
 
         let cnf_query = !"field".has_value("value");
         let mut docs = cnf_to_matchitems(&cnf_query);
         assert_eq!(
             docs.next(),
-            Some(MatchItem{doc: Document::match_all()})
+            Some(MatchItem::new(Document::match_all()).with_must_filter())
         );
     }
 
@@ -210,13 +243,13 @@ mod test_cnf {
         let mut docs = cnf_to_matchitems(&combined);
         assert_eq!(
             docs.next(),
-            Some(MatchItem{doc: Document::default().with_value("field1", "value1")})
+            Some(MatchItem::new(Document::default().with_value("field1", "value1")))
         );
         assert_eq!(
             docs.next(),
-            Some(MatchItem{doc: Document::default().with_value("field2", "value2")})
+            Some(MatchItem::new(Document::default().with_value("field2", "value2")))
         );
-        assert_eq!(docs.next(), Some(MatchItem{ doc: Document::match_all()}));
+        assert_eq!(docs.next(), None);
     }
 
     #[test]
@@ -229,13 +262,13 @@ mod test_cnf {
         let mut docs = cnf_to_matchitems(&combined);
         assert_eq!(
             docs.next(),
-            Some(MatchItem{ doc:
+            Some(MatchItem::new(
                 Document::default()
                     .with_value("X", "x")
-                    .with_value("Y", "y") }
+                    .with_value("Y", "y"))
             )
         );
-        assert_eq!(docs.next(), Some(MatchItem{doc: Document::match_all()}));
+        assert_eq!(docs.next(), None);
 
         // (x AND Y) OR Z:
         // The Z
@@ -244,20 +277,20 @@ mod test_cnf {
         let mut docs = cnf_to_matchitems(&q);
         assert_eq!(
             docs.next(),
-            Some(MatchItem{doc:
+            Some(MatchItem::new(
                 Document::default()
                     .with_value("X", "x")
                     .with_value("Z", "z")
-            })
+            ))
         );
         assert_eq!(
             docs.next(),
-            Some(MatchItem{ doc:
+            Some(MatchItem::new(
                 Document::default()
                     .with_value("Y", "y")
                     .with_value("Z", "z")
-            })
+            ))
         );
-        assert_eq!(docs.next(), Some(MatchItem{doc: Document::match_all()}));
+        assert_eq!(docs.next(), None);
     }
 }

@@ -32,6 +32,10 @@ impl Document {
         Self::default().with_value(MATCH_ALL.0, MATCH_ALL.1)
     }
 
+    pub fn is_match_all(&self) -> bool {
+        self.fvs_count == 1 && self.has_field(MATCH_ALL.0)
+    }
+
     /// The number of (field,value) tuples in this document.
     pub fn fv_count(&self) -> usize {
         self.fvs_count
@@ -97,6 +101,10 @@ impl Document {
             .or_insert(vec![val]);
         self.fvs_count += 1;
         self
+    }
+
+    pub fn has_field(&self, f: &str) -> bool {
+        self.fields.contains_key(f)
     }
 
     /// All fields of this document
