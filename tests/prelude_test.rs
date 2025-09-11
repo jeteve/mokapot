@@ -11,7 +11,7 @@ fn test_percolator() {
         p.add_query("A".has_value("a") & "B".has_value("b")),
         p.add_query(!"A".has_value("a")),
         // TODO: Reinstate that. But the negative matching will have to change.
-        //p.add_query(some_q.clone()),
+        p.add_query(some_q.clone()),
     ];
 
     assert_eq!(some_q.to_string(), "(AND (OR ~A=a B=b))");
@@ -24,13 +24,13 @@ fn test_percolator() {
     assert_eq!(
         p.percolate(&Document::default().with_value("X", "x"))
             .collect_vec(),
-        vec![q[3]]
+        vec![q[3], q[4]]
     );
 
     assert_eq!(
         p.percolate(&Document::default().with_value("A", "b"))
             .collect_vec(),
-        vec![q[3]]
+        vec![q[3], q[4]]
     );
 
     assert_eq!(
@@ -46,6 +46,6 @@ fn test_percolator() {
                 .with_value("B", "b")
         )
         .collect_vec(),
-        vec![q[0], q[1], q[2]]
+        vec![q[0], q[1], q[2], q[4]]
     );
 }
