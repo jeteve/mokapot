@@ -15,28 +15,27 @@ fn test_percolator() {
     ];
 
     assert_eq!(
-        p.percolate(&[("X", "x")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("X", "x")]).collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
 
     assert_eq!(
-        p.percolate(&[("B", "b")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("B", "b")]).collect::<Vec<_>>(),
         vec![q[1], q[3], q[4], q[5]]
     );
 
     assert_eq!(
-        p.percolate(&[("A", "b")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("A", "b")]).collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
 
     assert_eq!(
-        p.percolate(&[("A", "a")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("A", "a")]).collect::<Vec<_>>(),
         vec![q[0], q[1]]
     );
 
     assert_eq!(
-        p.percolate(&[("A", "a"), ("B", "b")].into())
-            .collect::<Vec<_>>(),
+        p.percolate(&[("A", "a"), ("B", "b")]).collect::<Vec<_>>(),
         vec![q[0], q[1], q[2], q[4]]
     );
 }

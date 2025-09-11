@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -14,6 +15,30 @@ pub struct Document {
 }
 
 type FieldValue = (Rc<str>, Rc<str>);
+
+/// A trait for types that can be converted into a `Document`.
+/// This is used to provide a more ergonomic API for functions that
+/// need a `Document`.
+pub trait ToDocument {
+    /// Converts this type into a `Cow<Document>`.
+    fn to_document<'a>(&'a self) -> Cow<'a, Document>;
+}
+
+impl ToDocument for Document {
+    fn to_document<'a>(&'a self) -> Cow<'a, Document> {
+        Cow::Borrowed(self)
+    }
+}
+
+impl<K, V, const N: usize> ToDocument for [(K, V); N]
+where
+    K: Into<Rc<str>> + Clone,
+    V: Into<Rc<str>> + Clone,
+{
+    fn to_document<'a>(&'a self) -> Cow<'a, Document> {
+        Cow::Owned(Document::from(self.clone()))
+    }
+}
 
 pub(crate) const MATCH_ALL: (&str, &str) = ("__match_all__", "true");
 
