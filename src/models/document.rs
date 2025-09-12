@@ -30,13 +30,16 @@ impl ToCowDocument for Document {
     }
 }
 
-impl<K, V, const N: usize> ToCowDocument for [(K, V); N]
+// For types that can be converted to Document (owns)
+// Use a newtype or marker trait to avoid conflicts
+pub trait IntoDocument: Into<Document> + Clone {}
+
+impl<T> ToCowDocument for T
 where
-    K: Into<Rc<str>> + Clone,
-    V: Into<Rc<str>> + Clone,
+    T: IntoDocument,
 {
     fn to_cow_document<'a>(&'a self) -> Cow<'a, Document> {
-        Cow::Owned(Document::from(self.clone()))
+        Cow::Owned(self.clone().into())
     }
 }
 
@@ -161,4 +164,11 @@ where
         arr.into_iter()
             .fold(Document::default(), |a, (k, v)| a.with_value(k, v))
     }
+}
+
+impl<K, V, const N: usize> IntoDocument for [(K, V); N]
+where
+    K: Into<Rc<str>> + Clone,
+    V: Into<Rc<str>> + Clone,
+{
 }
