@@ -2,7 +2,7 @@
 use crate::models::{
     document::Document,
     index::{DocId, Index},
-    queries::TermQuery,
+    queries::{PrefixQuery, TermQuery},
 };
 
 //use fixedbitset::FixedBitSet;
@@ -13,19 +13,60 @@ use roaring::RoaringBitmap;
 use std::{fmt, rc::Rc};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct Literal {
-    negated: bool,
-    tq: TermQuery,
+pub enum LitQuery {
+    Term(TermQuery),
+    Prefix(PrefixQuery),
 }
-impl Literal {
-    /// The field of this litteral when the clause is turned into a document.
-    pub fn field(&self) -> Rc<str> {
-        self.tq.field()
+
+impl LitQuery {
+    // Simple delegation.
+    fn matches(&self, d: &Document) -> bool {
+        match self {
+            LitQuery::Term(tq) => tq.matches(d),
+            LitQuery::Prefix(pq) => pq.matches(d),
+        }
     }
 
-    /// The value for this litteral when the clause is turned into a document.
-    pub fn value(&self) -> Rc<str> {
-        self.tq.term()
+    fn sort_field(&self) -> Rc<str> {
+        match self {
+            LitQuery::Term(tq) => tq.field(),
+            LitQuery::Prefix(pq) => pq.field(),
+        }
+    }
+
+    fn sort_term(&self) -> Rc<str> {
+        match self {
+            LitQuery::Term(tq) => tq.term(),
+            LitQuery::Prefix(pq) => pq.prefix(),
+        }
+    }
+}
+
+impl fmt::Display for LitQuery {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LitQuery::Term(tq) => write!(f, "{}={}", tq.field(), tq.term()),
+            LitQuery::Prefix(pq) => write!(f, "{}={}*", pq.field(), pq.prefix()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct Literal {
+    negated: bool,
+    tq: LitQuery,
+}
+impl Literal {
+    /*
+       How this literal would turn into a document field/value
+       when the whole CNF is percolated.
+
+    */
+    pub fn percolate_doc_field_value(&self) -> (Rc<str>, Rc<str>) {
+        match &self.tq {
+            LitQuery::Term(tq) => (tq.field(), tq.term()),
+            LitQuery::Prefix(pq) => (pq.field(), pq.prefix()),
+        }
     }
 
     /// The negation of this literal, which is also a literal
@@ -44,14 +85,21 @@ impl Literal {
     pub fn matches(&self, d: &Document) -> bool {
         self.negated ^ self.tq.matches(d)
     }
+
+    pub fn percolate_docs_from_idx<'a>(&self, index: &'a Index) -> Option<&'a RoaringBitmap> {
+        match &self.tq {
+            LitQuery::Term(tq) => Some(tq.docs_from_idx(index)),
+            LitQuery::Prefix(pq) => None,
+        }
+    }
 }
 
 impl Ord for Literal {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.tq
-            .field()
-            .cmp(&other.tq.field())
-            .then_with(|| self.tq.term().cmp(&other.tq.term()))
+            .sort_field()
+            .cmp(&other.tq.sort_field())
+            .then_with(|| self.tq.sort_term().cmp(&other.tq.sort_term()))
     }
 }
 
@@ -63,13 +111,7 @@ impl PartialOrd for Literal {
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}{}={}",
-            if self.is_negated() { "~" } else { "" },
-            self.tq.field(),
-            self.tq.term()
-        )
+        write!(f, "{}{}", if self.is_negated() { "~" } else { "" }, self.tq)
     }
 }
 
@@ -79,13 +121,19 @@ impl Clause {
     pub fn from_termqueries(ts: Vec<TermQuery>) -> Self {
         Self(
             ts.into_iter()
-                .map(|tq| Literal { negated: false, tq })
+                .map(|tq| Literal {
+                    negated: false,
+                    tq: LitQuery::Term(tq),
+                })
                 .collect(),
         )
     }
 
     pub fn add_termquery(&mut self, tq: TermQuery) {
-        self.0.push(Literal { negated: false, tq });
+        self.0.push(Literal {
+            negated: false,
+            tq: LitQuery::Term(tq),
+        });
     }
 
     /// The literals making this clause
@@ -97,7 +145,7 @@ impl Clause {
     pub fn match_all() -> Self {
         Self(vec![Literal {
             negated: false,
-            tq: TermQuery::match_all(),
+            tq: LitQuery::Term(TermQuery::match_all()),
         }])
     }
 
@@ -106,29 +154,11 @@ impl Clause {
         Self(cs.into_iter().flat_map(|c| c.0).collect())
     }
 
-    /// The docs Ids from the index matching this clause
-    /// TODO: push down the negation when needed.
-    pub fn docs_from_idx_iter<'a>(
-        &self,
-        index: &'a Index,
-    ) -> impl Iterator<Item = DocId> + use<'a> {
-        self.docs_from_idx(index).into_iter()
-    }
-
-    /// The docs Ids from the index mathing this clause
-    // TODO: Implement negation
-    pub fn docs_from_idx(&self, index: &Index) -> RoaringBitmap {
-        let mut ret = RoaringBitmap::new();
-        self.0.iter().for_each(|q| {
-            ret |= q.tq.docs_from_idx(index);
-        });
-        ret
-    }
-
+    /*
     pub fn it_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + 'a {
         let its = self.0.iter().map(|q| q.tq.docs_from_idx(index).iter());
         itertools::kmerge(its).dedup()
-    }
+    }*/
 
     /// Does this clause matches the given document?
     pub fn matches(&self, d: &Document) -> bool {
@@ -178,7 +208,7 @@ impl CNFQuery {
     pub fn from_termquery(q: TermQuery) -> Self {
         Self::from_literal(Literal {
             negated: false,
-            tq: q,
+            tq: LitQuery::Term(q),
         })
     }
 
@@ -238,7 +268,10 @@ impl CNFQuery {
         index: &'a Index,
     ) -> impl Iterator<Item = DocId> + use<'a> {
         // And multi and between all clauses.
-        let subits = self.0.iter().map(|c| c.docs_from_idx(index));
+        let subits = self
+            .0
+            .iter()
+            .map(|c| crate::models::percolator::clause_docs_from_idx(c, index));
         MultiOps::intersection(subits).into_iter()
     }
 }

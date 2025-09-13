@@ -5,6 +5,7 @@ use roaring::RoaringBitmap;
 
 use crate::itertools::InPlaceReduce;
 
+use crate::models::index::DocId;
 use crate::models::{
     cnf::{CNFQuery, Clause},
     document::Document,
@@ -38,6 +39,30 @@ impl MatchItem {
     }
 }
 
+// The docs Ids from the index mathing this clause
+// This is only used in the context of percolation,
+//    this clause will NOT have any negatives.
+//    this clause will NOT have any non-term litterals.
+// Migrate to percolator please.
+pub fn clause_docs_from_idx(c: &Clause, index: &Index) -> RoaringBitmap {
+    let mut ret = RoaringBitmap::new();
+    c.literals().iter().for_each(|l| {
+        if let Some(rb) = l.percolate_docs_from_idx(index) {
+            ret |= rb;
+        }
+    });
+    ret
+}
+
+// The docs Ids from the index matching this clause
+// In the context of a percolation only.
+pub fn clause_docs_from_idx_iter<'a>(
+    c: &Clause,
+    index: &'a Index,
+) -> impl Iterator<Item = DocId> + use<'a> {
+    clause_docs_from_idx(c, index).into_iter()
+}
+
 fn clause_to_mi(c: &Clause) -> MatchItem {
     let lits = c.literals().iter();
 
@@ -50,7 +75,8 @@ fn clause_to_mi(c: &Clause) -> MatchItem {
     }
 
     MatchItem::new(lits.fold(Document::default(), |a, l| {
-        a.with_value(l.field(), l.value())
+        let pfv = l.percolate_doc_field_value();
+        a.with_value(pfv.0, pfv.1)
     }))
 }
 
@@ -116,7 +142,7 @@ impl Percolator {
 
         self.clause_matchers
             .iter()
-            .map(|ms| dclause.docs_from_idx(&ms.positive_index))
+            .map(|ms| clause_docs_from_idx(&dclause, &ms.positive_index))
             .reduce_inplace(|acc, b| {
                 *acc &= b;
             })
