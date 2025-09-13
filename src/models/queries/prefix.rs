@@ -42,11 +42,11 @@ mod test_prefix {
         let q = PrefixQuery::new("field", "pre");
 
         assert!(!q.matches(&Document::default()));
-
         assert!(!q.matches(&[("some", "thing")].into()));
-
+        assert!(!q.matches(&[("field", "pr")].into()));
         assert!(q.matches(&[("field", "pre")].into()));
         assert!(q.matches(&[("field", "prescience")].into()));
         assert!(!q.matches(&[("field", "foo")].into()));
+        assert!(!q.matches(&[("field", "")].into()));
     }
 }
