@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::{fmt, iter};
 
 use itertools::Itertools;
@@ -15,10 +16,27 @@ use crate::models::{
 
 pub type Qid = u32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
+struct ClauseExpander(Rc<dyn Fn(&Clause) -> Vec<TermQuery>>);
+impl std::fmt::Debug for ClauseExpander {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ClauseExpander")
+            .field(&"_AN OPAQUE FUNCTION_")
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug)]
+struct PreHeater {
+    id: Rc<str>,
+    expand_clause: ClauseExpander,
+}
+
+#[derive(Clone, Debug)]
 struct MatchItem {
     must_filter: bool,
     doc: Document,
+    preheaters: Vec<PreHeater>,
 }
 
 impl MatchItem {
@@ -26,7 +44,16 @@ impl MatchItem {
         MatchItem {
             doc,
             must_filter: false,
+            preheaters: vec![],
         }
+    }
+
+    fn is_match_all(&self) -> bool {
+        self.doc.is_match_all()
+    }
+
+    fn must_filter(&self) -> bool {
+        self.must_filter
     }
 
     fn match_all() -> Self {
@@ -205,7 +232,7 @@ mod test_cnf {
     fn test_empty() {
         use super::*;
         let cnf = CNFQuery::default();
-        assert_eq!(cnf_to_matchitems(&cnf).next(), None);
+        assert!(cnf_to_matchitems(&cnf).next().is_none());
     }
 
     #[test]
@@ -214,11 +241,9 @@ mod test_cnf {
         use crate::prelude::CNFQueryable;
 
         let q = !"f1".has_value("v1") | "f2".has_value("v2");
-        let mut mis = cnf_to_matchitems(&q);
-        assert_eq!(
-            mis.next().unwrap(),
-            MatchItem::match_all().with_must_filter()
-        )
+        let mis = cnf_to_matchitems(&q).next().unwrap();
+        assert!(mis.is_match_all());
+        assert!(mis.must_filter());
     }
 
     #[test]
@@ -227,20 +252,13 @@ mod test_cnf {
         use crate::prelude::CNFQueryable;
         let term_query = TermQuery::new("field", "value");
         let cnf_query = CNFQuery::from_termquery(term_query);
-        let mut docs = cnf_to_matchitems(&cnf_query);
-        assert_eq!(
-            docs.next(),
-            Some(MatchItem::new(
-                Document::default().with_value("field", "value")
-            ))
-        );
+        let mi = cnf_to_matchitems(&cnf_query).next().unwrap();
+        assert_eq!(mi.doc, Document::default().with_value("field", "value"));
 
         let cnf_query = !"field".has_value("value");
-        let mut docs = cnf_to_matchitems(&cnf_query);
-        assert_eq!(
-            docs.next(),
-            Some(MatchItem::new(Document::match_all()).with_must_filter())
-        );
+        let mi = cnf_to_matchitems(&cnf_query).next().unwrap();
+        assert!(mi.is_match_all());
+        assert!(mi.must_filter());
     }
 
     #[test]
@@ -256,20 +274,16 @@ mod test_cnf {
             combined.to_string(),
             "(AND (OR field1=value1) (OR field2=value2))"
         );
-        let mut docs = cnf_to_matchitems(&combined);
+        let mut mis = cnf_to_matchitems(&combined);
         assert_eq!(
-            docs.next(),
-            Some(MatchItem::new(
-                Document::default().with_value("field1", "value1")
-            ))
+            mis.next().unwrap().doc,
+            Document::default().with_value("field1", "value1")
         );
         assert_eq!(
-            docs.next(),
-            Some(MatchItem::new(
-                Document::default().with_value("field2", "value2")
-            ))
+            mis.next().unwrap().doc,
+            Document::default().with_value("field2", "value2")
         );
-        assert_eq!(docs.next(), None);
+        assert!(mis.next().is_none());
     }
 
     #[test]
@@ -279,38 +293,32 @@ mod test_cnf {
 
         let combined = "Y".has_value("y") | "X".has_value("x");
 
-        let mut docs = cnf_to_matchitems(&combined);
+        let mut mis = cnf_to_matchitems(&combined);
         assert_eq!(
-            docs.next(),
-            Some(MatchItem::new(
-                Document::default()
-                    .with_value("X", "x")
-                    .with_value("Y", "y")
-            ))
+            mis.next().unwrap().doc,
+            Document::default()
+                .with_value("X", "x")
+                .with_value("Y", "y")
         );
-        assert_eq!(docs.next(), None);
+        assert!(mis.next().is_none());
 
         // (x AND Y) OR Z:
         // The Z
         let q = ("X".has_value("x") & "Y".has_value("y")) | "Z".has_value("z");
         assert_eq!(q.to_string(), "(AND (OR X=x Z=z) (OR Y=y Z=z))");
-        let mut docs = cnf_to_matchitems(&q);
+        let mut mis = cnf_to_matchitems(&q);
         assert_eq!(
-            docs.next(),
-            Some(MatchItem::new(
-                Document::default()
-                    .with_value("X", "x")
-                    .with_value("Z", "z")
-            ))
+            mis.next().unwrap().doc,
+            Document::default()
+                .with_value("X", "x")
+                .with_value("Z", "z")
         );
         assert_eq!(
-            docs.next(),
-            Some(MatchItem::new(
-                Document::default()
-                    .with_value("Y", "y")
-                    .with_value("Z", "z")
-            ))
+            mis.next().unwrap().doc,
+            Document::default()
+                .with_value("Y", "y")
+                .with_value("Z", "z")
         );
-        assert_eq!(docs.next(), None);
+        assert!(mis.next().is_none());
     }
 }

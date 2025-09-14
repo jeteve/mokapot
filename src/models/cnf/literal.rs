@@ -57,6 +57,10 @@ impl Literal {
         Self { negated, query }
     }
 
+    pub fn query(&self) -> &LitQuery {
+        &self.query
+    }
+
     /*
        When this contains a Prefix query, it needs to return
        a function that will add to all litteral queries that
