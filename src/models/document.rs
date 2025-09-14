@@ -112,13 +112,21 @@ impl Document {
         self.fields.keys().cloned()
     }
 
+    /// The values of the field, if present in the document.
+    pub fn values_ref(&self, field: &str) -> Option<&Vec<Rc<str>>> {
+        self.fields.get(field)
+    }
+
     /// All values of the field
     pub fn values(&self, field: &str) -> Vec<Rc<str>> {
+        self.fields.get(field).cloned().unwrap_or_default()
+
+        /*
         if let Some(it) = self.values_iter(field) {
             it.collect()
         } else {
             vec![]
-        }
+        }*/
     }
 
     /// All values of the field if it exists
