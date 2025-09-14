@@ -2,13 +2,12 @@
 use crate::models::{
     document::Document,
     index::{DocId, Index},
-    queries::{PrefixQuery, Query, TermQuery},
+    queries::{PrefixQuery, TermQuery},
 };
 
 //use fixedbitset::FixedBitSet;
 use itertools::Itertools;
 use roaring::MultiOps;
-use roaring::RoaringBitmap;
 
 use std::{fmt, rc::Rc};
 
@@ -16,36 +15,42 @@ mod literal;
 use literal::*;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct Clause(Vec<Literal>);
+pub struct Clause {
+    literals: Vec<Literal>,
+}
+
 impl Clause {
     pub fn from_termqueries(ts: Vec<TermQuery>) -> Self {
-        Self(
-            ts.into_iter()
+        Self {
+            literals: ts
+                .into_iter()
                 .map(|tq| Literal::new(false, LitQuery::Term(tq)))
                 .collect(),
-        )
+        }
     }
 
-    pub fn add_termquery(&mut self, tq: TermQuery) {
-        self.0.push(Literal::new(false, LitQuery::Term(tq)));
+    pub fn add_termquery(&mut self, query: TermQuery) {
+        self.literals
+            .push(Literal::new(false, LitQuery::Term(query)));
     }
 
     /// The literals making this clause
     pub fn literals(&self) -> &[Literal] {
-        &self.0
+        &self.literals
     }
 
     /// A matchall clause
     pub fn match_all() -> Self {
-        Self(vec![Literal::new(
-            false,
-            LitQuery::Term(TermQuery::match_all()),
-        )])
+        Self {
+            literals: vec![Literal::new(false, LitQuery::Term(TermQuery::match_all()))],
+        }
     }
 
     /// Flattens a collection of clauses. Consumes them
     pub fn from_clauses(cs: Vec<Clause>) -> Self {
-        Self(cs.into_iter().flat_map(|c| c.0).collect())
+        Self {
+            literals: cs.into_iter().flat_map(|c| c.literals).collect(),
+        }
     }
 
     /*
@@ -56,14 +61,14 @@ impl Clause {
 
     /// Does this clause matches the given document?
     pub fn matches(&self, d: &Document) -> bool {
-        self.0.iter().any(|q| q.matches(d))
+        self.literals.iter().any(|q| q.matches(d))
     }
 
     /// Applies De Morgan's first law to produce a CNFQuery representing
     /// this negated Clause.
     pub fn negate(self) -> CNFQuery {
         let negated_lits = self
-            .0
+            .literals
             .into_iter()
             .map(|l| CNFQuery::from_literal(l.negate()))
             .collect();
@@ -71,7 +76,9 @@ impl Clause {
     }
 
     fn cleanse(self) -> Self {
-        Self(self.0.into_iter().unique().collect())
+        Self {
+            literals: self.literals.into_iter().unique().collect(),
+        }
     }
 }
 
@@ -80,7 +87,11 @@ impl fmt::Display for Clause {
         write!(
             f,
             "(OR {})",
-            self.0.iter().sorted().map(|l| l.to_string()).join(" ")
+            self.literals
+                .iter()
+                .sorted()
+                .map(|l| l.to_string())
+                .join(" ")
         )
     }
 }
@@ -108,7 +119,7 @@ impl CNFQuery {
     }
 
     pub fn from_literal(l: Literal) -> Self {
-        Self(vec![Clause(vec![l])])
+        Self(vec![Clause { literals: vec![l] }])
     }
 
     /// Applies the second De Morgan law
@@ -242,7 +253,7 @@ mod test {
         use super::*;
         let cnf_query = "field".has_value("value");
         assert_eq!(cnf_query.0.len(), 1);
-        assert_eq!(cnf_query.0[0].0.len(), 1);
+        assert_eq!(cnf_query.0[0].literals.len(), 1);
         assert_eq!(cnf_query.to_string(), "(AND (OR field=value))");
     }
 
@@ -251,7 +262,7 @@ mod test {
         use super::*;
         let combined = "field1".has_value("value1") & "field2".has_value("value2");
         assert_eq!(combined.0.len(), 2);
-        assert_eq!(combined.0[0].0.len(), 1);
+        assert_eq!(combined.0[0].literals.len(), 1);
         // Structure would be:
         assert_eq!(
             combined.to_string(),
@@ -271,8 +282,8 @@ mod test {
         use super::*;
         let combined = "X".has_value("x") | "Y".has_value("y");
         assert_eq!(combined.0.len(), 1); // Only one clause in the top level and.
-        assert_eq!(combined.0[0].0.len(), 2); // Two litteral in the clause.
-                                              // In this shape: AND (OR field1:value1 field2:value2)
+        assert_eq!(combined.0[0].literals.len(), 2); // Two litteral in the clause.
+                                                     // In this shape: AND (OR field1:value1 field2:value2)
         assert_eq!(combined.to_string(), "(AND (OR X=x Y=y))");
         // Second De Morgan law
         // NOT A OR B = NOT A AND NOT B
