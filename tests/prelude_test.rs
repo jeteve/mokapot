@@ -12,6 +12,7 @@ fn test_percolator() {
         p.add_query((!"A".has_value("a")) | "B".has_value("b")), //4
         p.add_query(!"A".has_value("a") & "B".has_value("b")),   //5
         p.add_query(!"A".has_value("a") & "A".has_value("a")),   //6 - should NEVER match anything.
+        p.add_query("C".has_prefix("multi")),
     ];
 
     assert_eq!(

@@ -2,7 +2,7 @@
 use crate::models::{
     document::Document,
     index::{DocId, Index},
-    queries::{PrefixQuery, TermQuery},
+    queries::{PrefixQuery, Query, TermQuery},
 };
 
 //use fixedbitset::FixedBitSet;
@@ -59,13 +59,15 @@ pub struct Literal {
 impl Literal {
     /*
        How this literal would turn into a document field/value
-       when the whole CNF is percolated.
-
+       when the CNF is indexed for later percolation.
     */
     pub fn percolate_doc_field_value(&self) -> (Rc<str>, Rc<str>) {
         match &self.tq {
             LitQuery::Term(tq) => (tq.field(), tq.term()),
-            LitQuery::Prefix(pq) => (pq.field(), pq.prefix()),
+            LitQuery::Prefix(pq) => (
+                format!("__PREFIX{}__{}", pq.prefix().len(), pq.field()).into(),
+                pq.prefix(),
+            ),
         }
     }
 
@@ -86,10 +88,12 @@ impl Literal {
         self.negated ^ self.tq.matches(d)
     }
 
-    pub fn percolate_docs_from_idx<'a>(&self, index: &'a Index) -> Option<&'a RoaringBitmap> {
+    // Only used at percolation time
+    // The should Never be a prefix query in here.
+    pub fn percolate_docs_from_idx<'a>(&self, index: &'a Index) -> &'a RoaringBitmap {
         match &self.tq {
-            LitQuery::Term(tq) => Some(tq.docs_from_idx(index)),
-            LitQuery::Prefix(pq) => None,
+            LitQuery::Term(tq) => tq.docs_from_idx(index),
+            _ => panic!("Only term queries are allowed in percolating queries"),
         }
     }
 }
@@ -212,6 +216,13 @@ impl CNFQuery {
         })
     }
 
+    pub fn from_prefixquery(q: PrefixQuery) -> Self {
+        Self::from_literal(Literal {
+            negated: false,
+            tq: LitQuery::Prefix(q),
+        })
+    }
+
     pub fn from_literal(l: Literal) -> Self {
         Self(vec![Clause(vec![l])])
     }
@@ -278,12 +289,21 @@ impl CNFQuery {
 
 pub trait CNFQueryable: Into<Rc<str>> {
     fn has_value<T: Into<Rc<str>>>(self, v: T) -> CNFQuery;
+    fn has_prefix<T: Into<Rc<str>>>(self, v: T) -> CNFQuery;
 }
 
-impl CNFQueryable for &str {
-    fn has_value<T: Into<Rc<str>>>(self, v: T) -> CNFQuery {
+impl<T> CNFQueryable for T
+where
+    T: Into<Rc<str>>,
+{
+    fn has_value<U: Into<Rc<str>>>(self, v: U) -> CNFQuery {
         let tq = TermQuery::new(self, v);
         CNFQuery::from_termquery(tq)
+    }
+
+    fn has_prefix<U: Into<Rc<str>>>(self, v: U) -> CNFQuery {
+        let pq = PrefixQuery::new(self, v);
+        CNFQuery::from_prefixquery(pq)
     }
 }
 

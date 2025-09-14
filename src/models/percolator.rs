@@ -46,11 +46,11 @@ impl MatchItem {
 // Migrate to percolator please.
 pub fn clause_docs_from_idx(c: &Clause, index: &Index) -> RoaringBitmap {
     let mut ret = RoaringBitmap::new();
-    c.literals().iter().for_each(|l| {
-        if let Some(rb) = l.percolate_docs_from_idx(index) {
-            ret |= rb;
-        }
-    });
+    c.literals()
+        .iter()
+        .map(|l| l.percolate_docs_from_idx(index))
+        .for_each(|bm| ret |= bm);
+
     ret
 }
 

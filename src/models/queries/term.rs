@@ -3,6 +3,7 @@ use roaring::RoaringBitmap;
 use crate::models::document::Document;
 use crate::models::document::MATCH_ALL;
 use crate::models::index::*;
+use crate::models::queries::Query;
 
 use std::rc::Rc;
 
@@ -48,9 +49,11 @@ impl TermQuery {
     pub fn docs_from_idx<'a>(&self, index: &'a Index) -> &'a RoaringBitmap {
         index.docs_from_fv(self.field.clone(), self.term.clone())
     }
+}
 
+impl Query for TermQuery {
     /// Does this match the document?
-    pub fn matches(&self, d: &Document) -> bool {
+    fn matches(&self, d: &Document) -> bool {
         d.values_iter(&self.field)
             .is_some_and(|mut i| i.any(|v| v == self.term))
     }

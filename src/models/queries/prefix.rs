@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::models::document::Document;
+use crate::models::{document::Document, queries::common::Query};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct PrefixQuery {
@@ -26,9 +26,11 @@ impl PrefixQuery {
     pub fn prefix(&self) -> Rc<str> {
         self.prefix.clone()
     }
+}
 
+impl Query for PrefixQuery {
     /// Does this match the document?
-    pub fn matches(&self, d: &Document) -> bool {
+    fn matches(&self, d: &Document) -> bool {
         d.values_iter(&self.field)
             .is_some_and(|mut i| i.any(|v| v.starts_with(self.prefix.as_ref())))
     }

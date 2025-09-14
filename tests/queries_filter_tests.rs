@@ -1,6 +1,8 @@
 use std::rc::Rc;
 
-use mokapot::models::{cnf::*, document::Document, index::DocId, index::Index, queries::TermQuery};
+use mokapot::models::{
+    cnf::*, document::Document, index::DocId, index::Index, queries::Query, queries::TermQuery,
+};
 
 #[test]
 fn test_term_query() {
