@@ -419,7 +419,7 @@ mod test_queries {
     #[test]
     fn test_term_query() {
         use super::*;
-        use crate::models::queries::Query;
+        use crate::models::queries::common::Query;
         let d: Document = Document::default()
             .with_value("colour", "blue")
             .with_value("colour", "green")

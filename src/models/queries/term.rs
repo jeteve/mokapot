@@ -3,7 +3,7 @@ use roaring::RoaringBitmap;
 use crate::models::document::Document;
 use crate::models::document::MATCH_ALL;
 use crate::models::index::*;
-use crate::models::queries::Query;
+use crate::models::queries::common::Query;
 
 use std::rc::Rc;
 

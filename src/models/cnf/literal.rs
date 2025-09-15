@@ -9,7 +9,7 @@ use crate::models::{
     index::Index,
     percolator::ClauseExpander,
     percolator::PreHeater,
-    queries::{Query, prefix::PrefixQuery, term::TermQuery},
+    queries::{common::Query, prefix::PrefixQuery, term::TermQuery},
 };
 
 fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
