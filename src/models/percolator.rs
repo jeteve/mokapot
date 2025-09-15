@@ -18,7 +18,7 @@ pub type Qid = u32;
 
 #[derive(Clone)]
 // Extends Clauses comming from percolated document with extra termqueries.
-struct ClauseExpander(Rc<dyn Fn(&Clause) -> Vec<TermQuery>>);
+struct ClauseExpander(Rc<dyn Fn(Clause) -> Clause>);
 impl std::fmt::Debug for ClauseExpander {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ClauseExpander")
@@ -56,10 +56,6 @@ impl MatchItem {
 
     fn is_match_all(&self) -> bool {
         self.doc.is_match_all()
-    }
-
-    fn must_filter(&self) -> bool {
-        self.must_filter
     }
 
     fn match_all() -> Self {
@@ -112,7 +108,7 @@ fn clause_to_mi(c: &Clause) -> MatchItem {
         a.with_value(pfv.0, pfv.1)
     }));
 
-    // Add the preheaters
+    // Add the preheaters from the literals
     lits.fold(mi, |mi, li| {
         if let Some(ph) = li.preheater() {
             mi.with_preheater(ph)
@@ -138,6 +134,8 @@ struct ClauseMatchers {
 pub struct Percolator {
     cnf_queries: Vec<CNFQuery>,
     clause_matchers: Vec<ClauseMatchers>,
+    // To preheat the document clauses.
+    preheaters: Vec<PreHeater>,
     // Holds which queries MUST be finally filtered with
     // their match(document) method.
     must_filter: RoaringBitmap,
@@ -147,6 +145,7 @@ impl std::default::Default for Percolator {
     fn default() -> Self {
         Self {
             cnf_queries: Vec::new(),
+            preheaters: Vec::new(),
             clause_matchers: (0..3).map(|_| ClauseMatchers::default()).collect(),
             must_filter: RoaringBitmap::new(),
         }
@@ -204,6 +203,11 @@ impl fmt::Display for Percolator {
 }
 
 impl Percolator {
+    // Does this have this preheater yet?
+    fn has_preheater(&self, ph: &PreHeater) -> bool {
+        self.preheaters.iter().any(|eph| eph.id == ph.id)
+    }
+
     ///
     /// Adds a query to this percolator. Will panic if
     /// there is more than u32::MAX queries.
@@ -221,6 +225,15 @@ impl Percolator {
         if mis.len() > self.clause_matchers.len() {
             self.must_filter.insert(new_doc_id);
         }
+
+        // Add the preheaters from the Match items.
+        mis.iter()
+            .flat_map(|mi| mi.preheaters.iter())
+            .for_each(|ph| {
+                if !self.has_preheater(ph) {
+                    self.preheaters.push(ph.clone())
+                }
+            });
 
         let cms = self.clause_matchers.iter_mut();
         cms.zip(mis.into_iter().chain(iter::repeat(MatchItem::match_all())))
@@ -258,7 +271,7 @@ mod test_cnf {
         let q = !"f1".has_value("v1") | "f2".has_value("v2");
         let mis = cnf_to_matchitems(&q).next().unwrap();
         assert!(mis.is_match_all());
-        assert!(mis.must_filter());
+        assert!(mis.must_filter);
     }
 
     #[test]
@@ -273,7 +286,7 @@ mod test_cnf {
         let cnf_query = !"field".has_value("value");
         let mi = cnf_to_matchitems(&cnf_query).next().unwrap();
         assert!(mi.is_match_all());
-        assert!(mi.must_filter());
+        assert!(mi.must_filter);
     }
 
     #[test]
