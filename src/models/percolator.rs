@@ -70,10 +70,6 @@ impl MatchItem {
         self
     }
 
-    fn is_match_all(&self) -> bool {
-        self.doc.is_match_all()
-    }
-
     fn match_all() -> Self {
         Self::new(Document::match_all())
     }
@@ -108,6 +104,7 @@ pub fn clause_docs_from_idx_iter<'a>(
     clause_docs_from_idx(c, index).into_iter()
 }
 
+// For indexing clauses.
 fn clause_to_mi(c: &Clause) -> MatchItem {
     let lits = c.literals().iter();
 
@@ -198,6 +195,7 @@ impl Percolator {
         dclause.add_termquery(TermQuery::match_all());
 
         // Preheat the clause
+        // This adds a bit of time to the percolation.
         dclause = self
             .preheaters
             .iter()
@@ -276,7 +274,13 @@ impl Percolator {
     }
 }
 
-mod test_cnf {
+mod tests_cnf {
+    use crate::models::percolator::MatchItem;
+
+    #[allow(dead_code)]
+    fn is_match_all(mi: &MatchItem) -> bool {
+        mi.doc.is_match_all()
+    }
 
     #[test]
     fn test_empty() {
@@ -292,7 +296,7 @@ mod test_cnf {
 
         let q = !"f1".has_value("v1") | "f2".has_value("v2");
         let mis = cnf_to_matchitems(&q).next().unwrap();
-        assert!(mis.is_match_all());
+        assert!(is_match_all(&mis));
         assert!(mis.must_filter);
     }
 
@@ -307,7 +311,7 @@ mod test_cnf {
 
         let cnf_query = !"field".has_value("value");
         let mi = cnf_to_matchitems(&cnf_query).next().unwrap();
-        assert!(mi.is_match_all());
+        assert!(is_match_all(&mi));
         assert!(mi.must_filter);
     }
 
