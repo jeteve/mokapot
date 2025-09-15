@@ -9,7 +9,7 @@ use crate::models::{
     index::Index,
     percolator::ClauseExpander,
     percolator::PreHeater,
-    queries::{PrefixQuery, Query, TermQuery},
+    queries::{Query, TermQuery, prefix::PrefixQuery},
 };
 
 fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
@@ -43,7 +43,7 @@ fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub enum LitQuery {
+pub(crate) enum LitQuery {
     Term(TermQuery),
     Prefix(PrefixQuery),
 }
@@ -89,16 +89,16 @@ impl fmt::Display for LitQuery {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct Literal {
+pub(crate) struct Literal {
     negated: bool,
     query: LitQuery,
 }
 impl Literal {
-    pub fn new(negated: bool, query: LitQuery) -> Self {
+    pub(crate) fn new(negated: bool, query: LitQuery) -> Self {
         Self { negated, query }
     }
 
-    pub fn query(&self) -> &LitQuery {
+    pub(crate) fn query(&self) -> &LitQuery {
         &self.query
     }
 
@@ -112,7 +112,7 @@ impl Literal {
        How this literal would turn into a document field/value
        when the CNF is indexed for later percolation.
     */
-    pub fn percolate_doc_field_value(&self) -> (Rc<str>, Rc<str>) {
+    pub(crate) fn percolate_doc_field_value(&self) -> (Rc<str>, Rc<str>) {
         match &self.query {
             LitQuery::Term(tq) => (tq.field(), tq.term()),
             LitQuery::Prefix(pq) => (
@@ -130,7 +130,7 @@ impl Literal {
     }
 
     /// The negation of this literal, which is also a literal
-    pub fn negate(self) -> Self {
+    pub(crate) fn negate(self) -> Self {
         Self {
             negated: !self.negated,
             query: self.query,
@@ -138,11 +138,11 @@ impl Literal {
     }
 
     /// Is this negated?
-    pub fn is_negated(&self) -> bool {
+    pub(crate) fn is_negated(&self) -> bool {
         self.negated
     }
 
-    pub fn matches(&self, d: &Document) -> bool {
+    pub(crate) fn matches(&self, d: &Document) -> bool {
         self.negated ^ self.query.matches(d)
     }
 

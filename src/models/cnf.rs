@@ -2,7 +2,7 @@
 use crate::models::{
     document::Document,
     index::{DocId, Index},
-    queries::{PrefixQuery, TermQuery},
+    queries::{TermQuery, prefix::PrefixQuery},
 };
 
 //use fixedbitset::FixedBitSet;
@@ -42,7 +42,7 @@ impl Clause {
     }
 
     /// The literals making this clause
-    pub fn literals(&self) -> &[Literal] {
+    pub(crate) fn literals(&self) -> &[Literal] {
         &self.literals
     }
 
@@ -121,11 +121,11 @@ impl CNFQuery {
         Self::from_literal(Literal::new(false, LitQuery::Term(q)))
     }
 
-    pub fn from_prefixquery(q: PrefixQuery) -> Self {
+    pub(crate) fn from_prefixquery(q: PrefixQuery) -> Self {
         Self::from_literal(Literal::new(false, LitQuery::Prefix(q)))
     }
 
-    pub fn from_literal(l: Literal) -> Self {
+    pub(crate) fn from_literal(l: Literal) -> Self {
         Self(vec![Clause { literals: vec![l] }])
     }
 
@@ -538,7 +538,7 @@ mod test_queries {
         let mut index = Index::default();
         // Query against the empty index.
         let doc_ids: Vec<_> = disq.docs_from_idx_iter(&index).collect();
-        assert_eq!(doc_ids, vec![]);
+        assert!(doc_ids.is_empty());
 
         index.index_document(&d);
         index.index_document(&d1);

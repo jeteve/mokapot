@@ -1,8 +1,7 @@
 // Submodules.
 mod common;
-mod prefix;
+pub(crate) mod prefix;
 mod term;
 
 pub use common::*;
-pub use prefix::*;
 pub use term::*;
