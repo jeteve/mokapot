@@ -17,12 +17,12 @@ pub trait InPlaceReduce: Iterator + Sized {
     where
         F: FnMut(&mut <Self as Iterator>::Item, &<Self as Iterator>::Item),
     {
-        if let Some(mut i) = self.next() {
+        match self.next() { Some(mut i) => {
             self.for_each(|e| f(&mut i, &e));
             Some(i)
-        } else {
+        } _ => {
             None
-        }
+        }}
     }
 }
 

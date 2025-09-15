@@ -130,7 +130,7 @@ impl Document {
     }
 
     /// All values of the field if it exists
-    pub fn values_iter(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_> {
+    pub fn values_iter(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_ + use<'_>> {
         self.fields.get(field).map(|v| v.iter().cloned())
     }
 }
