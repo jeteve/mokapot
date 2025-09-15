@@ -181,6 +181,12 @@ impl Percolator {
         // Add the match all to match all queries
         dclause.add_termquery(TermQuery::match_all());
 
+        // Preheat the clause
+        dclause = self
+            .preheaters
+            .iter()
+            .fold(dclause, |c, ph| ph.expand_clause.0(c));
+
         self.clause_matchers
             .iter()
             .map(|ms| clause_docs_from_idx(&dclause, &ms.positive_index))
