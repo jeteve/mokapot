@@ -10,7 +10,7 @@ use crate::models::{
     cnf::{CNFQuery, Clause},
     document::Document,
     index::Index,
-    queries::TermQuery,
+    queries::term::TermQuery,
 };
 
 pub type Qid = u32;
@@ -366,3 +366,6 @@ mod tests_cnf {
         assert!(mis.next().is_none());
     }
 }
+
+
+mod test_extensive;

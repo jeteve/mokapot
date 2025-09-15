@@ -4,7 +4,7 @@ use std::rc::Rc;
 use itertools::Itertools;
 
 use crate::models::cnf::Clause;
-use crate::models::queries::TermQuery;
+use crate::models::queries::term::TermQuery;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Document {

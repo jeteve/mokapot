@@ -4,17 +4,31 @@ Extensive test for percolating lots of documents against lot of queries.
 
 */
 
+#[cfg(test)]
 use rand::prelude::*;
+
+#[cfg(test)]
 use std::collections::HashMap;
 
-use fake::faker::address::en::*;
+#[cfg(test)]
 use fake::Fake;
 
-use mokapot::models::cnf::CNFQuery;
-use mokapot::models::document::Document;
-use mokapot::models::percolator::Percolator;
-use mokapot::models::queries::TermQuery;
+#[cfg(test)]
+use fake::faker::address::en::*;
 
+#[cfg(test)]
+use crate::models::cnf::CNFQuery;
+
+#[cfg(test)]
+use crate::models::document::Document;
+
+#[cfg(test)]
+use crate::models::percolator::Percolator;
+
+#[cfg(test)]
+use crate::models::queries::term::TermQuery;
+
+#[cfg(test)]
 fn one_random_data<T: Clone>(d: &[T]) -> T {
     d[(0..d.len()).fake::<usize>()].clone()
 }

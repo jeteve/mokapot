@@ -8,7 +8,7 @@ use crate::models::queries::Query;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct TermQuery {
+pub(crate) struct TermQuery {
     field: Rc<str>,
     term: Rc<str>,
 }

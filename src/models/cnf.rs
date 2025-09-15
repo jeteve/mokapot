@@ -2,7 +2,7 @@
 use crate::models::{
     document::Document,
     index::{DocId, Index},
-    queries::{TermQuery, prefix::PrefixQuery},
+    queries::{prefix::PrefixQuery, term::TermQuery},
 };
 
 //use fixedbitset::FixedBitSet;
@@ -20,7 +20,7 @@ pub struct Clause {
 }
 
 impl Clause {
-    pub fn from_termqueries(ts: Vec<TermQuery>) -> Self {
+    pub(crate) fn from_termqueries(ts: Vec<TermQuery>) -> Self {
         Self {
             literals: ts
                 .into_iter()
@@ -36,7 +36,7 @@ impl Clause {
             .filter_map(|lq| lq.term_query())
     }
 
-    pub fn add_termquery(&mut self, query: TermQuery) {
+    pub(crate) fn add_termquery(&mut self, query: TermQuery) {
         self.literals
             .push(Literal::new(false, LitQuery::Term(query)));
     }
@@ -59,12 +59,6 @@ impl Clause {
             literals: cs.into_iter().flat_map(|c| c.literals).collect(),
         }
     }
-
-    /*
-    pub fn it_from_idx<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + 'a {
-        let its = self.0.iter().map(|q| q.tq.docs_from_idx(index).iter());
-        itertools::kmerge(its).dedup()
-    }*/
 
     /// Does this clause matches the given document?
     pub fn matches(&self, d: &Document) -> bool {
@@ -117,7 +111,7 @@ impl fmt::Display for CNFQuery {
 
 impl CNFQuery {
     /// A new CNFQuery from a plain TermQuery
-    pub fn from_termquery(q: TermQuery) -> Self {
+    pub(crate) fn from_termquery(q: TermQuery) -> Self {
         Self::from_literal(Literal::new(false, LitQuery::Term(q)))
     }
 
