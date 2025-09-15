@@ -18,21 +18,13 @@ pub(crate) struct Index {
 }
 
 impl Index {
-    /* pub fn new() -> Self {
-        Self::default()
-    } */
-
     /// How many documents were indexed.
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.n_documents as usize
     }
 
-    /* fn is_empty(&self) -> bool {
-        self.len() == 0
-    } */
-
     /// A RoaringBitmap of doc IDs matching the field value.
-    pub fn docs_from_fv<T, U>(&self, field: T, value: U) -> &RoaringBitmap
+    pub(crate) fn docs_from_fv<T, U>(&self, field: T, value: U) -> &RoaringBitmap
     where
         T: Into<Rc<str>>,
         U: Into<Rc<str>>,
@@ -42,7 +34,7 @@ impl Index {
             .unwrap_or(&self.empty_bs)
     }
 
-    pub fn index_document(&mut self, d: &Document) -> DocId {
+    pub(crate) fn index_document(&mut self, d: &Document) -> DocId {
         let new_doc_id = self.n_documents;
 
         self.n_documents = self

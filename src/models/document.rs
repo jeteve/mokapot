@@ -28,11 +28,11 @@ impl Document {
     }
 
     /// A special document that only contain the match_all field,value
-    pub fn match_all() -> Self {
+    pub(crate) fn match_all() -> Self {
         Self::default().with_value(MATCH_ALL.0, MATCH_ALL.1)
     }
 
-    pub fn is_match_all(&self) -> bool {
+    pub(crate) fn is_match_all(&self) -> bool {
         self.fvs_count == 1 && self.has_field(MATCH_ALL.0)
     }
 
@@ -41,7 +41,7 @@ impl Document {
         self.fvs_count
     }
 
-    pub fn to_clause(&self) -> Clause {
+    pub(crate) fn to_clause(&self) -> Clause {
         Clause::from_termqueries(
             self.field_values()
                 .map(|(f, v)| TermQuery::new(f, v))
@@ -120,13 +120,6 @@ impl Document {
     /// All values of the field
     pub fn values(&self, field: &str) -> Vec<Rc<str>> {
         self.fields.get(field).cloned().unwrap_or_default()
-
-        /*
-        if let Some(it) = self.values_iter(field) {
-            it.collect()
-        } else {
-            vec![]
-        }*/
     }
 
     /// All values of the field if it exists
@@ -142,6 +135,44 @@ where
 {
     fn from(arr: [(K, V); N]) -> Self {
         arr.into_iter()
-            .fold(Document::default(), |a, (k, v)| a.with_value(k, v))
+            .fold(Default::default(), |a, (k, v)| a.with_value(k, v))
+    }
+}
+
+mod test {
+
+    #[test]
+    fn test_document_merge() {
+        use super::*;
+        let d1 = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "bitter");
+        let d2 = Document::default()
+            .with_value("colour", "beige")
+            .with_value("colour", "blue");
+
+        let d3 = d1.merge_with(&d2);
+
+        assert_eq!(d3.values("size").len(), 0);
+        assert_eq!(d3.values("colour"), vec!["blue".into(), "beige".into()]);
+        assert_eq!(d3.values("taste"), vec!["bitter".into()]);
+    }
+
+    #[test]
+    fn test_document_to_clause() {
+        use super::*;
+        let d = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "bitter")
+            .with_value("taste", "sweet");
+
+        let clause = d.to_clause();
+        assert_eq!(
+            clause.to_string(),
+            "(OR colour=blue taste=bitter taste=sweet)"
+        );
+
+        let d = Document::default();
+        assert_eq!(d.to_clause().to_string(), "(OR )");
     }
 }
