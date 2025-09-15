@@ -17,11 +17,12 @@ use crate::models::{
 pub type Qid = u32;
 
 #[derive(Clone)]
+// Extends Clauses comming from percolated document with extra termqueries.
 struct ClauseExpander(Rc<dyn Fn(&Clause) -> Vec<TermQuery>>);
 impl std::fmt::Debug for ClauseExpander {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ClauseExpander")
-            .field(&"_AN OPAQUE FUNCTION_")
+            .field(&"_OPAQUE FUNCTION_")
             .finish()
     }
 }

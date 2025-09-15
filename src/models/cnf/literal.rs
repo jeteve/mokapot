@@ -23,6 +23,13 @@ impl LitQuery {
         }
     }
 
+    pub fn term_query(&self) -> Option<&TermQuery> {
+        match self {
+            LitQuery::Term(tq) => Some(&tq),
+            _ => None,
+        }
+    }
+
     fn sort_field(&self) -> Rc<str> {
         match self {
             LitQuery::Term(tq) => tq.field(),

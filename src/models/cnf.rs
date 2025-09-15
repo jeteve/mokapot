@@ -29,6 +29,13 @@ impl Clause {
         }
     }
 
+    fn term_queries_iter(&self) -> impl Iterator<Item = &TermQuery> {
+        self.literals
+            .iter()
+            .map(|l| l.query())
+            .filter_map(|lq| lq.term_query())
+    }
+
     pub fn add_termquery(&mut self, query: TermQuery) {
         self.literals
             .push(Literal::new(false, LitQuery::Term(query)));
@@ -283,7 +290,7 @@ mod test {
         let combined = "X".has_value("x") | "Y".has_value("y");
         assert_eq!(combined.0.len(), 1); // Only one clause in the top level and.
         assert_eq!(combined.0[0].literals.len(), 2); // Two litteral in the clause.
-                                                     // In this shape: AND (OR field1:value1 field2:value2)
+        // In this shape: AND (OR field1:value1 field2:value2)
         assert_eq!(combined.to_string(), "(AND (OR X=x Y=y))");
         // Second De Morgan law
         // NOT A OR B = NOT A AND NOT B
