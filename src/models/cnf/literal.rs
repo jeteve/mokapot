@@ -33,7 +33,7 @@ impl LitQuery {
 
     pub fn term_query(&self) -> Option<&TermQuery> {
         match self {
-            LitQuery::Term(tq) => Some(&tq),
+            LitQuery::Term(tq) => Some(tq),
             _ => None,
         }
     }
