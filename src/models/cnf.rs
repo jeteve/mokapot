@@ -338,3 +338,230 @@ mod test {
         );
     }
 }
+
+mod test_clause {
+    use std::collections::HashSet;
+
+    use crate::models::{
+        cnf::Clause,
+        document::Document,
+        index::{DocId, Index},
+        percolator::clause_docs_from_idx,
+        queries::TermQuery,
+    };
+
+    #[test]
+    fn test_clause_match() {
+        let d: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("colour", "green")
+            .with_value("taste", "sweet");
+
+        let green_or_bitter = Clause::from_termqueries(vec![
+            TermQuery::new("colour", "green"),
+            TermQuery::new("taste", "bitter"),
+        ]);
+        assert!(green_or_bitter.matches(&d));
+
+        let red_or_bitter = Clause::from_termqueries(vec![
+            TermQuery::new("colour", "red"),
+            TermQuery::new("taste", "bitter"),
+        ]);
+        assert!(!red_or_bitter.matches(&d));
+    }
+
+    #[test]
+    fn test_clause() {
+        let d: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "sweet");
+
+        let d1: Document = Document::default()
+            .with_value("colour", "yellow")
+            .with_value("taste", "sour");
+
+        let d2: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "bitter");
+
+        let d3: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "sweet");
+
+        let d4: Document = Document::default()
+            .with_value("colour", "yellow")
+            .with_value("taste", "bitter");
+
+        let one_clause = Clause::from_termqueries(vec![TermQuery::new("colour", "blue")]);
+        assert!(one_clause.matches(&d));
+
+        let mut index = Index::new();
+        // Query against the empty index.
+
+        let doc_ids: Vec<_> = clause_docs_from_idx(&one_clause, &index).iter().collect();
+        assert_eq!(doc_ids, vec![]);
+
+        let q = TermQuery::new("colour", "blue");
+        let q2 = TermQuery::new("taste", "sweet");
+        let disq = Clause::from_termqueries(vec![q, q2]);
+
+        assert!(disq.matches(&d));
+
+        let doc_ids: Vec<_> = clause_docs_from_idx(&disq, &index).iter().collect();
+        assert_eq!(doc_ids, vec![]);
+
+        index.index_document(&d);
+        index.index_document(&d1);
+        index.index_document(&d2);
+        index.index_document(&d3);
+        index.index_document(&d4);
+
+        // colour = blue or taste = sweet.
+        let doc_ids: HashSet<DocId> = clause_docs_from_idx(&disq, &index).iter().collect();
+        // Notice the order does not matter..
+        assert_eq!(doc_ids, HashSet::from([0, 2, 3]));
+
+        // Test the one term disjunction, to check the
+        // optmimisation
+        let doc_ids: HashSet<DocId> = clause_docs_from_idx(&one_clause, &index).iter().collect();
+        assert_eq!(doc_ids, HashSet::from([0, 2, 3]));
+    }
+}
+
+mod test_queries {
+    use std::rc::Rc;
+
+    use crate::models::{
+        cnf::*, document::Document, index::DocId, index::Index, queries::Query, queries::TermQuery,
+    };
+
+    #[test]
+    fn test_term_query() {
+        let d: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("colour", "green")
+            .with_value("taste", "sweet");
+
+        let d2: Document = Document::default()
+            .with_value("colour", "yellow")
+            .with_value("colour", "green")
+            .with_value("taste", "bitter");
+
+        let mut index = Index::new();
+        // A query on an empty index.
+        let q = "colour".has_value("blue");
+        assert_eq!(q.docs_from_idx_iter(&index).count(), 0);
+
+        index.index_document(&d);
+        index.index_document(&d2);
+
+        assert!(q.matches(&d));
+        assert!(q.docs_from_idx_iter(&index).next().is_some());
+        assert_eq!(q.docs_from_idx_iter(&index).count(), 1);
+
+        let colour: Rc<str> = "colour".into();
+
+        let q2 = TermQuery::new(colour, "green");
+        assert!(q2.matches(&d));
+        assert!(q2.matches(&d2));
+        assert_eq!(q2.docs_from_idx_iter(&index).count(), 2);
+
+        let q2 = TermQuery::new("colour", "red");
+        assert!(!q2.matches(&d));
+        assert!(q2.docs_from_idx_iter(&index).next().is_none());
+        assert_eq!(q2.docs_from_idx_iter(&index).count(), 0);
+
+        let q3 = TermQuery::new("another_key", "sausage");
+        assert!(!q3.matches(&d));
+        assert!(q3.docs_from_idx_iter(&index).next().is_none());
+    }
+
+    #[test]
+    fn test_conjunction_query() {
+        let d: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "sweet");
+
+        let d1: Document = Document::default()
+            .with_value("colour", "yellow")
+            .with_value("taste", "sweet");
+
+        let d2: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "bitter");
+
+        let d3: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "sweet");
+
+        let q = "colour".has_value("blue");
+        let q2 = "taste".has_value("sweet");
+        let conjunction_query = q & q2;
+
+        assert!(conjunction_query.matches(&d));
+
+        // Index the document
+        let mut index = Index::new();
+        let doc_ids: Vec<DocId> = conjunction_query.docs_from_idx_iter(&index).collect();
+        assert_eq!(doc_ids, vec![] as Vec<DocId>);
+
+        index.index_document(&d);
+        index.index_document(&d1);
+        index.index_document(&d2);
+        index.index_document(&d3);
+
+        let mut doc_ids = conjunction_query.docs_from_idx_iter(&index);
+        assert_eq!(doc_ids.next(), Some(0));
+        assert_eq!(doc_ids.next(), Some(3));
+        assert_eq!(doc_ids.next(), None);
+        assert_eq!(doc_ids.next(), None);
+    }
+
+    #[test]
+    fn test_disjunction_query() {
+        let d: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "sweet");
+
+        let d1: Document = Document::default()
+            .with_value("colour", "yellow")
+            .with_value("taste", "sour");
+
+        let d2: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "bitter");
+
+        let d3: Document = Document::default()
+            .with_value("colour", "blue")
+            .with_value("taste", "sweet");
+
+        let d4: Document = Document::default()
+            .with_value("colour", "yellow")
+            .with_value("taste", "bitter");
+
+        let q = "colour".has_value("blue");
+        let q2 = "taste".has_value("sweet");
+        let disq = q | q2;
+        assert!(disq.matches(&d));
+
+        let mut index = Index::new();
+        // Query against the empty index.
+        let doc_ids: Vec<_> = disq.docs_from_idx_iter(&index).collect();
+        assert_eq!(doc_ids, vec![]);
+
+        index.index_document(&d);
+        index.index_document(&d1);
+        index.index_document(&d2);
+        index.index_document(&d3);
+        index.index_document(&d4);
+
+        // colour = blue or taste = sweet.
+        let mut doc_ids = disq.docs_from_idx_iter(&index);
+        assert_eq!(doc_ids.next(), Some(0));
+        assert_eq!(doc_ids.next(), Some(2));
+        assert_eq!(doc_ids.next(), Some(3));
+        // No more matches!
+        assert_eq!(doc_ids.next(), None);
+        assert_eq!(doc_ids.next(), None);
+    }
+}
