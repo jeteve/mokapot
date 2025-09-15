@@ -28,7 +28,7 @@ impl std::fmt::Debug for ClauseExpander {
 }
 
 #[derive(Clone, Debug)]
-struct PreHeater {
+pub(crate) struct PreHeater {
     id: Rc<str>,
     expand_clause: ClauseExpander,
 }
@@ -47,6 +47,11 @@ impl MatchItem {
             must_filter: false,
             preheaters: vec![],
         }
+    }
+
+    pub fn with_preheater(mut self, ph: PreHeater) -> Self {
+        self.preheaters.push(ph);
+        self
     }
 
     fn is_match_all(&self) -> bool {
@@ -102,10 +107,19 @@ fn clause_to_mi(c: &Clause) -> MatchItem {
         return MatchItem::match_all().with_must_filter();
     }
 
-    MatchItem::new(lits.fold(Document::default(), |a, l| {
+    let mi = MatchItem::new(lits.clone().fold(Document::default(), |a, l| {
         let pfv = l.percolate_doc_field_value();
         a.with_value(pfv.0, pfv.1)
-    }))
+    }));
+
+    // Add the preheaters
+    lits.fold(mi, |mi, li| {
+        if let Some(ph) = li.preheater() {
+            mi.with_preheater(ph)
+        } else {
+            mi
+        }
+    })
 }
 
 /*

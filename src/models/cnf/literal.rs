@@ -5,6 +5,7 @@ use roaring::RoaringBitmap;
 use crate::models::{
     document::Document,
     index::Index,
+    percolator::PreHeater,
     queries::{PrefixQuery, Query, TermQuery},
 };
 
@@ -86,6 +87,10 @@ impl Literal {
                 pq.prefix(),
             ),
         }
+    }
+
+    pub fn preheater(&self) -> Option<PreHeater> {
+        None
     }
 
     /// The negation of this literal, which is also a literal
