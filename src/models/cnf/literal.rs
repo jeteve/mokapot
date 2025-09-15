@@ -148,7 +148,7 @@ impl Literal {
 
     // Only used at percolation time
     // The should Never be a prefix query in here.
-    pub fn percolate_docs_from_idx<'a>(&self, index: &'a Index) -> &'a RoaringBitmap {
+    pub(crate) fn percolate_docs_from_idx<'a>(&self, index: &'a Index) -> &'a RoaringBitmap {
         match &self.query {
             LitQuery::Term(tq) => tq.docs_from_idx(index),
             _ => panic!("Only term queries are allowed in percolating queries"),

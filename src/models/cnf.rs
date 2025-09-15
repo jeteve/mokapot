@@ -173,13 +173,10 @@ impl CNFQuery {
         &self.0
     }
 
-    /// The docs matching this CNFQuery in the whole index.
-    /// This should be rarely used, and is only there for completeness, in the
-    /// case you want to use this crate as a very basic search library.
-    pub fn docs_from_idx_iter<'a>(
-        &self,
-        index: &'a Index,
-    ) -> impl Iterator<Item = DocId> + use<'a> {
+    // The docs matching this CNFQuery in the whole index.
+    // This should be rarely used, and is only there for completeness
+    #[allow(dead_code)]
+    fn docs_from_idx_iter<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
         // And multi and between all clauses.
         let subits = self
             .0
@@ -340,18 +337,9 @@ mod test {
 }
 
 mod test_clause {
-    use std::collections::HashSet;
-
-    use crate::models::{
-        cnf::Clause,
-        document::Document,
-        index::{DocId, Index},
-        percolator::clause_docs_from_idx,
-        queries::TermQuery,
-    };
-
     #[test]
     fn test_clause_match() {
+        use super::*;
         let d: Document = Document::default()
             .with_value("colour", "blue")
             .with_value("colour", "green")
@@ -372,6 +360,10 @@ mod test_clause {
 
     #[test]
     fn test_clause() {
+        use super::*;
+        use crate::models::percolator::clause_docs_from_idx;
+        use std::collections::HashSet;
+
         let d: Document = Document::default()
             .with_value("colour", "blue")
             .with_value("taste", "sweet");
@@ -395,11 +387,11 @@ mod test_clause {
         let one_clause = Clause::from_termqueries(vec![TermQuery::new("colour", "blue")]);
         assert!(one_clause.matches(&d));
 
-        let mut index = Index::new();
+        let mut index = Index::default();
         // Query against the empty index.
 
         let doc_ids: Vec<_> = clause_docs_from_idx(&one_clause, &index).iter().collect();
-        assert_eq!(doc_ids, vec![]);
+        assert!(doc_ids.is_empty());
 
         let q = TermQuery::new("colour", "blue");
         let q2 = TermQuery::new("taste", "sweet");
@@ -408,7 +400,7 @@ mod test_clause {
         assert!(disq.matches(&d));
 
         let doc_ids: Vec<_> = clause_docs_from_idx(&disq, &index).iter().collect();
-        assert_eq!(doc_ids, vec![]);
+        assert!(doc_ids.is_empty());
 
         index.index_document(&d);
         index.index_document(&d1);
@@ -429,14 +421,11 @@ mod test_clause {
 }
 
 mod test_queries {
-    use std::rc::Rc;
-
-    use crate::models::{
-        cnf::*, document::Document, index::DocId, index::Index, queries::Query, queries::TermQuery,
-    };
 
     #[test]
     fn test_term_query() {
+        use super::*;
+        use crate::models::queries::Query;
         let d: Document = Document::default()
             .with_value("colour", "blue")
             .with_value("colour", "green")
@@ -447,7 +436,7 @@ mod test_queries {
             .with_value("colour", "green")
             .with_value("taste", "bitter");
 
-        let mut index = Index::new();
+        let mut index = Index::default();
         // A query on an empty index.
         let q = "colour".has_value("blue");
         assert_eq!(q.docs_from_idx_iter(&index).count(), 0);
@@ -464,20 +453,21 @@ mod test_queries {
         let q2 = TermQuery::new(colour, "green");
         assert!(q2.matches(&d));
         assert!(q2.matches(&d2));
-        assert_eq!(q2.docs_from_idx_iter(&index).count(), 2);
+        assert_eq!(q2.docs_from_idx(&index).len(), 2);
 
         let q2 = TermQuery::new("colour", "red");
         assert!(!q2.matches(&d));
-        assert!(q2.docs_from_idx_iter(&index).next().is_none());
-        assert_eq!(q2.docs_from_idx_iter(&index).count(), 0);
+        assert!(q2.docs_from_idx(&index).is_empty());
+        assert_eq!(q2.docs_from_idx(&index).len(), 0);
 
         let q3 = TermQuery::new("another_key", "sausage");
         assert!(!q3.matches(&d));
-        assert!(q3.docs_from_idx_iter(&index).next().is_none());
+        assert!(q3.docs_from_idx(&index).is_empty());
     }
 
     #[test]
     fn test_conjunction_query() {
+        use super::*;
         let d: Document = Document::default()
             .with_value("colour", "blue")
             .with_value("taste", "sweet");
@@ -501,7 +491,7 @@ mod test_queries {
         assert!(conjunction_query.matches(&d));
 
         // Index the document
-        let mut index = Index::new();
+        let mut index = Index::default();
         let doc_ids: Vec<DocId> = conjunction_query.docs_from_idx_iter(&index).collect();
         assert_eq!(doc_ids, vec![] as Vec<DocId>);
 
@@ -519,6 +509,7 @@ mod test_queries {
 
     #[test]
     fn test_disjunction_query() {
+        use super::*;
         let d: Document = Document::default()
             .with_value("colour", "blue")
             .with_value("taste", "sweet");
@@ -544,7 +535,7 @@ mod test_queries {
         let disq = q | q2;
         assert!(disq.matches(&d));
 
-        let mut index = Index::new();
+        let mut index = Index::default();
         // Query against the empty index.
         let doc_ids: Vec<_> = disq.docs_from_idx_iter(&index).collect();
         assert_eq!(doc_ids, vec![]);

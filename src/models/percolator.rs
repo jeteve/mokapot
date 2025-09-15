@@ -6,7 +6,6 @@ use roaring::RoaringBitmap;
 
 use crate::itertools::InPlaceReduce;
 
-use crate::models::index::DocId;
 use crate::models::{
     cnf::{CNFQuery, Clause},
     document::Document,
@@ -85,7 +84,7 @@ impl MatchItem {
 //    this clause will NOT have any negatives.
 //    this clause will NOT have any non-term litterals.
 // Migrate to percolator please.
-pub fn clause_docs_from_idx(c: &Clause, index: &Index) -> RoaringBitmap {
+pub(crate) fn clause_docs_from_idx(c: &Clause, index: &Index) -> RoaringBitmap {
     let mut ret = RoaringBitmap::new();
     c.literals()
         .iter()
@@ -93,15 +92,6 @@ pub fn clause_docs_from_idx(c: &Clause, index: &Index) -> RoaringBitmap {
         .for_each(|bm| ret |= bm);
 
     ret
-}
-
-// The docs Ids from the index matching this clause
-// In the context of a percolation only.
-pub fn clause_docs_from_idx_iter<'a>(
-    c: &Clause,
-    index: &'a Index,
-) -> impl Iterator<Item = DocId> + use<'a> {
-    clause_docs_from_idx(c, index).into_iter()
 }
 
 // For indexing clauses.

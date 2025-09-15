@@ -37,16 +37,8 @@ impl TermQuery {
         self.term.clone()
     }
 
-    /// The document IDs from the index matching this term query
-    pub fn docs_from_idx_iter<'a>(
-        &self,
-        index: &'a Index,
-    ) -> impl Iterator<Item = DocId> + use<'a> {
-        self.docs_from_idx(index).iter()
-    }
-
     /// Bitmap of matching documents from the given index.
-    pub fn docs_from_idx<'a>(&self, index: &'a Index) -> &'a RoaringBitmap {
+    pub(crate) fn docs_from_idx<'a>(&self, index: &'a Index) -> &'a RoaringBitmap {
         index.docs_from_fv(self.field.clone(), self.term.clone())
     }
 }

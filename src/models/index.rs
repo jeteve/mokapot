@@ -18,18 +18,18 @@ pub(crate) struct Index {
 }
 
 impl Index {
-    pub fn new() -> Self {
+    /* pub fn new() -> Self {
         Self::default()
-    }
+    } */
 
     /// How many documents were indexed.
     pub fn len(&self) -> usize {
         self.n_documents as usize
     }
 
-    pub fn is_empty(&self) -> bool {
+    /* fn is_empty(&self) -> bool {
         self.len() == 0
-    }
+    } */
 
     /// A RoaringBitmap of doc IDs matching the field value.
     pub fn docs_from_fv<T, U>(&self, field: T, value: U) -> &RoaringBitmap
@@ -62,16 +62,13 @@ impl Index {
 }
 
 mod test {
-    use super::*;
-
-    use std::rc::Rc;
-
-    use crate::models::document::Document;
 
     #[test]
     fn test_basic_index() {
-        let mut index = Index::new();
-        let d = Document::default();
+        use super::*;
+
+        let mut index: Index = Default::default();
+        let d: Document = Default::default();
 
         let doc_id = index.index_document(&d);
         assert_eq!(doc_id, 0);
@@ -79,11 +76,13 @@ mod test {
 
     #[test]
     fn test_few_docs() {
+        use super::*;
+        use std::rc::Rc;
         let colour: Rc<str> = "colour".into();
         let taste: Rc<str> = "taste".into();
 
-        let mut index = Index::new();
-        let d1 = Document::default().with_value(colour.clone(), "blue");
+        let mut index: Index = Default::default();
+        let d1: Document = Document::default().with_value(colour.clone(), "blue");
         let d2 = Document::default().with_value(colour.clone(), "green");
         let d3 = Document::default()
             .with_value(taste.clone(), "sweet")
