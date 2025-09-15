@@ -89,7 +89,7 @@ impl Literal {
         }
     }
 
-    pub fn preheater(&self) -> Option<PreHeater> {
+    pub(crate) fn preheater(&self) -> Option<PreHeater> {
         None
     }
 
