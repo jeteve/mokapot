@@ -142,6 +142,24 @@ where
 mod test {
 
     #[test]
+    fn test_from() {
+        use super::*;
+        use std::convert::Into;
+
+        assert_eq!(
+            Document::from([("taste", "sweet"), ("colour", "blue")]),
+            Document::default()
+                .with_value("taste", "sweet")
+                .with_value("colour", "blue")
+        );
+
+        assert_eq!(
+            Into::<Document>::into([("colour", "blue")]),
+            Document::default().with_value("colour", "blue")
+        );
+    }
+
+    #[test]
     fn test_document_merge() {
         use super::*;
         let d1 = Document::default()
