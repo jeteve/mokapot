@@ -13,6 +13,7 @@ fn test_percolator() {
         p.add_query(!"A".has_value("a") & "B".has_value("b")),   //5
         p.add_query(!"A".has_value("a") & "A".has_value("a")),   //6 - should NEVER match anything.
         p.add_query("C".has_prefix("multi")),                    //7
+        p.add_query("C".has_prefix("multi") & !"C".has_value("multimeter")), //8
     ];
 
     assert_eq!(
@@ -27,7 +28,7 @@ fn test_percolator() {
 
     assert_eq!(
         p.percolate(&[("C", "multi")].into()).collect::<Vec<_>>(),
-        vec![q[3], q[4], q[7]]
+        vec![q[3], q[4], q[7], q[8]]
     );
 
     assert_eq!(

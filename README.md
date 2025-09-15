@@ -19,7 +19,7 @@ document as events.
 
 - Support for any boolean queries.
 
-- Support for prefix term matching (coming up)
+- Support for prefix matching.
 
 - Support for number comparison queries (coming up)
 
