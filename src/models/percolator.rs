@@ -16,9 +16,11 @@ use crate::models::{
 
 pub type Qid = u32;
 
+pub type ExpanderF = Rc<dyn Fn(Clause) -> Clause>;
+
 #[derive(Clone)]
 // Extends Clauses comming from percolated document with extra termqueries.
-struct ClauseExpander(Rc<dyn Fn(Clause) -> Clause>);
+pub(crate) struct ClauseExpander(ExpanderF);
 impl std::fmt::Debug for ClauseExpander {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ClauseExpander")
@@ -26,11 +28,25 @@ impl std::fmt::Debug for ClauseExpander {
             .finish()
     }
 }
+impl ClauseExpander {
+    pub(crate) fn new(f: ExpanderF) -> Self {
+        Self(f)
+    }
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct PreHeater {
     id: Rc<str>,
     expand_clause: ClauseExpander,
+}
+
+impl PreHeater {
+    pub(crate) fn new(id: Rc<str>, ce: ClauseExpander) -> Self {
+        Self {
+            id,
+            expand_clause: ce,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

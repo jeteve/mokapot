@@ -3,11 +3,18 @@ use std::{fmt, rc::Rc};
 use roaring::RoaringBitmap;
 
 use crate::models::{
+    cnf::Clause,
     document::Document,
     index::Index,
+    percolator::ClauseExpander,
     percolator::PreHeater,
     queries::{PrefixQuery, Query, TermQuery},
 };
+
+fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
+    let expander = |c: Clause| c;
+    PreHeater::new("bal".into(), ClauseExpander::new(Rc::new(expander)))
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum LitQuery {
@@ -90,7 +97,10 @@ impl Literal {
     }
 
     pub(crate) fn preheater(&self) -> Option<PreHeater> {
-        None
+        match &self.query {
+            LitQuery::Prefix(pq) => Some(prefix_query_preheater(pq)),
+            _ => None,
+        }
     }
 
     /// The negation of this literal, which is also a literal
