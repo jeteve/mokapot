@@ -12,8 +12,23 @@ fn test_percolator() {
         p.add_query((!"A".has_value("a")) | "B".has_value("b")), //4
         p.add_query(!"A".has_value("a") & "B".has_value("b")),   //5
         p.add_query(!"A".has_value("a") & "A".has_value("a")),   //6 - should NEVER match anything.
-        p.add_query("C".has_prefix("multi")),
+        p.add_query("C".has_prefix("multi")),                    //7
     ];
+
+    assert_eq!(
+        p.percolate(&[("C", "mult")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
+    assert_eq!(
+        p.percolate(&[("C", "multimeter")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4], q[7]]
+    );
+
+    assert_eq!(
+        p.percolate(&[("C", "multi")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4], q[7]]
+    );
 
     assert_eq!(
         p.percolate(&[("X", "x")].into()).collect::<Vec<_>>(),

@@ -1,5 +1,6 @@
 use std::{fmt, rc::Rc};
 
+use itertools::Itertools;
 use roaring::RoaringBitmap;
 
 use crate::models::{
@@ -12,8 +13,33 @@ use crate::models::{
 };
 
 fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
-    let expander = |c: Clause| c;
-    PreHeater::new("bal".into(), ClauseExpander::new(Rc::new(expander)))
+    let plen = pq.prefix().len();
+    let pfield = pq.field().clone();
+    let synth_field: Rc<str> = format!("__PREFIX{}__{}", plen, pq.field()).into();
+    let id_field = synth_field.clone();
+
+    let expander = move |mut c: Clause| {
+        // Find all term queries with the given field, where the term is actually at least
+        // as long as the prefix
+        // Then turn them into term queries with the synthetic field name
+        let new_term_queries = c
+            .term_queries_iter()
+            .filter(|&tq| tq.field() == pfield && tq.term().len() >= plen)
+            .map(|tq| {
+                TermQuery::new(
+                    synth_field.clone(),
+                    tq.term().chars().take(plen).collect::<String>(),
+                )
+            })
+            .collect_vec();
+
+        for new_tq in new_term_queries {
+            c.add_termquery(new_tq);
+        }
+        c
+    };
+
+    PreHeater::new(id_field, ClauseExpander::new(Rc::new(expander)))
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
