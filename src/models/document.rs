@@ -6,6 +6,29 @@ use itertools::Itertools;
 use crate::models::cnf::Clause;
 use crate::models::queries::term::TermQuery;
 
+/// A Document is what you build to percolate through the set of queries
+/// using a Percolator. A document is simply a multimap of (field,value)
+///
+/// You can build an example dynamically as follow:
+///
+/// ```
+/// use mokapot::prelude::*;
+///
+/// let d = Document::default().with_value("field", "value")
+///                             .with_value("field", "second_value")
+///                             .with_value("field2", "another_value");
+///
+/// ```
+///
+/// Or to make it easier for simple cases, from an array of tuples:
+///
+/// ```
+/// use mokapot::prelude::*;
+///
+/// let d: Document = [("field", "value"), ("field", "another_value")].into();
+/// ```
+///
+///
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Document {
     // Fields representing the document's content
