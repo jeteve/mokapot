@@ -1,6 +1,6 @@
 # About mokapot
 
-mokapot is a percolator library in Rust. Consider this alpha software.
+mokapot is a percolator library in Rust. Consider this beta software.
 
 ## About percolators
 
@@ -85,5 +85,5 @@ fn test_percolator() {
 
 # Project URL
 
-mokapot is developped at https://github.com/jeteve/mokapot/.
+mokapot is developped at <https://github.com/jeteve/mokapot/>.
 

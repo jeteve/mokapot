@@ -17,7 +17,7 @@ use fake::Fake;
 use fake::faker::address::en::*;
 
 #[cfg(test)]
-use crate::models::cnf::CNFQuery;
+use crate::models::cnf::Query;
 
 #[cfg(test)]
 use crate::models::document::Document;
@@ -108,13 +108,13 @@ fn test_percolator() {
         let f_value = one_random_data(field_values.get(f2).unwrap());
         let q2 = TermQuery::new(f2, f_value);
 
-        let mut qs: Vec<CNFQuery> = vec![q1, q1b, q2]
+        let mut qs: Vec<Query> = vec![q1, q1b, q2]
             .into_iter()
-            .map(CNFQuery::from_termquery)
+            .map(Query::from_termquery)
             .collect();
         qs.shuffle(&mut rng);
 
-        let q = CNFQuery::from_and(qs);
+        let q = Query::from_and(qs);
         //println!("Adding query={}", q.to_cnf());
         p.add_query(q);
     }

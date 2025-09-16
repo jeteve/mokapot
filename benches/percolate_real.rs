@@ -6,7 +6,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use fake::faker::address::en::CountryName;
 use fake::Fake;
-use mokapot::models::cnf::CNFQuery;
+use mokapot::models::cnf::Query;
 use mokapot::models::cnf::CNFQueryable;
 
 use mokapot::models::document::Document;
@@ -32,7 +32,7 @@ fn build_query<R: Rng + ?Sized>(
     _n: usize,
     third_fields: &HashMap<&str, Vec<String>>,
     rng: &mut R,
-) -> CNFQuery {
+) -> Query {
     let q1 = FIELD.has_value(CountryName().fake_with_rng::<String, _>(rng));
     let q1b = FIELD2.has_value(one_random_data(&TASTE_VALUES, rng));
 

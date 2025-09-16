@@ -1,4 +1,3 @@
-// Strongly inspired by https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
 use crate::models::{
     document::Document,
     index::{DocId, Index},
@@ -67,13 +66,13 @@ impl Clause {
 
     /// Applies De Morgan's first law to produce a CNFQuery representing
     /// this negated Clause.
-    pub fn negate(self) -> CNFQuery {
+    pub fn negate(self) -> Query {
         let negated_lits = self
             .literals
             .into_iter()
-            .map(|l| CNFQuery::from_literal(l.negate()))
+            .map(|l| Query::from_literal(l.negate()))
             .collect();
-        CNFQuery::from_and(negated_lits)
+        Query::from_and(negated_lits)
     }
 
     fn cleanse(self) -> Self {
@@ -97,9 +96,37 @@ impl fmt::Display for Clause {
     }
 }
 
+///
+/// A CNFQuery is the query model that mokapot operates on
+/// You can build a CNF query using the CNFQuery methods,
+/// or use the shorthands provided by the trait implementation
+/// as well as the CNFQueryable trait.
+///
+/// Example with construtor functions:
+/// ```
+/// use mokapot::prelude::*;
+///
+/// let q = Query::from_and(vec![Query::prefix("field", "some"),
+///                                 Query::negation(Query::term("field", "someexclusion"))
+///                                ]
+///                            );
+/// ```
+///
+/// Example with shorthand using traits:
+/// ```
+/// use mokapot::prelude::*;
+///
+/// let q = "field".has_prefix("some") & ! "field".has_value("someexclusion");
+/// ```
+///
+/// Note that even though you can build a query from a tree-like structure,
+/// this type is completely flat and non-dynamic, thanks to Conjunctive Normal Form transformations
+///
+/// See also <https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html>
+///
 #[derive(Debug, Default, Clone)]
-pub struct CNFQuery(Vec<Clause>);
-impl fmt::Display for CNFQuery {
+pub struct Query(Vec<Clause>);
+impl fmt::Display for Query {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -109,7 +136,38 @@ impl fmt::Display for CNFQuery {
     }
 }
 
-impl CNFQuery {
+impl Query {
+    /// Builds a one term query from a T and U.
+    /// Example:
+    /// ```
+    /// use mokapot::prelude::Query;
+    ///
+    /// let q = Query::term("field", "exact_value");
+    ///
+    /// ```
+    pub fn term<T, U>(field: T, value: U) -> Self
+    where
+        T: Into<Rc<str>>,
+        U: Into<Rc<str>>,
+    {
+        Self::from_termquery(TermQuery::new(field, value))
+    }
+
+    /// Builds a prefix query from a T and U
+    /// Example:
+    /// ```
+    /// use mokapot::prelude::Query;
+    ///
+    /// let q = Query::prefix("field", "prefix");
+    /// ```
+    pub fn prefix<T, U>(field: T, value: U) -> Self
+    where
+        T: Into<Rc<str>>,
+        U: Into<Rc<str>>,
+    {
+        Self::from_prefixquery(PrefixQuery::new(field, value))
+    }
+
     /// A new CNFQuery from a plain TermQuery
     pub(crate) fn from_termquery(q: TermQuery) -> Self {
         Self::from_literal(Literal::new(false, LitQuery::Term(q)))
@@ -125,7 +183,7 @@ impl CNFQuery {
 
     /// Applies the second De Morgan law
     /// to build a CNFQuery representing the negation of this one.
-    pub fn negation(q: CNFQuery) -> Self {
+    pub fn negation(q: Query) -> Self {
         let clause_negations = q.0.into_iter().map(|c| c.negate());
         Self::from_or(clause_negations.collect()).cleanse()
     }
@@ -135,14 +193,14 @@ impl CNFQuery {
     }
 
     /// conjunction of all the given CNFQueries
-    pub fn from_and(qs: Vec<CNFQuery>) -> Self {
+    pub fn from_and(qs: Vec<Query>) -> Self {
         Self(qs.into_iter().flat_map(|q| q.0).collect())
     }
 
     /// Disjunction of all the given CNFQueries
     /// Applies distributivity of Conjunctions over disjunctions
-    /// <https://proofwiki.org/wiki/Rule_of_Distribution#Conjunction_Distributes_over_Disjunction>
-    pub fn from_or(qs: Vec<CNFQuery>) -> Self {
+    /// <https://proofwiki.org/wiki/Rule_of_Distribution#Conjunction_Distributes_over_Disjunction>g
+    pub fn from_or(qs: Vec<Query>) -> Self {
         // Combine all CNF queries into a single CNF query
         Self(
             qs.into_iter()
@@ -163,7 +221,7 @@ impl CNFQuery {
     }
 
     /// The clauses of this CNFQuery
-    pub fn clauses(&self) -> &[Clause] {
+    pub(crate) fn clauses(&self) -> &[Clause] {
         &self.0
     }
 
@@ -181,43 +239,43 @@ impl CNFQuery {
 }
 
 pub trait CNFQueryable: Into<Rc<str>> {
-    fn has_value<T: Into<Rc<str>>>(self, v: T) -> CNFQuery;
-    fn has_prefix<T: Into<Rc<str>>>(self, v: T) -> CNFQuery;
+    fn has_value<T: Into<Rc<str>>>(self, v: T) -> Query;
+    fn has_prefix<T: Into<Rc<str>>>(self, v: T) -> Query;
 }
 
 impl<T> CNFQueryable for T
 where
     T: Into<Rc<str>>,
 {
-    fn has_value<U: Into<Rc<str>>>(self, v: U) -> CNFQuery {
+    fn has_value<U: Into<Rc<str>>>(self, v: U) -> Query {
         let tq = TermQuery::new(self, v);
-        CNFQuery::from_termquery(tq)
+        Query::from_termquery(tq)
     }
 
-    fn has_prefix<U: Into<Rc<str>>>(self, v: U) -> CNFQuery {
+    fn has_prefix<U: Into<Rc<str>>>(self, v: U) -> Query {
         let pq = PrefixQuery::new(self, v);
-        CNFQuery::from_prefixquery(pq)
+        Query::from_prefixquery(pq)
     }
 }
 
-impl std::ops::BitAnd for CNFQuery {
-    type Output = CNFQuery;
+impl std::ops::BitAnd for Query {
+    type Output = Query;
     fn bitand(self, rhs: Self) -> Self::Output {
-        CNFQuery::from_and(vec![self, rhs])
+        Query::from_and(vec![self, rhs])
     }
 }
 
-impl std::ops::BitOr for CNFQuery {
-    type Output = CNFQuery;
+impl std::ops::BitOr for Query {
+    type Output = Query;
     fn bitor(self, rhs: Self) -> Self::Output {
-        CNFQuery::from_or(vec![self, rhs])
+        Query::from_or(vec![self, rhs])
     }
 }
 
-impl std::ops::Not for CNFQuery {
-    type Output = CNFQuery;
+impl std::ops::Not for Query {
+    type Output = Query;
     fn not(self) -> Self::Output {
-        CNFQuery::negation(self)
+        Query::negation(self)
     }
 }
 
@@ -241,7 +299,7 @@ mod test {
     #[test]
     fn test_empty() {
         use super::*;
-        let cnf = CNFQuery::default();
+        let cnf = Query::default();
         assert_eq!(cnf.to_string(), "(AND )");
         assert_eq!((!cnf).to_string(), "(AND )");
     }
@@ -320,7 +378,7 @@ mod test {
     #[test]
     fn test_or_with_multiple_values() {
         use super::*;
-        let xsq = CNFQuery::from_or((0..5).map(|i| "X".has_value(format!("x_{}", i))).collect());
+        let xsq = Query::from_or((0..5).map(|i| "X".has_value(format!("x_{}", i))).collect());
 
         let combined = xsq & "Y".has_value("y");
         assert_eq!(

@@ -1,6 +1,7 @@
 use itertools::Itertools;
 
-pub trait TheShwartz: Iterator + Sized {
+#[allow(dead_code)]
+pub(crate) trait TheShwartz: Iterator + Sized {
     fn schwartzian<F, K, O>(self, fk: F, ord: O) -> impl Iterator<Item = <Self as Iterator>::Item>
     where
         F: Fn(&Self::Item) -> K,
@@ -12,17 +13,18 @@ pub trait TheShwartz: Iterator + Sized {
     }
 }
 
-pub trait InPlaceReduce: Iterator + Sized {
+pub(crate) trait InPlaceReduce: Iterator + Sized {
     fn reduce_inplace<F>(mut self, mut f: F) -> Option<<Self as Iterator>::Item>
     where
         F: FnMut(&mut <Self as Iterator>::Item, &<Self as Iterator>::Item),
     {
-        match self.next() { Some(mut i) => {
-            self.for_each(|e| f(&mut i, &e));
-            Some(i)
-        } _ => {
-            None
-        }}
+        match self.next() {
+            Some(mut i) => {
+                self.for_each(|e| f(&mut i, &e));
+                Some(i)
+            }
+            _ => None,
+        }
     }
 }
 

@@ -11,7 +11,7 @@ use mokapot::models::cnf::*;
 const FIELD: &str = "field";
 const FIELD2: &str = "second_field";
 
-fn build_query(n: usize) -> CNFQuery {
+fn build_query(n: usize) -> Query {
     let q1 = FIELD.has_value(format!("value{n}"));
     // Only 4 values for this one.
     let q2 = FIELD2.has_value(format!("value{}", n % 4));

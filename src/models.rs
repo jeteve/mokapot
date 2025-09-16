@@ -1,6 +1,6 @@
 pub mod cnf;
 pub mod document;
-pub mod index;
-pub mod iterators;
+pub(crate) mod index;
+pub(crate) mod iterators;
 pub mod percolator;
-pub mod queries;
+pub(crate) mod queries;

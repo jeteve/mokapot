@@ -7,7 +7,7 @@ use roaring::RoaringBitmap;
 use crate::itertools::InPlaceReduce;
 
 use crate::models::{
-    cnf::{CNFQuery, Clause},
+    cnf::{Clause, Query},
     document::Document,
     index::Index,
     queries::term::TermQuery,
@@ -15,7 +15,7 @@ use crate::models::{
 
 pub type Qid = u32;
 
-pub type ExpanderF = Rc<dyn Fn(Clause) -> Clause>;
+pub(crate) type ExpanderF = Rc<dyn Fn(Clause) -> Clause>;
 
 #[derive(Clone)]
 // Extends Clauses comming from percolated document with extra termqueries.
@@ -124,7 +124,7 @@ fn clause_to_mi(c: &Clause) -> MatchItem {
 /*
     From a CNFQuery, The documents that are meant to be indexed in the percolator
 */
-fn cnf_to_matchitems(q: &CNFQuery) -> impl Iterator<Item = MatchItem> + use<'_> {
+fn cnf_to_matchitems(q: &Query) -> impl Iterator<Item = MatchItem> + use<'_> {
     q.clauses().iter().map(clause_to_mi)
 }
 
@@ -133,9 +133,23 @@ struct ClauseMatchers {
     positive_index: Index,
 }
 
+/// This is the primary object you need to keep to percolate documents
+/// through a set of queries.
+///
+/// Example:
+/// ```
+/// use mokapot::prelude::*;
+///
+/// let mut p = Percolator::default();
+/// let qid = p.add_query("field".has_value("value"));
+/// assert_eq!(p.percolate(&[("field", "value")].into()).next().unwrap(), qid);
+/// ```
+///
+/// See more examples in the top level documentation.
+///
 #[derive(Debug)]
 pub struct Percolator {
-    cnf_queries: Vec<CNFQuery>,
+    cnf_queries: Vec<Query>,
     clause_matchers: Vec<ClauseMatchers>,
     // To preheat the document clauses.
     preheaters: Vec<PreHeater>,
@@ -155,23 +169,11 @@ impl std::default::Default for Percolator {
     }
 }
 
-pub struct TrackedQid {
-    pre_idx: usize,
-    post_idx: usize,
-    pub qid: Qid,
-}
-impl TrackedQid {
-    pub fn n_skipped(&self) -> usize {
-        self.pre_idx - self.post_idx
-    }
-}
-
 impl Percolator {
+    ///
     /// Percolate a document through this, returning an iterator
     /// of the matching query IDs
     ///
-    /// The `doc_like` argument can be a `&Document` or any type that implements
-    /// the `ToCowDocument` trait, like an array of key-value tuples.
     pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = Qid> + use<'b, '_> {
         self.bs_from_document(d).into_iter().filter(move |&qid| {
             !self.must_filter.contains(qid) || self.cnf_queries[qid as usize].matches(d)
@@ -222,7 +224,7 @@ impl Percolator {
     /// Adds a query to this percolator. Will panic if
     /// there is more than u32::MAX queries.
     ///
-    pub fn add_query(&mut self, q: CNFQuery) -> Qid {
+    pub fn add_query(&mut self, q: Query) -> Qid {
         // Get the document from the query
         // and index in the query index
         // The Clause index is controlling the zip.
@@ -259,7 +261,7 @@ impl Percolator {
         new_doc_id
     }
 
-    pub fn get_query(&self, qid: Qid) -> &CNFQuery {
+    pub fn get_query(&self, qid: Qid) -> &Query {
         &self.cnf_queries[qid as usize]
     }
 }
@@ -275,7 +277,7 @@ mod tests_cnf {
     #[test]
     fn test_empty() {
         use super::*;
-        let cnf = CNFQuery::default();
+        let cnf = Query::default();
         assert!(cnf_to_matchitems(&cnf).next().is_none());
     }
 
@@ -295,7 +297,7 @@ mod tests_cnf {
         use super::*;
         use crate::prelude::CNFQueryable;
         let term_query = TermQuery::new("field", "value");
-        let cnf_query = CNFQuery::from_termquery(term_query);
+        let cnf_query = Query::from_termquery(term_query);
         let mi = cnf_to_matchitems(&cnf_query).next().unwrap();
         assert_eq!(mi.doc, Document::default().with_value("field", "value"));
 
@@ -310,9 +312,9 @@ mod tests_cnf {
         use super::*;
         let term_query1 = TermQuery::new("field1", "value1");
         let term_query2 = TermQuery::new("field2", "value2");
-        let cnf_query1 = CNFQuery::from_termquery(term_query1);
-        let cnf_query2 = CNFQuery::from_termquery(term_query2);
-        let combined = CNFQuery::from_and(vec![cnf_query1, cnf_query2]);
+        let cnf_query1 = Query::from_termquery(term_query1);
+        let cnf_query2 = Query::from_termquery(term_query2);
+        let combined = Query::from_and(vec![cnf_query1, cnf_query2]);
         // Structure would be:
         assert_eq!(
             combined.to_string(),
@@ -366,6 +368,5 @@ mod tests_cnf {
         assert!(mis.next().is_none());
     }
 }
-
 
 mod test_extensive;
