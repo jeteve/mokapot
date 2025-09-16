@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::models::{document::Document, queries::common::Query};
+use crate::models::{document::Document, queries::common::DocMatcher};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct PrefixQuery {
@@ -28,7 +28,7 @@ impl PrefixQuery {
     }
 }
 
-impl Query for PrefixQuery {
+impl DocMatcher for PrefixQuery {
     /// Does this match the document?
     fn matches(&self, d: &Document) -> bool {
         d.values_iter(&self.field)

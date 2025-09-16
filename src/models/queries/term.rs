@@ -3,7 +3,7 @@ use roaring::RoaringBitmap;
 use crate::models::document::Document;
 use crate::models::document::MATCH_ALL;
 use crate::models::index::*;
-use crate::models::queries::common::Query;
+use crate::models::queries::common::DocMatcher;
 
 use std::rc::Rc;
 
@@ -43,7 +43,7 @@ impl TermQuery {
     }
 }
 
-impl Query for TermQuery {
+impl DocMatcher for TermQuery {
     /// Does this match the document?
     fn matches(&self, d: &Document) -> bool {
         d.values_iter(&self.field)
