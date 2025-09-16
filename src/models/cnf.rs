@@ -141,7 +141,7 @@ impl CNFQuery {
 
     /// Disjunction of all the given CNFQueries
     /// Applies distributivity of Conjunctions over disjunctions
-    /// https://proofwiki.org/wiki/Rule_of_Distribution#Conjunction_Distributes_over_Disjunction
+    /// <https://proofwiki.org/wiki/Rule_of_Distribution#Conjunction_Distributes_over_Disjunction>
     pub fn from_or(qs: Vec<CNFQuery>) -> Self {
         // Combine all CNF queries into a single CNF query
         Self(
