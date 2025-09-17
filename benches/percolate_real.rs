@@ -39,12 +39,17 @@ fn build_query<R: Rng + ?Sized>(
 
     let q3_field = one_random_data(&THIRD_FIELDS, rng);
     let q3_value = one_random_from_vec(third_fields.get(q3_field).unwrap(), rng);
-    let q3 = q3_field.has_prefix(
-        q3_value
-            .chars()
-            .take(q3_value.len() - 1)
-            .collect::<String>(),
-    );
+
+    let q3 = if q3_field == "colour" {
+        q3_field.has_prefix(
+            q3_value
+                .chars()
+                .take(q3_value.len() - 1)
+                .collect::<String>(),
+        )
+    } else {
+        q3_field.has_value(q3_value)
+    };
 
     q1 & q1b & q3
 }
@@ -89,6 +94,10 @@ fn percolate_real(c: &mut Criterion) {
                 "blue".to_string(),
                 "green".to_string(),
                 "yellow".to_string(),
+                "magenta".to_string(),
+                "cyan".to_string(),
+                "white".to_string(),
+                "pink".to_string(),
             ],
         ),
         (
