@@ -1,3 +1,4 @@
+use std::num::NonZeroUsize;
 use std::rc::Rc;
 use std::{fmt, iter};
 
@@ -133,6 +134,55 @@ struct ClauseMatchers {
     positive_index: Index,
 }
 
+/// A builder should you want to build a percolator
+/// with different parameters
+pub struct PercBuilder {
+    n_clauses: NonZeroUsize,
+}
+
+impl std::default::Default for PercBuilder {
+    fn default() -> Self {
+        Self {
+            n_clauses: NonZeroUsize::new(3).unwrap(),
+        }
+    }
+}
+
+impl PercBuilder {
+    pub fn build(self) -> Percolator {
+        Percolator {
+            cnf_queries: Vec::new(),
+            preheaters: Vec::new(),
+            clause_matchers: (0..self.n_clauses.get())
+                .map(|_| ClauseMatchers::default())
+                .collect(),
+            must_filter: RoaringBitmap::new(),
+        }
+    }
+
+    /// Sets the expected number of clauses of indexed queries
+    /// to the given value. This help minimizing the number of post-match
+    /// checks the percolator has to do.
+    ///
+    /// You'll have to experiment and benchmark to find
+    /// the sweet spot for your specific use case.
+    ///
+    /// The default is 3.
+    ///
+    /// Example:
+    /// ```
+    /// use mokapot::prelude::*;
+    /// use std::num::NonZeroUsize;
+    ///
+    /// let p = Percolator::builder().n_clauses(NonZeroUsize::new(5).unwrap()).build();
+    ///
+    /// ```
+    pub fn n_clauses(mut self, n: NonZeroUsize) -> Self {
+        self.n_clauses = n;
+        self
+    }
+}
+
 /// This is the primary object you need to keep to percolate documents
 /// through a set of queries.
 ///
@@ -183,6 +233,18 @@ impl Percolator {
     // Does this have this preheater yet?
     fn has_preheater(&self, ph: &PreHeater) -> bool {
         self.preheaters.iter().any(|eph| eph.id == ph.id)
+    }
+
+    /// Returns a percolator builder for configurability
+    /// Example:
+    /// ```
+    /// use mokapot::prelude::*;
+    ///
+    /// let mut p = Percolator::builder().build();
+    ///
+    /// ```
+    pub fn builder() -> PercBuilder {
+        PercBuilder::default()
     }
 
     ///
