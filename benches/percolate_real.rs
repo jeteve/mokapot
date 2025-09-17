@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::hint::black_box;
 
 use criterion::Throughput;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
-use fake::faker::address::en::CountryName;
 use fake::Fake;
-use mokapot::models::cnf::Query;
+use fake::faker::address::en::CountryName;
 use mokapot::models::cnf::CNFQueryable;
+use mokapot::models::cnf::Query;
 
 use mokapot::models::document::Document;
 use mokapot::models::percolator::Percolator;
@@ -108,7 +108,7 @@ fn percolate_real(c: &mut Criterion) {
 
         let mut rng = StdRng::seed_from_u64(42);
 
-        // Build percolators with n queries field=valueN
+        // Build percolators with n queries
         let mp = build_percolator::<StdRng>(nqueries, &third_fields, &mut rng);
 
         let input_size = criterion::BatchSize::SmallInput;
@@ -117,9 +117,6 @@ fn percolate_real(c: &mut Criterion) {
             b.iter_batched(
                 || build_document(nqueries, &third_fields, &mut rng),
                 |d| black_box(mp.percolate(&d).next()),
-                //|d| black_box(mp.hybrid_qids_from_document(&d).next()),
-                //|d| black_box(mp.qids_from_document(&d).next()),
-                //|d| black_box(mp.it_from_document(&d).next()),
                 input_size,
             )
         });

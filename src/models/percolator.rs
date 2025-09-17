@@ -168,41 +168,6 @@ impl std::default::Default for Percolator {
         }
     }
 }
-
-impl Percolator {
-    ///
-    /// Percolate a document through this, returning an iterator
-    /// of the matching query IDs
-    ///
-    pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = Qid> + use<'b, '_> {
-        self.bs_from_document(d).into_iter().filter(move |&qid| {
-            !self.must_filter.contains(qid) || self.cnf_queries[qid as usize].matches(d)
-        })
-    }
-
-    fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
-        // This is where the magic happens.
-        let mut dclause = d.to_clause();
-        // Add the match all to match all queries
-        dclause.add_termquery(TermQuery::match_all());
-
-        // Preheat the clause
-        // This adds a bit of time to the percolation.
-        dclause = self
-            .preheaters
-            .iter()
-            .fold(dclause, |c, ph| ph.expand_clause.0(c));
-
-        self.clause_matchers
-            .iter()
-            .map(|ms| clause_docs_from_idx(&dclause, &ms.positive_index))
-            .reduce_inplace(|acc, b| {
-                *acc &= b;
-            })
-            .expect("This cannot work with zero clause matchers")
-    }
-}
-
 impl fmt::Display for Percolator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -264,6 +229,38 @@ impl Percolator {
 
     pub fn get_query(&self, qid: Qid) -> &Query {
         &self.cnf_queries[qid as usize]
+    }
+
+    ///
+    /// Percolate a document through this, returning an iterator
+    /// of the matching query IDs
+    ///
+    pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = Qid> + use<'b, '_> {
+        self.bs_from_document(d).into_iter().filter(move |&qid| {
+            !self.must_filter.contains(qid) || self.cnf_queries[qid as usize].matches(d)
+        })
+    }
+
+    fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
+        // This is where the magic happens.
+        let mut dclause = d.to_clause();
+        // Add the match all to match all queries
+        dclause.add_termquery(TermQuery::match_all());
+
+        // Preheat the clause
+        // This adds a bit of time to the percolation.
+        dclause = self
+            .preheaters
+            .iter()
+            .fold(dclause, |c, ph| ph.expand_clause.0(c));
+
+        self.clause_matchers
+            .iter()
+            .map(|ms| clause_docs_from_idx(&dclause, &ms.positive_index))
+            .reduce_inplace(|acc, b| {
+                *acc &= b;
+            })
+            .expect("This cannot work with zero clause matchers")
     }
 }
 
