@@ -1,8 +1,20 @@
+use std::num::NonZeroUsize;
+
 use mokapot::prelude::*;
 
 #[test]
 fn test_percolator() {
-    let mut p = Percolator::default();
+    test_nclause_percolator(NonZeroUsize::new(1).unwrap());
+
+    test_nclause_percolator(NonZeroUsize::new(2).unwrap());
+
+    test_nclause_percolator(NonZeroUsize::new(3).unwrap());
+
+    test_nclause_percolator(NonZeroUsize::new(5).unwrap());
+}
+
+fn test_nclause_percolator(n: NonZeroUsize) {
+    let mut p = Percolator::builder().n_clauses(n).build();
 
     let q: Vec<Qid> = vec![
         p.add_query("A".has_value("a")),                         //0

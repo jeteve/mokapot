@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::hint::black_box;
+use std::num::NonZeroUsize;
 
 use criterion::Throughput;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
@@ -48,7 +49,9 @@ fn build_percolator<R: Rng + ?Sized>(
     third_fields: &HashMap<&str, Vec<String>>,
     rng: &mut R,
 ) -> Percolator {
-    let mut p = Percolator::default();
+    let mut p = Percolator::builder()
+        .n_clauses(NonZeroUsize::new(3).unwrap())
+        .build();
     (0..n)
         .map(|n| build_query(n, third_fields, rng))
         .for_each(|q| {
