@@ -50,7 +50,7 @@ fn build_percolator<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> Percolator {
     let mut p = Percolator::builder()
-        .n_clauses(NonZeroUsize::new(3).unwrap())
+        .n_clauses(NonZeroUsize::new(4).unwrap())
         .build();
     (0..n)
         .map(|n| build_query(n, third_fields, rng))
