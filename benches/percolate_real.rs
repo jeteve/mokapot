@@ -39,7 +39,12 @@ fn build_query<R: Rng + ?Sized>(
 
     let q3_field = one_random_data(&THIRD_FIELDS, rng);
     let q3_value = one_random_from_vec(third_fields.get(q3_field).unwrap(), rng);
-    let q3 = q3_field.has_value(q3_value);
+    let q3 = q3_field.has_prefix(
+        q3_value
+            .chars()
+            .take(q3_value.len() - 1)
+            .collect::<String>(),
+    );
 
     q1 & q1b & q3
 }
