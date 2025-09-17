@@ -1,6 +1,7 @@
 use std::{fmt, rc::Rc};
 
 use itertools::Itertools;
+use lean_string::LeanString;
 use roaring::RoaringBitmap;
 
 use crate::models::{
@@ -15,7 +16,7 @@ use crate::models::{
 fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
     let plen = pq.prefix().len();
     let pfield = pq.field().clone();
-    let synth_field: Rc<str> = format!("__PREFIX{}__{}", plen, pq.field()).into();
+    let synth_field: LeanString = format!("__PREFIX{}__{}", plen, pq.field()).into();
     let id_field = synth_field.clone();
 
     let expander = move |mut c: Clause| {
@@ -64,14 +65,14 @@ impl LitQuery {
         }
     }
 
-    fn sort_field(&self) -> Rc<str> {
+    fn sort_field(&self) -> LeanString {
         match self {
             LitQuery::Term(tq) => tq.field(),
             LitQuery::Prefix(pq) => pq.field(),
         }
     }
 
-    fn sort_term(&self) -> Rc<str> {
+    fn sort_term(&self) -> LeanString {
         match self {
             LitQuery::Term(tq) => tq.term(),
             LitQuery::Prefix(pq) => pq.prefix(),
@@ -112,7 +113,7 @@ impl Literal {
        How this literal would turn into a document field/value
        when the CNF is indexed for later percolation.
     */
-    pub(crate) fn percolate_doc_field_value(&self) -> (Rc<str>, Rc<str>) {
+    pub(crate) fn percolate_doc_field_value(&self) -> (LeanString, LeanString) {
         match &self.query {
             LitQuery::Term(tq) => (tq.field(), tq.term()),
             LitQuery::Prefix(pq) => (

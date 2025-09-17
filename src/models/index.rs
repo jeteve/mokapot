@@ -1,6 +1,7 @@
 //use std::collections::HashMap;
 use hashbrown::HashMap;
-use std::rc::Rc;
+use lean_string::LeanString;
+//use std::rc::Rc;
 
 use roaring::RoaringBitmap;
 
@@ -13,7 +14,7 @@ pub(crate) struct Index {
     // Remember the documents
     //documents: Vec<Document>,
     // The inverted indices for each ( field,  value)
-    term_idxs: HashMap<(Rc<str>, Rc<str>), RoaringBitmap>,
+    term_idxs: HashMap<(LeanString, LeanString), RoaringBitmap>,
     empty_bs: RoaringBitmap,
     n_documents: DocId,
 }
@@ -27,8 +28,8 @@ impl Index {
     /// A RoaringBitmap of doc IDs matching the field value.
     pub(crate) fn docs_from_fv<T, U>(&self, field: T, value: U) -> &RoaringBitmap
     where
-        T: Into<Rc<str>>,
-        U: Into<Rc<str>>,
+        T: Into<LeanString>,
+        U: Into<LeanString>,
     {
         self.term_idxs
             .get(&(field.into(), value.into()))
@@ -70,9 +71,10 @@ mod test {
     #[test]
     fn test_few_docs() {
         use super::*;
+        use lean_string::LeanString;
         use std::rc::Rc;
-        let colour: Rc<str> = "colour".into();
-        let taste: Rc<str> = "taste".into();
+        let colour: LeanString = "colour".into();
+        let taste: LeanString = "taste".into();
 
         let mut index: Index = Default::default();
         let d1: Document = Document::default().with_value(colour.clone(), "blue");

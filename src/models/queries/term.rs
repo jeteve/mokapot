@@ -5,17 +5,18 @@ use crate::models::document::MATCH_ALL;
 use crate::models::index::*;
 use crate::models::queries::common::DocMatcher;
 
+use lean_string::LeanString;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct TermQuery {
-    field: Rc<str>,
-    term: Rc<str>,
+    field: LeanString,
+    term: LeanString,
 }
 
 impl TermQuery {
     /// Constructor
-    pub fn new<T: Into<Rc<str>>, U: Into<Rc<str>>>(field: T, term: U) -> Self {
+    pub fn new<T: Into<LeanString>, U: Into<LeanString>>(field: T, term: U) -> Self {
         TermQuery {
             field: field.into(),
             term: term.into(),
@@ -28,12 +29,12 @@ impl TermQuery {
     }
 
     /// The field
-    pub fn field(&self) -> Rc<str> {
+    pub fn field(&self) -> LeanString {
         self.field.clone()
     }
 
     /// The term
-    pub fn term(&self) -> Rc<str> {
+    pub fn term(&self) -> LeanString {
         self.term.clone()
     }
 

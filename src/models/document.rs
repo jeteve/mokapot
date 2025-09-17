@@ -1,3 +1,4 @@
+use lean_string::LeanString;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -32,11 +33,11 @@ use crate::models::queries::term::TermQuery;
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Document {
     // Fields representing the document's content
-    fields: HashMap<Rc<str>, Vec<Rc<str>>>,
+    fields: HashMap<LeanString, Vec<LeanString>>,
     fvs_count: usize,
 }
 
-type FieldValue = (Rc<str>, Rc<str>);
+type FieldValue = (LeanString, LeanString);
 
 pub(crate) const MATCH_ALL: (&str, &str) = ("__match_all__", "true");
 
@@ -90,8 +91,8 @@ impl Document {
     /// let d2 = Document::default().with_value("A", "a2").with_value("B", "b");
     ///
     /// let d3 = d1.merge_with(&d2);
-    /// assert_eq!(d3.values("A"), vec!["a".into(), "a2".into()]);
-    /// assert_eq!(d3.values("B"), vec!["b".into()]);
+    /// assert_eq!(d3.values("A"), vec!["a", "a2"]);
+    /// assert_eq!(d3.values("B"), vec!["b"]);
     /// ```
     pub fn merge_with(&self, other: &Self) -> Self {
         // Find all the (key,value) of a document.
@@ -108,15 +109,15 @@ impl Document {
     /// use mokapot::models::document::Document;
     ///
     /// let d = Document::default().with_value("field", "value");
-    /// assert_eq!(d.values("field"), vec!["value".into()]);
+    /// assert_eq!(d.values("field"), vec!["value"]);
     /// ```
     ///
     pub fn with_value<T, U>(mut self, field: T, value: U) -> Self
     where
-        T: Into<Rc<str>>,
-        U: Into<Rc<str>> + Clone,
+        T: Into<LeanString>,
+        U: Into<LeanString> + Clone,
     {
-        let val: Rc<str> = value.into();
+        let val: LeanString = value.into();
 
         self.fields
             .entry(field.into())
@@ -131,30 +132,33 @@ impl Document {
     }
 
     /// All fields of this document
-    pub fn fields(&self) -> impl Iterator<Item = Rc<str>> + use<'_> {
+    pub fn fields(&self) -> impl Iterator<Item = LeanString> + use<'_> {
         self.fields.keys().cloned()
     }
 
     /// The values of the field, if present in the document.
-    pub fn values_ref(&self, field: &str) -> Option<&Vec<Rc<str>>> {
+    pub fn values_ref(&self, field: &str) -> Option<&Vec<LeanString>> {
         self.fields.get(field)
     }
 
     /// All values of the field
-    pub fn values(&self, field: &str) -> Vec<Rc<str>> {
+    pub fn values(&self, field: &str) -> Vec<LeanString> {
         self.fields.get(field).cloned().unwrap_or_default()
     }
 
     /// All values of the field if it exists
-    pub fn values_iter(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_ + use<'_>> {
+    pub fn values_iter(
+        &self,
+        field: &str,
+    ) -> Option<impl Iterator<Item = LeanString> + '_ + use<'_>> {
         self.fields.get(field).map(|v| v.iter().cloned())
     }
 }
 
 impl<K, V, const N: usize> From<[(K, V); N]> for Document
 where
-    K: Into<Rc<str>>,
-    V: Into<Rc<str>> + Clone,
+    K: Into<LeanString>,
+    V: Into<LeanString> + Clone,
 {
     fn from(arr: [(K, V); N]) -> Self {
         arr.into_iter()
@@ -195,8 +199,8 @@ mod test {
         let d3 = d1.merge_with(&d2);
 
         assert_eq!(d3.values("size").len(), 0);
-        assert_eq!(d3.values("colour"), vec!["blue".into(), "beige".into()]);
-        assert_eq!(d3.values("taste"), vec!["bitter".into()]);
+        assert_eq!(d3.values("colour"), vec!["blue", "beige"]);
+        assert_eq!(d3.values("taste"), vec!["bitter"]);
     }
 
     #[test]

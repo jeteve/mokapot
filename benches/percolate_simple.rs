@@ -1,8 +1,9 @@
 use std::rc::Rc;
 
 use criterion::Throughput;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
+use lean_string::LeanString;
 use mokapot::models::document::Document;
 use mokapot::models::percolator::Percolator;
 
@@ -37,8 +38,8 @@ fn percolate_simple(c: &mut Criterion) {
         //let h = build_hashmap(nqueries);
 
         // Find the first decile value.
-        let mid_value: Rc<str> = format!("value{}", nqueries / 10).into();
-        let second_value: Rc<str> = format!("value{}", nqueries / 10 % 4).into();
+        let mid_value: LeanString = format!("value{}", nqueries / 10).into();
+        let second_value: LeanString = format!("value{}", nqueries / 10 % 4).into();
         let d = Document::new()
             .with_value("field", mid_value.clone())
             .with_value("second_field", second_value);

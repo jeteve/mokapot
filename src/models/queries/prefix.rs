@@ -1,16 +1,17 @@
+use lean_string::LeanString;
 use std::rc::Rc;
 
 use crate::models::{document::Document, queries::common::DocMatcher};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct PrefixQuery {
-    field: Rc<str>,
-    prefix: Rc<str>,
+    field: LeanString,
+    prefix: LeanString,
 }
 
 impl PrefixQuery {
     /// Constructor
-    pub(crate) fn new<T: Into<Rc<str>>, U: Into<Rc<str>>>(field: T, prefix: U) -> Self {
+    pub(crate) fn new<T: Into<LeanString>, U: Into<LeanString>>(field: T, prefix: U) -> Self {
         PrefixQuery {
             field: field.into(),
             prefix: prefix.into(),
@@ -18,12 +19,12 @@ impl PrefixQuery {
     }
 
     /// The field
-    pub(crate) fn field(&self) -> Rc<str> {
+    pub(crate) fn field(&self) -> LeanString {
         self.field.clone()
     }
 
     /// The prefix
-    pub(crate) fn prefix(&self) -> Rc<str> {
+    pub(crate) fn prefix(&self) -> LeanString {
         self.prefix.clone()
     }
 }
@@ -32,7 +33,7 @@ impl DocMatcher for PrefixQuery {
     /// Does this match the document?
     fn matches(&self, d: &Document) -> bool {
         d.values_iter(&self.field)
-            .is_some_and(|mut i| i.any(|v| v.starts_with(self.prefix.as_ref())))
+            .is_some_and(|mut i| i.any(|v| v.starts_with(self.prefix.as_str())))
     }
 }
 

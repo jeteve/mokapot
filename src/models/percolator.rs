@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::{fmt, iter};
 
 use itertools::Itertools;
+use lean_string::LeanString;
 use roaring::RoaringBitmap;
 
 use crate::itertools::InPlaceReduce;
@@ -36,12 +37,12 @@ impl ClauseExpander {
 
 #[derive(Clone, Debug)]
 pub(crate) struct PreHeater {
-    id: Rc<str>,
+    id: LeanString,
     expand_clause: ClauseExpander,
 }
 
 impl PreHeater {
-    pub(crate) fn new(id: Rc<str>, ce: ClauseExpander) -> Self {
+    pub(crate) fn new(id: LeanString, ce: ClauseExpander) -> Self {
         Self {
             id,
             expand_clause: ce,

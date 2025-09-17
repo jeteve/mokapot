@@ -9,10 +9,11 @@ readme = "README.md"
 default-run="mokapot"
 
 [dependencies]
-itertools = "0.9.0"
-roaring = "0.11.2"
-num-traits = "0.2.19"
-hashbrown = "0.16.0"
+itertools = "=0.9.0"
+roaring = "=0.11.2"
+num-traits = "=0.2.19"
+hashbrown = "=0.16.0"
+lean_string = "=0.5.1"
 
 [dev-dependencies]
 criterion = "0.7.0"
