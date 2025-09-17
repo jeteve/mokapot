@@ -240,6 +240,7 @@ impl Percolator {
 
         // Add the preheaters from the Match items.
         mis.iter()
+            .take(self.clause_matchers.len())
             .flat_map(|mi| mi.preheaters.iter())
             .for_each(|ph| {
                 if !self.has_preheater(ph) {
