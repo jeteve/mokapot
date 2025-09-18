@@ -6,16 +6,17 @@ use crate::models::index::*;
 use crate::models::queries::common::DocMatcher;
 
 use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct TermQuery {
-    field: Rc<str>,
-    term: Rc<str>,
+    field: Arc<str>,
+    term: Arc<str>,
 }
 
 impl TermQuery {
     /// Constructor
-    pub fn new<T: Into<Rc<str>>, U: Into<Rc<str>>>(field: T, term: U) -> Self {
+    pub fn new<T: Into<Arc<str>>, U: Into<Arc<str>>>(field: T, term: U) -> Self {
         TermQuery {
             field: field.into(),
             term: term.into(),
@@ -28,12 +29,12 @@ impl TermQuery {
     }
 
     /// The field
-    pub fn field(&self) -> Rc<str> {
+    pub fn field(&self) -> Arc<str> {
         self.field.clone()
     }
 
     /// The term
-    pub fn term(&self) -> Rc<str> {
+    pub fn term(&self) -> Arc<str> {
         self.term.clone()
     }
 

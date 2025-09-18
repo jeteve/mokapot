@@ -1,6 +1,6 @@
 //use std::collections::HashMap;
 use hashbrown::HashMap;
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use roaring::RoaringBitmap;
 
@@ -13,7 +13,7 @@ pub(crate) struct Index {
     // Remember the documents
     //documents: Vec<Document>,
     // The inverted indices for each ( field,  value)
-    term_idxs: HashMap<(Rc<str>, Rc<str>), RoaringBitmap>,
+    term_idxs: HashMap<(Arc<str>, Arc<str>), RoaringBitmap>,
     empty_bs: RoaringBitmap,
     n_documents: DocId,
 }
@@ -27,8 +27,8 @@ impl Index {
     /// A RoaringBitmap of doc IDs matching the field value.
     pub(crate) fn docs_from_fv<T, U>(&self, field: T, value: U) -> &RoaringBitmap
     where
-        T: Into<Rc<str>>,
-        U: Into<Rc<str>>,
+        T: Into<Arc<str>>,
+        U: Into<Arc<str>>,
     {
         self.term_idxs
             .get(&(field.into(), value.into()))
@@ -71,8 +71,8 @@ mod test {
     fn test_few_docs() {
         use super::*;
         use std::rc::Rc;
-        let colour: Rc<str> = "colour".into();
-        let taste: Rc<str> = "taste".into();
+        let colour: Arc<str> = "colour".into();
+        let taste: Arc<str> = "taste".into();
 
         let mut index: Index = Default::default();
         let d1: Document = Document::default().with_value(colour.clone(), "blue");

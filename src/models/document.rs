@@ -1,5 +1,6 @@
 use hashbrown::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use itertools::Itertools;
 
@@ -32,11 +33,11 @@ use crate::models::queries::term::TermQuery;
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Document {
     // Fields representing the document's content
-    fields: HashMap<Rc<str>, Vec<Rc<str>>>,
+    fields: HashMap<Arc<str>, Vec<Arc<str>>>,
     fvs_count: usize,
 }
 
-type FieldValue = (Rc<str>, Rc<str>);
+type FieldValue = (Arc<str>, Arc<str>);
 
 pub(crate) const MATCH_ALL: (&str, &str) = ("__match_all__", "true");
 
@@ -113,10 +114,10 @@ impl Document {
     ///
     pub fn with_value<T, U>(mut self, field: T, value: U) -> Self
     where
-        T: Into<Rc<str>>,
-        U: Into<Rc<str>> + Clone,
+        T: Into<Arc<str>>,
+        U: Into<Arc<str>> + Clone,
     {
-        let val: Rc<str> = value.into();
+        let val: Arc<str> = value.into();
 
         self.fields
             .entry(field.into())
@@ -131,30 +132,33 @@ impl Document {
     }
 
     /// All fields of this document
-    pub fn fields(&self) -> impl Iterator<Item = Rc<str>> + use<'_> {
+    pub fn fields(&self) -> impl Iterator<Item = Arc<str>> + use<'_> {
         self.fields.keys().cloned()
     }
 
     /// The values of the field, if present in the document.
-    pub fn values_ref(&self, field: &str) -> Option<&Vec<Rc<str>>> {
+    pub fn values_ref(&self, field: &str) -> Option<&Vec<Arc<str>>> {
         self.fields.get(field)
     }
 
     /// All values of the field
-    pub fn values(&self, field: &str) -> Vec<Rc<str>> {
+    pub fn values(&self, field: &str) -> Vec<Arc<str>> {
         self.fields.get(field).cloned().unwrap_or_default()
     }
 
     /// All values of the field if it exists
-    pub fn values_iter(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_ + use<'_>> {
+    pub fn values_iter(
+        &self,
+        field: &str,
+    ) -> Option<impl Iterator<Item = Arc<str>> + '_ + use<'_>> {
         self.fields.get(field).map(|v| v.iter().cloned())
     }
 }
 
 impl<K, V, const N: usize> From<[(K, V); N]> for Document
 where
-    K: Into<Rc<str>>,
-    V: Into<Rc<str>> + Clone,
+    K: Into<Arc<str>>,
+    V: Into<Arc<str>> + Clone,
 {
     fn from(arr: [(K, V); N]) -> Self {
         arr.into_iter()

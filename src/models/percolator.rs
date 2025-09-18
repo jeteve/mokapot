@@ -1,5 +1,6 @@
 use std::num::NonZeroUsize;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::{fmt, iter};
 
 use itertools::Itertools;
@@ -40,12 +41,12 @@ impl ClauseExpander {
 
 #[derive(Clone, Debug)]
 pub(crate) struct PreHeater {
-    id: Rc<str>,
+    id: Arc<str>,
     expand_clause: ClauseExpander,
 }
 
 impl PreHeater {
-    pub(crate) fn new(id: Rc<str>, ce: ClauseExpander) -> Self {
+    pub(crate) fn new(id: Arc<str>, ce: ClauseExpander) -> Self {
         Self {
             id,
             expand_clause: ce,
@@ -302,7 +303,13 @@ impl Percolator {
 
         self.clause_matchers
             .iter()
-            .map(|cm| cm.clause_docs(&dclause))
+            //.map(|cm| cm.clause_docs(&dclause))
+            // Fan out to clause matchers and gather each
+            .map(move |cm| {
+                cm.send_clause_for_matching(&dclause);
+                cm
+            })
+            .map(|cm| cm.recv_bitmap())
             .reduce_inplace(|acc, b| {
                 *acc &= b;
             })

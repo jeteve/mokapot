@@ -1,16 +1,16 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use crate::models::{document::Document, queries::common::DocMatcher};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct PrefixQuery {
-    field: Rc<str>,
-    prefix: Rc<str>,
+    field: Arc<str>,
+    prefix: Arc<str>,
 }
 
 impl PrefixQuery {
     /// Constructor
-    pub(crate) fn new<T: Into<Rc<str>>, U: Into<Rc<str>>>(field: T, prefix: U) -> Self {
+    pub(crate) fn new<T: Into<Arc<str>>, U: Into<Arc<str>>>(field: T, prefix: U) -> Self {
         PrefixQuery {
             field: field.into(),
             prefix: prefix.into(),
@@ -18,12 +18,12 @@ impl PrefixQuery {
     }
 
     /// The field
-    pub(crate) fn field(&self) -> Rc<str> {
+    pub(crate) fn field(&self) -> Arc<str> {
         self.field.clone()
     }
 
     /// The prefix
-    pub(crate) fn prefix(&self) -> Rc<str> {
+    pub(crate) fn prefix(&self) -> Arc<str> {
         self.prefix.clone()
     }
 }

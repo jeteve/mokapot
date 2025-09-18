@@ -1,6 +1,6 @@
 use fake::faker::lorem::en::*;
-use itertools::kmerge;
 use itertools::Itertools;
+use itertools::kmerge;
 
 trait Doggy {
     fn bark(&self) -> String;

@@ -8,7 +8,7 @@ use crate::models::{
 use itertools::Itertools;
 use roaring::MultiOps;
 
-use std::{fmt, rc::Rc};
+use std::{fmt, rc::Rc, sync::Arc};
 
 mod literal;
 use literal::*;
@@ -147,8 +147,8 @@ impl Query {
     /// ```
     pub fn term<T, U>(field: T, value: U) -> Self
     where
-        T: Into<Rc<str>>,
-        U: Into<Rc<str>>,
+        T: Into<Arc<str>>,
+        U: Into<Arc<str>>,
     {
         Self::from_termquery(TermQuery::new(field, value))
     }
@@ -162,8 +162,8 @@ impl Query {
     /// ```
     pub fn prefix<T, U>(field: T, value: U) -> Self
     where
-        T: Into<Rc<str>>,
-        U: Into<Rc<str>>,
+        T: Into<Arc<str>>,
+        U: Into<Arc<str>>,
     {
         Self::from_prefixquery(PrefixQuery::new(field, value))
     }
@@ -226,21 +226,21 @@ impl Query {
     }
 }
 
-pub trait CNFQueryable: Into<Rc<str>> {
-    fn has_value<T: Into<Rc<str>>>(self, v: T) -> Query;
-    fn has_prefix<T: Into<Rc<str>>>(self, v: T) -> Query;
+pub trait CNFQueryable: Into<Arc<str>> {
+    fn has_value<T: Into<Arc<str>>>(self, v: T) -> Query;
+    fn has_prefix<T: Into<Arc<str>>>(self, v: T) -> Query;
 }
 
 impl<T> CNFQueryable for T
 where
-    T: Into<Rc<str>>,
+    T: Into<Arc<str>>,
 {
-    fn has_value<U: Into<Rc<str>>>(self, v: U) -> Query {
+    fn has_value<U: Into<Arc<str>>>(self, v: U) -> Query {
         let tq = TermQuery::new(self, v);
         Query::from_termquery(tq)
     }
 
-    fn has_prefix<U: Into<Rc<str>>>(self, v: U) -> Query {
+    fn has_prefix<U: Into<Arc<str>>>(self, v: U) -> Query {
         let pq = PrefixQuery::new(self, v);
         Query::from_prefixquery(pq)
     }
@@ -468,7 +468,7 @@ mod test_queries {
 
         assert!(q.matches(&d));
 
-        let colour: Rc<str> = "colour".into();
+        let colour: Arc<str> = "colour".into();
 
         let q2 = TermQuery::new(colour, "green");
         assert!(q2.matches(&d));
