@@ -1,12 +1,11 @@
 use roaring::RoaringBitmap;
 use std::{
-    sync::{
-        Arc,
-        mpsc::{Receiver, Sender},
-    },
+    sync::Arc,
     thread::{self, JoinHandle},
     time::Duration,
 };
+
+use flume::{Receiver, Sender};
 
 use crate::models::{cnf::Clause, document::Document, index::Index};
 
@@ -22,7 +21,7 @@ enum Resp {
     Pong,
     IdxDone,
     SizeIs(usize),
-    BitmapIs(RoaringBitmap),
+    BitmapIs(Arc<RoaringBitmap>),
 }
 
 #[derive(Debug)]
@@ -55,7 +54,7 @@ fn _index_thread(rx: Receiver<Req>, tx: Sender<Resp>) {
                     .iter()
                     .map(|l| l.percolate_docs_from_idx(&idx))
                     .for_each(|bm| ret |= bm);
-                tx.send(Resp::BitmapIs(ret))
+                tx.send(Resp::BitmapIs(ret.into()))
                     .expect("Error sending BitmapIs");
             }
         }
@@ -65,8 +64,8 @@ fn _index_thread(rx: Receiver<Req>, tx: Sender<Resp>) {
 impl std::default::Default for ClauseMatcher {
     fn default() -> Self {
         // Inbound channel
-        let (tx, rx) = std::sync::mpsc::channel::<Req>();
-        let (rtx, rrx) = std::sync::mpsc::channel::<Resp>();
+        let (tx, rx) = flume::bounded::<Req>(0);
+        let (rtx, rrx) = flume::bounded::<Resp>(0);
 
         let index_actor = thread::spawn(|| _index_thread(rx, rtx));
 
@@ -108,7 +107,7 @@ impl ClauseMatcher {
             .expect("Error sending clause");
     }
 
-    pub(crate) fn recv_bitmap(&self) -> RoaringBitmap {
+    pub(crate) fn recv_bitmap(&self) -> Arc<RoaringBitmap> {
         if let Resp::BitmapIs(bm) = self.rx.recv().expect("Error receiving message") {
             bm
         } else {

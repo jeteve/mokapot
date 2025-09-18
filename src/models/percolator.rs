@@ -1,4 +1,5 @@
 use std::num::NonZeroUsize;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{fmt, iter};
@@ -311,7 +312,7 @@ impl Percolator {
                 cm.send_clause_for_matching(dclause.clone());
                 cm
             })
-            .map(|cm| cm.recv_bitmap())
+            .map(|cm| Arc::into_inner(cm.recv_bitmap()).unwrap())
             .reduce_inplace(|acc, b| {
                 *acc &= b;
             })
