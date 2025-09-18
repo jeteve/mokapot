@@ -224,18 +224,6 @@ impl Query {
     pub(crate) fn clauses(&self) -> &[Clause] {
         &self.0
     }
-
-    // The docs matching this CNFQuery in the whole index.
-    // This should be rarely used, and is only there for completeness
-    #[allow(dead_code)]
-    fn docs_from_idx_iter<'a>(&self, index: &'a Index) -> impl Iterator<Item = DocId> + use<'a> {
-        // And multi and between all clauses.
-        let subits = self
-            .0
-            .iter()
-            .map(|c| crate::models::percolator::clause_docs_from_idx(c, index));
-        MultiOps::intersection(subits).into_iter()
-    }
 }
 
 pub trait CNFQueryable: Into<Rc<str>> {
@@ -413,7 +401,6 @@ mod test_clause {
     #[test]
     fn test_clause() {
         use super::*;
-        use crate::models::percolator::clause_docs_from_idx;
         use std::collections::HashSet;
 
         let d: Document = Document::default()
@@ -442,33 +429,17 @@ mod test_clause {
         let mut index = Index::default();
         // Query against the empty index.
 
-        let doc_ids: Vec<_> = clause_docs_from_idx(&one_clause, &index).iter().collect();
-        assert!(doc_ids.is_empty());
-
         let q = TermQuery::new("colour", "blue");
         let q2 = TermQuery::new("taste", "sweet");
         let disq = Clause::from_termqueries(vec![q, q2]);
 
         assert!(disq.matches(&d));
 
-        let doc_ids: Vec<_> = clause_docs_from_idx(&disq, &index).iter().collect();
-        assert!(doc_ids.is_empty());
-
         index.index_document(&d);
         index.index_document(&d1);
         index.index_document(&d2);
         index.index_document(&d3);
         index.index_document(&d4);
-
-        // colour = blue or taste = sweet.
-        let doc_ids: HashSet<DocId> = clause_docs_from_idx(&disq, &index).iter().collect();
-        // Notice the order does not matter..
-        assert_eq!(doc_ids, HashSet::from([0, 2, 3]));
-
-        // Test the one term disjunction, to check the
-        // optmimisation
-        let doc_ids: HashSet<DocId> = clause_docs_from_idx(&one_clause, &index).iter().collect();
-        assert_eq!(doc_ids, HashSet::from([0, 2, 3]));
     }
 }
 
@@ -491,14 +462,11 @@ mod test_queries {
         let mut index = Index::default();
         // A query on an empty index.
         let q = "colour".has_value("blue");
-        assert_eq!(q.docs_from_idx_iter(&index).count(), 0);
 
         index.index_document(&d);
         index.index_document(&d2);
 
         assert!(q.matches(&d));
-        assert!(q.docs_from_idx_iter(&index).next().is_some());
-        assert_eq!(q.docs_from_idx_iter(&index).count(), 1);
 
         let colour: Rc<str> = "colour".into();
 
@@ -544,19 +512,11 @@ mod test_queries {
 
         // Index the document
         let mut index = Index::default();
-        let doc_ids: Vec<DocId> = conjunction_query.docs_from_idx_iter(&index).collect();
-        assert_eq!(doc_ids, vec![] as Vec<DocId>);
 
         index.index_document(&d);
         index.index_document(&d1);
         index.index_document(&d2);
         index.index_document(&d3);
-
-        let mut doc_ids = conjunction_query.docs_from_idx_iter(&index);
-        assert_eq!(doc_ids.next(), Some(0));
-        assert_eq!(doc_ids.next(), Some(3));
-        assert_eq!(doc_ids.next(), None);
-        assert_eq!(doc_ids.next(), None);
     }
 
     #[test]
@@ -589,22 +549,11 @@ mod test_queries {
 
         let mut index = Index::default();
         // Query against the empty index.
-        let doc_ids: Vec<_> = disq.docs_from_idx_iter(&index).collect();
-        assert!(doc_ids.is_empty());
 
         index.index_document(&d);
         index.index_document(&d1);
         index.index_document(&d2);
         index.index_document(&d3);
         index.index_document(&d4);
-
-        // colour = blue or taste = sweet.
-        let mut doc_ids = disq.docs_from_idx_iter(&index);
-        assert_eq!(doc_ids.next(), Some(0));
-        assert_eq!(doc_ids.next(), Some(2));
-        assert_eq!(doc_ids.next(), Some(3));
-        // No more matches!
-        assert_eq!(doc_ids.next(), None);
-        assert_eq!(doc_ids.next(), None);
     }
 }

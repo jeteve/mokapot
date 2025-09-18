@@ -14,6 +14,10 @@ use crate::models::{
     queries::term::TermQuery,
 };
 
+mod clause_matcher;
+
+use clause_matcher::ClauseMatcher;
+
 pub type Qid = u32;
 
 pub(crate) type ExpanderF = Rc<dyn Fn(Clause) -> Clause>;
@@ -80,21 +84,6 @@ impl MatchItem {
     }
 }
 
-// The docs Ids from the index mathing this clause
-// This is only used in the context of percolation,
-//    this clause will NOT have any negatives.
-//    this clause will NOT have any non-term litterals.
-// Migrate to percolator please.
-pub(crate) fn clause_docs_from_idx(c: &Clause, index: &Index) -> RoaringBitmap {
-    let mut ret = RoaringBitmap::new();
-    c.literals()
-        .iter()
-        .map(|l| l.percolate_docs_from_idx(index))
-        .for_each(|bm| ret |= bm);
-
-    ret
-}
-
 // For indexing clauses.
 fn clause_to_mi(c: &Clause) -> MatchItem {
     let lits = c.literals().iter();
@@ -129,11 +118,6 @@ fn cnf_to_matchitems(q: &Query) -> impl Iterator<Item = MatchItem> + use<'_> {
     q.clauses().iter().map(clause_to_mi)
 }
 
-#[derive(Debug, Default)]
-struct ClauseMatchers {
-    positive_index: Index,
-}
-
 /// A builder should you want to build a percolator
 /// with different parameters
 pub struct PercBuilder {
@@ -154,7 +138,7 @@ impl PercBuilder {
             cnf_queries: Vec::new(),
             preheaters: Vec::new(),
             clause_matchers: (0..self.n_clauses.get())
-                .map(|_| ClauseMatchers::default())
+                .map(|_| ClauseMatcher::default())
                 .collect(),
             must_filter: RoaringBitmap::new(),
         }
@@ -200,7 +184,7 @@ impl PercBuilder {
 #[derive(Debug)]
 pub struct Percolator {
     cnf_queries: Vec<Query>,
-    clause_matchers: Vec<ClauseMatchers>,
+    clause_matchers: Vec<ClauseMatcher>,
     // To preheat the document clauses.
     preheaters: Vec<PreHeater>,
     // Holds which queries MUST be finally filtered with
@@ -213,7 +197,7 @@ impl std::default::Default for Percolator {
         Self {
             cnf_queries: Vec::new(),
             preheaters: Vec::new(),
-            clause_matchers: (0..3).map(|_| ClauseMatchers::default()).collect(),
+            clause_matchers: (0..3).map(|_| ClauseMatcher::default()).collect(),
             must_filter: RoaringBitmap::new(),
         }
     }
@@ -277,12 +261,12 @@ impl Percolator {
 
         let cms = self.clause_matchers.iter_mut();
         cms.zip(mis.into_iter().chain(iter::repeat(MatchItem::match_all())))
-            .for_each(|(ms, mi)| {
+            .for_each(|(cm, mi)| {
                 if mi.must_filter {
                     self.must_filter.insert(new_doc_id);
                 }
-                ms.positive_index.index_document(&mi.doc);
-                assert_eq!(ms.positive_index.len(), expected_index_len);
+                cm.index_document(&mi.doc);
+                assert_eq!(cm.n_indexed(), expected_index_len);
             });
 
         self.cnf_queries.push(q);
@@ -318,7 +302,7 @@ impl Percolator {
 
         self.clause_matchers
             .iter()
-            .map(|ms| clause_docs_from_idx(&dclause, &ms.positive_index))
+            .map(|cm| cm.clause_docs(&dclause))
             .reduce_inplace(|acc, b| {
                 *acc &= b;
             })
