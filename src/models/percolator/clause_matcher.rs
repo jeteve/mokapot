@@ -15,7 +15,7 @@ enum Req {
     Ping,
     IdxDoc(Document),
     GetSize,
-    MatchClause(Clause),
+    MatchClause(Arc<Clause>),
 }
 
 enum Resp {
@@ -85,7 +85,7 @@ impl ClauseMatcher {
         self.tx
             .send(Req::IdxDoc(d.clone()))
             .expect("Error sending document");
-        self.positive_index.index_document(d);
+        //self.positive_index.index_document(d);
         assert!(matches!(
             self.rx.recv().expect("Error receiving message"),
             Resp::IdxDone
@@ -102,9 +102,9 @@ impl ClauseMatcher {
         }
     }
 
-    pub(crate) fn send_clause_for_matching(&self, c: &Clause) {
+    pub(crate) fn send_clause_for_matching(&self, c: Arc<Clause>) {
         self.tx
-            .send(Req::MatchClause(c.clone()))
+            .send(Req::MatchClause(c))
             .expect("Error sending clause");
     }
 

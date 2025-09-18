@@ -18,7 +18,7 @@ fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
     let synth_field: Arc<str> = format!("__PREFIX{}__{}", plen, pq.field()).into();
     let id_field = synth_field.clone();
 
-    let expander = move |mut c: Clause| {
+    let expander = move |mut c: Arc<Clause>| {
         // Find all term queries with the given field, where the term is actually at least
         // as long as the prefix
         // Then turn them into term queries with the synthetic field name
@@ -34,7 +34,7 @@ fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
             .collect_vec();
 
         for new_tq in new_term_queries {
-            c.add_termquery(new_tq);
+            Arc::get_mut(&mut c).unwrap().add_termquery(new_tq);
         }
         c
     };

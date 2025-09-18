@@ -21,7 +21,7 @@ use clause_matcher::ClauseMatcher;
 
 pub type Qid = u32;
 
-pub(crate) type ExpanderF = Rc<dyn Fn(Clause) -> Clause>;
+pub(crate) type ExpanderF = Rc<dyn Fn(Arc<Clause>) -> Arc<Clause>>;
 
 #[derive(Clone)]
 // Extends Clauses comming from percolated document with extra termqueries.
@@ -290,9 +290,11 @@ impl Percolator {
 
     fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
         // This is where the magic happens.
-        let mut dclause = d.to_clause();
+        let mut dclause: Arc<Clause> = d.to_clause().into();
         // Add the match all to match all queries
-        dclause.add_termquery(TermQuery::match_all());
+        Arc::get_mut(&mut dclause)
+            .unwrap()
+            .add_termquery(TermQuery::match_all());
 
         // Preheat the clause
         // This adds a bit of time to the percolation.
@@ -306,7 +308,7 @@ impl Percolator {
             //.map(|cm| cm.clause_docs(&dclause))
             // Fan out to clause matchers and gather each
             .map(move |cm| {
-                cm.send_clause_for_matching(&dclause);
+                cm.send_clause_for_matching(dclause.clone());
                 cm
             })
             .map(|cm| cm.recv_bitmap())
