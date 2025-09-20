@@ -15,10 +15,10 @@ categories = ["algorithms"]
 default-run="mokaccino"
 
 [dependencies]
-itertools = "0.9.0"
-roaring = "0.11.2"
-num-traits = "0.2.19"
-hashbrown = "0.16.0"
+itertools = "^0.9"
+roaring = "^0.11"
+num-traits = "^0.2"
+hashbrown = "^0.16"
 
 [dev-dependencies]
 criterion = "0.7.0"
