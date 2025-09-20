@@ -3,6 +3,12 @@ name = "mokapot"
 version = "0.1.0"
 edition = "2024"
 readme = "README.md"
+license-file = "LICENSE"
+description = "A library to match tansient Documents against a corpus of Queries."
+homepage = "https://github.com/jeteve/mokapot"
+repository = "https://github.com/jeteve/mokapot.git"
+keywords = [ "search", "percolator" ]
+categories = ["algorithms"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -26,7 +32,7 @@ fake = "4.4.0"
 
 [profile.bench]
 # Uncomment and build again if you want to profile
-debug = true
+# debug = true
 
 [[bench]]
 name = "percolate_simple"

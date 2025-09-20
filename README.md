@@ -13,19 +13,17 @@ document as events.
 
 # Features
 
-- Percolator first design
+- Percolator first design.
 
-- Performance and correctness focused.
+- Performance focused.
 
-- Support for any boolean queries.
+- Support for any nested boolean queries, including negations.
 
 - Support for prefix matching.
 
-- Support for number comparison queries (coming up)
-
 # Non-features
 
-- Full text search. This does not contain any document body tokenizing.
+- Full text search. For instance this does not contain any document body tokenizing.
 
 # Example
 
@@ -44,39 +42,57 @@ fn test_percolator() {
         p.add_query((!"A".has_value("a")) | "B".has_value("b")), //4
         p.add_query(!"A".has_value("a") & "B".has_value("b")),   //5
         p.add_query(!"A".has_value("a") & "A".has_value("a")),   //6 - should NEVER match anything.
+        p.add_query("C".has_prefix("multi")),                    //7
+        p.add_query("C".has_prefix("multi") & !"C".has_value("multimeter")), //8
+        p.add_query(
+            "A".has_value("aa") & "B".has_value("bb") & "C".has_value("cc") & "D".has_prefix("bla"),
+        ), //9
     ];
 
     assert_eq!(
-        p.percolate(&Document::default().with_value("X", "x"))
+        p.percolate(&[("A", "aa"), ("B", "bb"), ("C", "cc"), ("D", "blabla")].into())
             .collect::<Vec<_>>(),
+        vec![q[3], q[4], q[9]]
+    );
+
+    assert_eq!(
+        p.percolate(&[("C", "mult")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
+    assert_eq!(
+        p.percolate(&[("C", "multimeter")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4], q[7]]
+    );
+
+    assert_eq!(
+        p.percolate(&[("C", "multi")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4], q[7], q[8]]
+    );
+
+    assert_eq!(
+        p.percolate(&[("X", "x")].into()).collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
 
     assert_eq!(
-        p.percolate(&Document::default().with_value("B", "b"))
-            .collect::<Vec<_>>(),
+        p.percolate(&[("B", "b")].into()).collect::<Vec<_>>(),
         vec![q[1], q[3], q[4], q[5]]
     );
 
     assert_eq!(
-        p.percolate(&Document::default().with_value("A", "b"))
-            .collect::<Vec<_>>(),
+        p.percolate(&[("A", "b")].into()).collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
 
     assert_eq!(
-        p.percolate(&Document::default().with_value("A", "a"))
-            .collect::<Vec<_>>(),
+        p.percolate(&[("A", "a")].into()).collect::<Vec<_>>(),
         vec![q[0], q[1]]
     );
 
     assert_eq!(
-        p.percolate(
-            &Document::default()
-                .with_value("A", "a")
-                .with_value("B", "b")
-        )
-        .collect::<Vec<_>>(),
+        p.percolate(&[("A", "a"), ("B", "b")].into())
+            .collect::<Vec<_>>(),
         vec![q[0], q[1], q[2], q[4]]
     );
 }
