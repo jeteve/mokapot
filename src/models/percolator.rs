@@ -171,7 +171,7 @@ impl PercBuilder {
     ///
     /// Example:
     /// ```
-    /// use mokapot::prelude::*;
+    /// use mokaccino::prelude::*;
     /// use std::num::NonZeroUsize;
     ///
     /// let p = Percolator::builder().n_clauses(NonZeroUsize::new(5).unwrap()).build();
@@ -188,7 +188,7 @@ impl PercBuilder {
 ///
 /// Example:
 /// ```
-/// use mokapot::prelude::*;
+/// use mokaccino::prelude::*;
 ///
 /// let mut p = Percolator::default();
 /// let qid = p.add_query("field".has_value("value"));
@@ -238,7 +238,7 @@ impl Percolator {
     /// Returns a percolator builder for configurability
     /// Example:
     /// ```
-    /// use mokapot::prelude::*;
+    /// use mokaccino::prelude::*;
     ///
     /// let mut p = Percolator::builder().build();
     ///

@@ -97,14 +97,14 @@ impl fmt::Display for Clause {
 }
 
 ///
-/// A CNFQuery is the query model that mokapot operates on
+/// A CNFQuery is the query model that mokaccino operates on
 /// You can build a CNF query using the CNFQuery methods,
 /// or use the shorthands provided by the trait implementation
 /// as well as the CNFQueryable trait.
 ///
 /// Example with construtor functions:
 /// ```
-/// use mokapot::prelude::*;
+/// use mokaccino::prelude::*;
 ///
 /// let q = Query::from_and(vec![Query::prefix("field", "some"),
 ///                                 Query::negation(Query::term("field", "someexclusion"))
@@ -114,7 +114,7 @@ impl fmt::Display for Clause {
 ///
 /// Example with shorthand using traits:
 /// ```
-/// use mokapot::prelude::*;
+/// use mokaccino::prelude::*;
 ///
 /// let q = "field".has_prefix("some") & ! "field".has_value("someexclusion");
 /// ```
@@ -140,7 +140,7 @@ impl Query {
     /// Builds a one term query from a T and U.
     /// Example:
     /// ```
-    /// use mokapot::prelude::Query;
+    /// use mokaccino::prelude::Query;
     ///
     /// let q = Query::term("field", "exact_value");
     ///
@@ -156,7 +156,7 @@ impl Query {
     /// Builds a prefix query from a T and U
     /// Example:
     /// ```
-    /// use mokapot::prelude::Query;
+    /// use mokaccino::prelude::Query;
     ///
     /// let q = Query::prefix("field", "prefix");
     /// ```

@@ -1,6 +1,6 @@
 use std::num::NonZeroUsize;
 
-use mokapot::prelude::*;
+use mokaccino::prelude::*;
 
 #[test]
 fn test_percolator() {

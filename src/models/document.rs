@@ -12,7 +12,7 @@ use crate::models::queries::term::TermQuery;
 /// You can build an example dynamically as follow:
 ///
 /// ```
-/// use mokapot::prelude::*;
+/// use mokaccino::prelude::*;
 ///
 /// let d = Document::default().with_value("field", "value")
 ///                             .with_value("field", "second_value")
@@ -23,7 +23,7 @@ use crate::models::queries::term::TermQuery;
 /// Or to make it easier for simple cases, from an array of tuples:
 ///
 /// ```
-/// use mokapot::prelude::*;
+/// use mokaccino::prelude::*;
 ///
 /// let d: Document = [("field", "value"), ("field", "another_value")].into();
 /// ```
@@ -84,7 +84,7 @@ impl Document {
     ///
     /// # Example:
     /// ```
-    /// use mokapot::models::document::Document;
+    /// use mokaccino::models::document::Document;
     ///
     /// let d1 = Document::default().with_value("A", "a");
     /// let d2 = Document::default().with_value("A", "a2").with_value("B", "b");
@@ -105,7 +105,7 @@ impl Document {
     ///
     /// # Example:
     /// ```
-    /// use mokapot::models::document::Document;
+    /// use mokaccino::models::document::Document;
     ///
     /// let d = Document::default().with_value("field", "value");
     /// assert_eq!(d.values("field"), vec!["value".into()]);

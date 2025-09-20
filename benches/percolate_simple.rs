@@ -3,10 +3,10 @@ use std::rc::Rc;
 use criterion::Throughput;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
-use mokapot::models::document::Document;
-use mokapot::models::percolator::Percolator;
+use mokaccino::models::document::Document;
+use mokaccino::models::percolator::Percolator;
 
-use mokapot::models::cnf::*;
+use mokaccino::models::cnf::*;
 
 const FIELD: &str = "field";
 const FIELD2: &str = "second_field";

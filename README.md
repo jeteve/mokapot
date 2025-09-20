@@ -1,6 +1,6 @@
-# About mokapot
+# About mokaccino
 
-mokapot is a percolator library in Rust. Consider this beta software.
+mokaccino is a percolator library in Rust. Consider this beta software.
 
 ## About percolators
 
@@ -28,7 +28,7 @@ document as events.
 # Example
 
 ```rust
-use mokapot::prelude::*;
+use mokaccino::prelude::*;
 
 #[test]
 fn test_percolator() {

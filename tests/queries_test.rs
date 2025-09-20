@@ -1,5 +1,5 @@
-use mokapot::models::cnf::*;
-use mokapot::models::document::Document;
+use mokaccino::models::cnf::*;
+use mokaccino::models::document::Document;
 
 #[test]
 fn test_query() {

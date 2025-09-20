@@ -1,3 +1,3 @@
 fn main() {
-    println!("Hello from mokapot");
+    println!("Hello from mokaccino");
 }

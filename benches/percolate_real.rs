@@ -7,11 +7,11 @@ use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
 use fake::Fake;
 use fake::faker::address::en::CountryName;
-use mokapot::models::cnf::CNFQueryable;
-use mokapot::models::cnf::Query;
+use mokaccino::models::cnf::CNFQueryable;
+use mokaccino::models::cnf::Query;
 
-use mokapot::models::document::Document;
-use mokapot::models::percolator::Percolator;
+use mokaccino::models::document::Document;
+use mokaccino::models::percolator::Percolator;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
