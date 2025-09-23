@@ -44,7 +44,7 @@ fn build_query<R: Rng + ?Sized>(
         q3_field.has_prefix(
             q3_value
                 .chars()
-                .take(q3_value.len() - 1)
+                .take(q3_value.len() - (1..(q3_value.len() - 1)).fake_with_rng::<usize, _>(rng))
                 .collect::<String>(),
         )
     } else {
@@ -92,6 +92,12 @@ fn percolate_real(c: &mut Criterion) {
             vec![
                 "blue".to_string(),
                 "blue".to_string(),
+                "bluegreen".to_string(),
+                "bluegreenish".to_string(),
+                "bluegreenishgrayish".to_string(),
+                "bluegreenishgrayishsilverish".to_string(),
+                "bluegreenishgrayishsilverishdottedpink".to_string(),
+                "bluegreenishgrayishsilverishdottedpinkwithstripes".to_string(),
                 "green".to_string(),
                 "yellow".to_string(),
                 "magenta".to_string(),

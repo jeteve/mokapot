@@ -38,6 +38,7 @@ impl ClauseExpander {
 pub(crate) struct PreHeater {
     id: Rc<str>,
     expand_clause: ClauseExpander,
+    must_filter: bool, // must_filter MUST be true when the clause expander is not exact.
 }
 
 impl PreHeater {
@@ -45,7 +46,12 @@ impl PreHeater {
         Self {
             id,
             expand_clause: ce,
+            must_filter: false,
         }
+    }
+    pub(crate) fn with_must_filter(mut self, new_bool: bool) -> Self {
+        self.must_filter = new_bool;
+        self
     }
 }
 
@@ -270,10 +276,16 @@ impl Percolator {
             .take(self.clause_matchers.len())
             .flat_map(|mi| mi.preheaters.iter())
             .for_each(|ph| {
+                if ph.must_filter {
+                    self.must_filter.insert(new_doc_id);
+                }
+
                 if !self.has_preheater(ph) {
                     self.preheaters.push(ph.clone())
                 }
             });
+
+        dbg!(self.preheaters.iter().map(|ph| &ph.id).collect_vec());
 
         let cms = self.clause_matchers.iter_mut();
         cms.zip(mis.into_iter().chain(iter::repeat(MatchItem::match_all())))
@@ -303,6 +315,7 @@ impl Percolator {
         })
     }
 
+    // Get a RoaringBitMap from the document, using the clause matchers.
     fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
         // This is where the magic happens.
         let mut dclause = d.to_clause();

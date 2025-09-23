@@ -3,6 +3,8 @@ use std::{fmt, rc::Rc};
 use itertools::Itertools;
 use roaring::RoaringBitmap;
 
+use crate::itertools::Fibo;
+
 use crate::models::{
     cnf::Clause,
     document::Document,
@@ -12,10 +14,23 @@ use crate::models::{
     queries::{common::DocMatcher, prefix::PrefixQuery, term::TermQuery},
 };
 
+// Returns the clipped len to the smallest fibonacci number.
+fn clipped_len(len: usize) -> usize {
+    //Fibo::<usize>::new()
+    //    .flat_map(|f| f.checked_mul(2))
+
+    *([1, 10, 100, 1000, 2000] as [usize; 5])
+        .iter()
+        .filter(|&&f| f <= len)
+        .next_back()
+        .unwrap_or(&len)
+}
+
 fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
-    let plen = pq.prefix().len();
+    let clipped_len = clipped_len(pq.prefix().len());
+
     let pfield = pq.field().clone();
-    let synth_field: Rc<str> = format!("__PREFIX{}__{}", plen, pq.field()).into();
+    let synth_field: Rc<str> = format!("__PREFIX{}__{}", clipped_len, pq.field()).into();
     let id_field = synth_field.clone();
 
     let expander = move |mut c: Clause| {
@@ -24,11 +39,11 @@ fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
         // Then turn them into term queries with the synthetic field name
         let new_term_queries = c
             .term_queries_iter()
-            .filter(|&tq| tq.field() == pfield && tq.term().len() >= plen)
+            .filter(|&tq| tq.field() == pfield && tq.term().len() >= clipped_len)
             .map(|tq| {
                 TermQuery::new(
                     synth_field.clone(),
-                    tq.term().chars().take(plen).collect::<String>(),
+                    tq.term().chars().take(clipped_len).collect::<String>(),
                 )
             })
             .collect_vec();
@@ -40,6 +55,7 @@ fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
     };
 
     PreHeater::new(id_field, ClauseExpander::new(Rc::new(expander)))
+        .with_must_filter(clipped_len < pq.prefix().len())
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -115,10 +131,18 @@ impl Literal {
     pub(crate) fn percolate_doc_field_value(&self) -> (Rc<str>, Rc<str>) {
         match &self.query {
             LitQuery::Term(tq) => (tq.field(), tq.term()),
-            LitQuery::Prefix(pq) => (
-                format!("__PREFIX{}__{}", pq.prefix().len(), pq.field()).into(),
-                pq.prefix(),
-            ),
+            LitQuery::Prefix(pq) => {
+                let clipped_len = clipped_len(pq.prefix().len());
+
+                (
+                    format!("__PREFIX{}__{}", clipped_len, pq.field()).into(),
+                    pq.prefix()
+                        .chars()
+                        .take(clipped_len)
+                        .collect::<String>()
+                        .into(),
+                )
+            }
         }
     }
 
@@ -179,5 +203,23 @@ impl fmt::Display for Literal {
             if self.is_negated() { "~" } else { "" },
             self.query
         )
+    }
+}
+
+mod test {
+    use super::*;
+    //#[test]
+    fn test_clip() {
+        assert_eq!(clipped_len(1), 1);
+        assert_eq!(clipped_len(2), 2);
+
+        assert_eq!(clipped_len(3), 3);
+        assert_eq!(clipped_len(4), 3);
+        assert_eq!(clipped_len(5), 5);
+        assert_eq!(clipped_len(6), 5);
+        assert_eq!(clipped_len(7), 5);
+        assert_eq!(clipped_len(8), 8);
+        assert_eq!(clipped_len(100), 89);
+        assert_eq!(clipped_len(2000), 1597);
     }
 }

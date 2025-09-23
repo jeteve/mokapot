@@ -1,4 +1,7 @@
+use core::num;
+
 use itertools::Itertools;
+use num_traits;
 
 #[allow(dead_code)]
 pub(crate) trait TheShwartz: Iterator + Sized {
@@ -31,7 +34,45 @@ pub(crate) trait InPlaceReduce: Iterator + Sized {
 impl<T> TheShwartz for T where T: Iterator + Sized {}
 impl<T> InPlaceReduce for T where T: Iterator + Sized {}
 
+pub(crate) struct Fibo<T> {
+    current: T,
+    next: T,
+}
+
+impl<T> Fibo<T>
+where
+    T: num_traits::Zero + num_traits::One,
+{
+    pub(crate) fn new() -> Self {
+        Fibo {
+            current: T::zero(),
+            next: T::one(),
+        }
+    }
+}
+
+impl<T> Iterator for Fibo<T>
+where
+    T: num_traits::CheckedAdd + Copy,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let new_next = self.current.checked_add(&self.next)?;
+        self.current = self.next;
+        self.next = new_next;
+        Some(self.next)
+    }
+}
+
 mod test_itertools {
+
+    #[test]
+    fn test_fibo() {
+        use super::Fibo;
+        let all_usize = Fibo::<usize>::new();
+        assert_eq!(all_usize.take(3).collect::<Vec<_>>(), vec![1, 2, 3]);
+    }
 
     #[test]
     fn test_inplace_reduce() {
