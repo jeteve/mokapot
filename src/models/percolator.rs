@@ -14,25 +14,10 @@ use crate::models::{
     queries::term::TermQuery,
 };
 
+pub(crate) mod tools;
+use tools::*;
+
 pub type Qid = u32;
-
-pub(crate) type ExpanderF = Rc<dyn Fn(Clause) -> Clause>;
-
-#[derive(Clone)]
-// Extends Clauses comming from percolated document with extra termqueries.
-pub(crate) struct ClauseExpander(ExpanderF);
-impl std::fmt::Debug for ClauseExpander {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("ClauseExpander")
-            .field(&"_OPAQUE FUNCTION_")
-            .finish()
-    }
-}
-impl ClauseExpander {
-    pub(crate) fn new(f: ExpanderF) -> Self {
-        Self(f)
-    }
-}
 
 #[derive(Clone, Debug)]
 pub(crate) struct PreHeater {
