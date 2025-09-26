@@ -29,7 +29,18 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         p.add_query(
             "A".has_value("aa") & "B".has_value("bb") & "C".has_value("cc") & "D".has_prefix("bla"),
         ), //9
+        p.add_query("P".has_prefix("")),                         // 10
     ];
+
+    assert_eq!(
+        p.percolate(&[("P", "")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4], q[10]]
+    );
+    assert_eq!(
+        p.percolate(&[("P", "some value")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4], q[10]]
+    );
 
     assert_eq!(
         p.percolate(&[("A", "aa"), ("B", "bb"), ("C", "cc"), ("D", "blabla")].into())
