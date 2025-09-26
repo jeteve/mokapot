@@ -1,6 +1,7 @@
 use std::num::NonZeroUsize;
 use std::{fmt, iter};
 
+use hstats::Hstats;
 use itertools::Itertools;
 use roaring::RoaringBitmap;
 
@@ -17,37 +18,6 @@ pub(crate) mod tools;
 use tools::*;
 
 pub type Qid = u32;
-
-#[derive(Clone, Debug)]
-struct MatchItem {
-    must_filter: bool,
-    doc: Document,
-    preheaters: Vec<PreHeater>,
-}
-
-impl MatchItem {
-    fn new(doc: Document) -> Self {
-        MatchItem {
-            doc,
-            must_filter: false,
-            preheaters: vec![],
-        }
-    }
-
-    pub fn with_preheater(mut self, ph: PreHeater) -> Self {
-        self.preheaters.push(ph);
-        self
-    }
-
-    fn match_all() -> Self {
-        Self::new(Document::match_all())
-    }
-
-    fn with_must_filter(mut self) -> Self {
-        self.must_filter = true;
-        self
-    }
-}
 
 // The docs Ids from the index mathing this clause
 // This is only used in the context of percolation,
@@ -103,6 +73,36 @@ struct ClauseMatchers {
     positive_index: Index,
 }
 
+#[derive(Debug)]
+pub struct PercolatorStats {
+    n_queries: usize,
+    n_preheaters: usize,
+    clauses_per_query: Hstats<f64>,
+    preheaters_per_query: Hstats<f64>,
+}
+
+impl Default for PercolatorStats {
+    fn default() -> Self {
+        Self {
+            n_queries: Default::default(),
+            n_preheaters: Default::default(),
+
+            clauses_per_query: Hstats::new(0.0, 50.0, 25),
+            preheaters_per_query: Hstats::new(0.0, 50.0, 25),
+        }
+    }
+}
+
+impl std::fmt::Display for PercolatorStats {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "🔎 N queries={}\n🔥 Preheaters={}\n❓ Clauses per query:\n{}🔥 Perheaters per query:\n{}",
+            self.n_queries, self.n_preheaters, self.clauses_per_query, self.preheaters_per_query,
+        )
+    }
+}
+
 /// A builder should you want to build a percolator
 /// with different parameters
 pub struct PercBuilder {
@@ -126,6 +126,7 @@ impl PercBuilder {
                 .map(|_| ClauseMatchers::default())
                 .collect(),
             must_filter: RoaringBitmap::new(),
+            stats: Default::default(),
         }
     }
 
@@ -175,6 +176,7 @@ pub struct Percolator {
     // Holds which queries MUST be finally filtered with
     // their match(document) method.
     must_filter: RoaringBitmap,
+    stats: PercolatorStats,
 }
 
 impl std::default::Default for Percolator {
@@ -184,6 +186,7 @@ impl std::default::Default for Percolator {
             preheaters: Vec::new(),
             clause_matchers: (0..3).map(|_| ClauseMatchers::default()).collect(),
             must_filter: RoaringBitmap::new(),
+            stats: Default::default(),
         }
     }
 }
@@ -216,6 +219,10 @@ impl Percolator {
         PercBuilder::default()
     }
 
+    pub fn stats(&self) -> &PercolatorStats {
+        &self.stats
+    }
+
     ///
     /// Adds a query to this percolator. Will panic if
     /// there is more than u32::MAX queries.
@@ -227,28 +234,46 @@ impl Percolator {
         let expected_index_len = self.cnf_queries.len() + 1;
 
         let new_doc_id = self.cnf_queries.len().try_into().expect("Too many queries");
+        self.stats.n_queries += 1;
 
         let mis = cnf_to_matchitems(&q).collect_vec();
+
+        self.stats.clauses_per_query.add(
+            TryInto::<u32>::try_into(mis.len())
+                .expect("Too many match items - More than u32::MAX !?!")
+                .into(),
+        );
 
         if mis.len() > self.clause_matchers.len() {
             self.must_filter.insert(new_doc_id);
         }
+
+        let mut n_preheaters: usize = 0;
 
         // Add the preheaters from the Match items.
         mis.iter()
             .take(self.clause_matchers.len())
             .flat_map(|mi| mi.preheaters.iter())
             .for_each(|ph| {
+                n_preheaters += 1;
+
                 if ph.must_filter {
                     self.must_filter.insert(new_doc_id);
                 }
 
                 if !self.has_preheater(ph) {
-                    self.preheaters.push(ph.clone())
+                    self.preheaters.push(ph.clone());
+                    self.stats.n_preheaters += 1;
                 }
             });
 
-        dbg!(self.preheaters.iter().map(|ph| &ph.id).collect_vec());
+        self.stats.preheaters_per_query.add(
+            TryInto::<u32>::try_into(n_preheaters)
+                .expect("Too many preheaters - More than u32::MAX !?!")
+                .into(),
+        );
+
+        //dbg!(self.preheaters.iter().map(|ph| &ph.id).collect_vec());
 
         let cms = self.clause_matchers.iter_mut();
         cms.zip(mis.into_iter().chain(iter::repeat(MatchItem::match_all())))

@@ -1,6 +1,14 @@
+use std::usize;
+
 use fake::faker::lorem::en::*;
-use itertools::kmerge;
 use itertools::Itertools;
+use itertools::kmerge;
+
+#[test]
+fn test_usize() {
+    let s: usize = 1;
+    assert_eq!(s as f64, 1.0);
+}
 
 trait Doggy {
     fn bark(&self) -> String;

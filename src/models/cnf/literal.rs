@@ -15,11 +15,9 @@ use crate::models::{
     queries::{common::DocMatcher, prefix::PrefixQuery, term::TermQuery},
 };
 
-// Returns the clipped len to the smallest fibonacci number.
+// Returns the clipped len to the smallest number
+// According to clip sizes.
 fn clipped_len(len: usize) -> usize {
-    //Fibo::<usize>::new()
-    //    .flat_map(|f| f.checked_mul(2))
-
     *([1, 10, 100, 1000, 2000] as [usize; 5])
         .iter()
         .filter(|&&f| f <= len)

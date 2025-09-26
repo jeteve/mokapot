@@ -1,6 +1,7 @@
 use std::{fmt, rc::Rc};
 
 use crate::models::cnf::Clause;
+use crate::models::document::Document;
 
 pub(crate) type ExpanderF = Rc<dyn Fn(Clause) -> Clause>;
 
@@ -37,6 +38,39 @@ impl PreHeater {
     }
     pub(crate) fn with_must_filter(mut self, new_bool: bool) -> Self {
         self.must_filter = new_bool;
+        self
+    }
+}
+
+// A clause is turned into a MatchItem for the
+// purpose of indexing a Query. See `percolator.rs`
+#[derive(Clone, Debug)]
+pub(crate) struct MatchItem {
+    pub(crate) must_filter: bool,
+    pub(crate) doc: Document,
+    pub(crate) preheaters: Vec<PreHeater>,
+}
+
+impl MatchItem {
+    pub(crate) fn new(doc: Document) -> Self {
+        MatchItem {
+            doc,
+            must_filter: false,
+            preheaters: vec![],
+        }
+    }
+
+    pub(crate) fn with_preheater(mut self, ph: PreHeater) -> Self {
+        self.preheaters.push(ph);
+        self
+    }
+
+    pub(crate) fn match_all() -> Self {
+        Self::new(Document::match_all())
+    }
+
+    pub(crate) fn with_must_filter(mut self) -> Self {
+        self.must_filter = true;
         self
     }
 }

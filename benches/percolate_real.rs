@@ -67,6 +67,8 @@ fn build_percolator<R: Rng + ?Sized>(
         .for_each(|q| {
             p.add_query(q);
         });
+
+    println!("{}", p.stats());
     p
 }
 
