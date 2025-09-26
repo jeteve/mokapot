@@ -19,3 +19,24 @@ impl ClauseExpander {
         Self(f)
     }
 }
+
+#[derive(Clone, Debug)]
+pub(crate) struct PreHeater {
+    pub(crate) id: Rc<str>,
+    pub(crate) expand_clause: ClauseExpander,
+    pub(crate) must_filter: bool, // must_filter MUST be true when the clause expander is not exact.
+}
+
+impl PreHeater {
+    pub(crate) fn new(id: Rc<str>, ce: ClauseExpander) -> Self {
+        Self {
+            id,
+            expand_clause: ce,
+            must_filter: false,
+        }
+    }
+    pub(crate) fn with_must_filter(mut self, new_bool: bool) -> Self {
+        self.must_filter = new_bool;
+        self
+    }
+}

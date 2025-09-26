@@ -9,8 +9,8 @@ use crate::models::{
     cnf::Clause,
     document::Document,
     index::Index,
-    percolator::PreHeater,
     percolator::tools::ClauseExpander,
+    percolator::tools::PreHeater,
     queries::{common::DocMatcher, prefix::PrefixQuery, term::TermQuery},
 };
 

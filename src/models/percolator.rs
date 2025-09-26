@@ -20,27 +20,6 @@ use tools::*;
 pub type Qid = u32;
 
 #[derive(Clone, Debug)]
-pub(crate) struct PreHeater {
-    id: Rc<str>,
-    expand_clause: ClauseExpander,
-    must_filter: bool, // must_filter MUST be true when the clause expander is not exact.
-}
-
-impl PreHeater {
-    pub(crate) fn new(id: Rc<str>, ce: ClauseExpander) -> Self {
-        Self {
-            id,
-            expand_clause: ce,
-            must_filter: false,
-        }
-    }
-    pub(crate) fn with_must_filter(mut self, new_bool: bool) -> Self {
-        self.must_filter = new_bool;
-        self
-    }
-}
-
-#[derive(Clone, Debug)]
 struct MatchItem {
     must_filter: bool,
     doc: Document,
