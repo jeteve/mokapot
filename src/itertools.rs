@@ -1,7 +1,4 @@
-use core::num;
-
 use itertools::Itertools;
-use num_traits;
 
 #[allow(dead_code)]
 pub(crate) trait TheShwartz: Iterator + Sized {
