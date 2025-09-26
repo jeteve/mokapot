@@ -73,6 +73,11 @@ struct ClauseMatchers {
     positive_index: Index,
 }
 
+///
+/// Some statistics about the percolator
+/// to help adapting the configuration to the
+/// reality of the query corpus.
+/// [`Display`] is implemented for quick convenient output.
 #[derive(Debug)]
 pub struct PercolatorStats {
     n_queries: usize,
@@ -100,6 +105,29 @@ impl std::fmt::Display for PercolatorStats {
             "🔎 N queries={}\n🔥 Preheaters={}\n❓ Clauses per query:\n{}🔥 Perheaters per query:\n{}",
             self.n_queries, self.n_preheaters, self.clauses_per_query, self.preheaters_per_query,
         )
+    }
+}
+
+impl PercolatorStats {
+    /// The number of queries considered
+    pub fn n_queries(&self) -> usize {
+        self.n_queries
+    }
+
+    /// The number of distinct pre heating functions
+    /// coming from indexed queries for the percolator.
+    pub fn n_preheaters(&self) -> usize {
+        self.n_preheaters
+    }
+
+    /// Distribution of number of clauses per query
+    pub fn clauses_per_query(&self) -> &Hstats<f64> {
+        &self.clauses_per_query
+    }
+
+    /// Distribution of number of pre heating function per query
+    pub fn preheaters_per_query(&self) -> &Hstats<f64> {
+        &self.preheaters_per_query
     }
 }
 
@@ -219,6 +247,8 @@ impl Percolator {
         PercBuilder::default()
     }
 
+    /// The percolator statistics
+    /// Mainly for display.
     pub fn stats(&self) -> &PercolatorStats {
         &self.stats
     }
