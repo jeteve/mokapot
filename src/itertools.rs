@@ -1,5 +1,4 @@
 use itertools::Itertools;
-
 #[allow(dead_code)]
 pub(crate) trait TheShwartz: Iterator + Sized {
     fn schwartzian<F, K, O>(self, fk: F, ord: O) -> impl Iterator<Item = <Self as Iterator>::Item>
@@ -31,11 +30,13 @@ pub(crate) trait InPlaceReduce: Iterator + Sized {
 impl<T> TheShwartz for T where T: Iterator + Sized {}
 impl<T> InPlaceReduce for T where T: Iterator + Sized {}
 
+#[allow(dead_code)]
 pub(crate) struct Fibo<T> {
     current: T,
     next: T,
 }
 
+#[allow(dead_code)]
 impl<T> Fibo<T>
 where
     T: num_traits::Zero + num_traits::One,

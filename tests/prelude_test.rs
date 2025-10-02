@@ -14,7 +14,7 @@ fn test_percolator() {
 }
 
 fn test_nclause_percolator(n: NonZeroUsize) {
-    let mut p = Percolator::builder().n_clauses(n).build();
+    let mut p = Percolator::builder().n_clause_matchers(n).build();
 
     let q: Vec<Qid> = vec![
         p.add_query("A".has_value("a")),                         //0

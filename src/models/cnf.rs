@@ -35,9 +35,24 @@ impl Clause {
             .filter_map(|lq| lq.term_query())
     }
 
+    fn prefix_queries_iter(&self) -> impl Iterator<Item = &PrefixQuery> {
+        self.literals
+            .iter()
+            .map(|l| l.query())
+            .filter_map(|lq| lq.prefix_query())
+    }
+
     pub(crate) fn add_termquery(&mut self, query: TermQuery) {
         self.literals
             .push(Literal::new(false, LitQuery::Term(query)));
+    }
+
+    pub(crate) fn append_termqueries(&mut self, queries: Vec<TermQuery>) {
+        self.literals.extend(
+            queries
+                .into_iter()
+                .map(|q| Literal::new(false, LitQuery::Term(q))),
+        );
     }
 
     /// The literals making this clause
@@ -235,6 +250,10 @@ impl Query {
             .iter()
             .map(|c| crate::models::percolator::clause_docs_from_idx(c, index));
         MultiOps::intersection(subits).into_iter()
+    }
+
+    pub(crate) fn prefix_queries(&self) -> impl Iterator<Item = &PrefixQuery> + use<'_> {
+        self.0.iter().flat_map(|c| c.prefix_queries_iter())
     }
 }
 

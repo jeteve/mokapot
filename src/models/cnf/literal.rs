@@ -1,10 +1,7 @@
-use std::ops::Deref;
 use std::{fmt, rc::Rc};
 
 use itertools::Itertools;
 use roaring::RoaringBitmap;
-
-use crate::itertools::Fibo;
 
 use crate::models::{
     cnf::Clause,
@@ -18,7 +15,7 @@ use crate::models::{
 // Returns the clipped len to the smallest number
 // According to clip sizes.
 fn clipped_len(len: usize) -> usize {
-    *([1, 10, 100, 1000, 2000] as [usize; 5])
+    *([2, 10, 100, 1000, 2000] as [usize; 5])
         .iter()
         .filter(|&&f| f <= len)
         .next_back()
@@ -47,9 +44,7 @@ fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
             })
             .collect_vec();
 
-        for new_tq in new_term_queries {
-            c.add_termquery(new_tq);
-        }
+        c.append_termqueries(new_term_queries);
         c
     };
 
@@ -75,6 +70,13 @@ impl LitQuery {
     pub fn term_query(&self) -> Option<&TermQuery> {
         match self {
             LitQuery::Term(tq) => Some(tq),
+            _ => None,
+        }
+    }
+
+    pub fn prefix_query(&self) -> Option<&PrefixQuery> {
+        match self {
+            LitQuery::Prefix(pq) => Some(pq),
             _ => None,
         }
     }
@@ -208,6 +210,7 @@ impl fmt::Display for Literal {
 mod test {
     use super::*;
     //#[test]
+    #[allow(dead_code)]
     fn test_clip() {
         assert_eq!(clipped_len(1), 1);
         assert_eq!(clipped_len(2), 2);

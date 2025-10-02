@@ -73,6 +73,19 @@ struct ClauseMatchers {
     positive_index: Index,
 }
 
+#[derive(Debug)]
+pub struct PercolatorConfig {
+    n_clause_matchers: NonZeroUsize,
+}
+
+impl Default for PercolatorConfig {
+    fn default() -> Self {
+        Self {
+            n_clause_matchers: NonZeroUsize::new(3).unwrap(),
+        }
+    }
+}
+
 ///
 /// Some statistics about the percolator
 /// to help adapting the configuration to the
@@ -84,16 +97,20 @@ pub struct PercolatorStats {
     n_preheaters: usize,
     clauses_per_query: Hstats<f64>,
     preheaters_per_query: Hstats<f64>,
+    prefix_lengths: Hstats<f64>,
 }
 
 impl Default for PercolatorStats {
     fn default() -> Self {
+        let proto_hstat = Hstats::new(0.0, 50.0, 25);
+
         Self {
             n_queries: Default::default(),
             n_preheaters: Default::default(),
 
-            clauses_per_query: Hstats::new(0.0, 50.0, 25),
-            preheaters_per_query: Hstats::new(0.0, 50.0, 25),
+            clauses_per_query: proto_hstat.clone(),
+            preheaters_per_query: proto_hstat.clone(),
+            prefix_lengths: proto_hstat.clone(),
         }
     }
 }
@@ -102,8 +119,19 @@ impl std::fmt::Display for PercolatorStats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "🔎 N queries={}\n🔥 Preheaters={}\n❓ Clauses per query:\n{}🔥 Perheaters per query:\n{}",
-            self.n_queries, self.n_preheaters, self.clauses_per_query, self.preheaters_per_query,
+            "🔎 N queries={}
+🔥 Preheaters={}
+❓ Clauses per query:
+{}
+🔥 Perheaters per query:
+{}
+📏 Prefix lengths:
+{}",
+            self.n_queries,
+            self.n_preheaters,
+            self.clauses_per_query,
+            self.preheaters_per_query,
+            self.prefix_lengths,
         )
     }
 }
@@ -131,18 +159,11 @@ impl PercolatorStats {
     }
 }
 
+#[derive(Default)]
 /// A builder should you want to build a percolator
 /// with different parameters
 pub struct PercBuilder {
-    n_clauses: NonZeroUsize,
-}
-
-impl std::default::Default for PercBuilder {
-    fn default() -> Self {
-        Self {
-            n_clauses: NonZeroUsize::new(3).unwrap(),
-        }
-    }
+    config: PercolatorConfig,
 }
 
 impl PercBuilder {
@@ -150,7 +171,7 @@ impl PercBuilder {
         Percolator {
             cnf_queries: Vec::new(),
             preheaters: Vec::new(),
-            clause_matchers: (0..self.n_clauses.get())
+            clause_matchers: (0..self.config.n_clause_matchers.get())
                 .map(|_| ClauseMatchers::default())
                 .collect(),
             must_filter: RoaringBitmap::new(),
@@ -172,11 +193,11 @@ impl PercBuilder {
     /// use mokaccino::prelude::*;
     /// use std::num::NonZeroUsize;
     ///
-    /// let p = Percolator::builder().n_clauses(NonZeroUsize::new(5).unwrap()).build();
+    /// let p = Percolator::builder().n_clause_matchers(NonZeroUsize::new(5).unwrap()).build();
     ///
     /// ```
-    pub fn n_clauses(mut self, n: NonZeroUsize) -> Self {
-        self.n_clauses = n;
+    pub fn n_clause_matchers(mut self, n: NonZeroUsize) -> Self {
+        self.config.n_clause_matchers = n;
         self
     }
 }
@@ -209,10 +230,13 @@ pub struct Percolator {
 
 impl std::default::Default for Percolator {
     fn default() -> Self {
+        let default_config = PercolatorConfig::default();
         Self {
             cnf_queries: Vec::new(),
             preheaters: Vec::new(),
-            clause_matchers: (0..3).map(|_| ClauseMatchers::default()).collect(),
+            clause_matchers: (0..default_config.n_clause_matchers.get())
+                .map(|_| ClauseMatchers::default())
+                .collect(),
             must_filter: RoaringBitmap::new(),
             stats: Default::default(),
         }
@@ -265,6 +289,14 @@ impl Percolator {
 
         let new_doc_id = self.cnf_queries.len().try_into().expect("Too many queries");
         self.stats.n_queries += 1;
+
+        q.prefix_queries().for_each(|pq| {
+            self.stats.prefix_lengths.add(
+                TryInto::<u32>::try_into(pq.prefix().len())
+                    .expect("Prefix len more than u32::MAX !?!")
+                    .into(),
+            );
+        });
 
         let mis = cnf_to_matchitems(&q).collect_vec();
 
