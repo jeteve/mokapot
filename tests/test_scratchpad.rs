@@ -1,8 +1,22 @@
-use std::usize;
+use std::borrow::Cow;
 
 use fake::faker::lorem::en::*;
 use itertools::Itertools;
 use itertools::kmerge;
+
+fn safe_prefix(s: &str, len: usize) -> Cow<'_, str> {
+    s.get(0..len)
+        .map(Cow::Borrowed)
+        .unwrap_or(Cow::Owned(s.chars().take(len).collect::<String>()))
+}
+
+#[test]
+fn test_prefix() {
+    let s = "hello 🦀";
+    assert_eq!(safe_prefix(s, 3), "hel");
+    assert_eq!(safe_prefix(s, 5), "hello");
+    assert_eq!(safe_prefix(s, 7), "hello 🦀");
+}
 
 #[test]
 fn test_usize() {

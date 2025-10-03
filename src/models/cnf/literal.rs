@@ -22,6 +22,14 @@ fn clipped_len(len: usize) -> usize {
         .unwrap_or(&len)
 }
 
+fn safe_prefix(s: &str, len: usize) -> std::borrow::Cow<'_, str> {
+    s.get(0..len)
+        .map(std::borrow::Cow::Borrowed)
+        .unwrap_or(std::borrow::Cow::Owned(
+            s.chars().take(len).collect::<String>(),
+        ))
+}
+
 fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
     let clipped_len = clipped_len(pq.prefix().len());
 
@@ -39,7 +47,7 @@ fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
             .map(|tq| {
                 TermQuery::new(
                     synth_field.clone(),
-                    tq.term().chars().take(clipped_len).collect::<String>(),
+                    safe_prefix(tq.term().as_ref(), clipped_len),
                 )
             })
             .collect_vec();
