@@ -226,6 +226,20 @@ impl PercBuilder {
         self.config.n_clause_matchers = n;
         self
     }
+
+    /// Sets the allowed prefix sizes for prefix queries.
+    /// See [`PercolatorConfig::prefix_sizes`] for details.
+    ///
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    /// let p = Percolator::builder().prefix_sizes(vec![3, 7, 42]).build();
+    /// ```
+    ///
+    pub fn prefix_sizes(mut self, sizes: Vec<usize>) -> Self {
+        self.config.prefix_sizes = sizes;
+        self
+    }
 }
 
 /// This is the primary object you need to keep to percolate documents
