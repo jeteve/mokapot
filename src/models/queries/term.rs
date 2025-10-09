@@ -8,6 +8,7 @@ use crate::models::queries::common::DocMatcher;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct TermQuery {
     field: Rc<str>,
     term: Rc<str>,

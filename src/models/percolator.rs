@@ -77,6 +77,7 @@ struct ClauseMatchers {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PercolatorConfig {
     n_clause_matchers: NonZeroUsize,
     prefix_sizes: Vec<usize>,
@@ -193,16 +194,7 @@ pub struct PercBuilder {
 
 impl PercBuilder {
     pub fn build(self) -> Percolator {
-        Percolator {
-            cnf_queries: Vec::new(),
-            preheaters: Vec::new(),
-            clause_matchers: (0..self.config.n_clause_matchers.get())
-                .map(|_| ClauseMatchers::default())
-                .collect(),
-            must_filter: RoaringBitmap::new(),
-            stats: Default::default(),
-            config: self.config,
-        }
+        Percolator::from_config(self.config)
     }
 
     /// Sets the expected number of clauses of indexed queries
@@ -257,31 +249,54 @@ impl PercBuilder {
 /// See more examples in the top level documentation.
 ///
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Percolator {
+    // Serialisable data.
+    config: PercolatorConfig,
     cnf_queries: Vec<Query>,
+
+    #[cfg_attr(feature = "serde", serde(skip))]
+    // Operational stuff. Not serialisable.
     clause_matchers: Vec<ClauseMatchers>,
     // To preheat the document clauses.
+    #[cfg_attr(feature = "serde", serde(skip))]
     preheaters: Vec<PreHeater>,
     // Holds which queries MUST be finally filtered with
     // their match(document) method.
+    #[cfg_attr(feature = "serde", serde(skip))]
     must_filter: RoaringBitmap,
+    #[cfg_attr(feature = "serde", serde(skip))]
     stats: PercolatorStats,
-    config: PercolatorConfig,
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Percolator {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct Helper {
+            config: PercolatorConfig,
+            cnf_queries: Vec<Query>,
+        }
+
+        let helper = Helper::deserialize(deserializer)?;
+        let mut p = Percolator::from_config(helper.config);
+
+        // Rebuild the indexes from the queries.
+        for q in helper.cnf_queries {
+            p.add_query(q);
+        }
+
+        Ok(p)
+    }
 }
 
 impl std::default::Default for Percolator {
     fn default() -> Self {
         let default_config = PercolatorConfig::default();
-        Self {
-            cnf_queries: Vec::new(),
-            preheaters: Vec::new(),
-            clause_matchers: (0..default_config.n_clause_matchers.get())
-                .map(|_| ClauseMatchers::default())
-                .collect(),
-            must_filter: RoaringBitmap::new(),
-            stats: Default::default(),
-            config: default_config,
-        }
+        Percolator::from_config(default_config)
     }
 }
 impl fmt::Display for Percolator {
@@ -296,6 +311,19 @@ impl fmt::Display for Percolator {
 }
 
 impl Percolator {
+    pub fn from_config(config: PercolatorConfig) -> Self {
+        Self {
+            cnf_queries: Vec::new(),
+            preheaters: Vec::new(),
+            clause_matchers: (0..config.n_clause_matchers.get())
+                .map(|_| ClauseMatchers::default())
+                .collect(),
+            must_filter: RoaringBitmap::new(),
+            stats: Default::default(),
+            config,
+        }
+    }
+
     // Does this have this preheater yet?
     fn has_preheater(&self, ph: &PreHeater) -> bool {
         self.preheaters.iter().any(|eph| eph.id == ph.id)

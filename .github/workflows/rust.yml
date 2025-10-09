@@ -31,5 +31,7 @@ jobs:
         cache-all-crates: "true"
     - name: Build
       run: cargo build
-    - name: Run tests
+    - name: Run basic tests
       run: cargo test
+    - name: Run tests all with all features
+      run: cargo test --all-features

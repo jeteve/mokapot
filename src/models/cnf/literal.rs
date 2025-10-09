@@ -63,6 +63,7 @@ fn prefix_query_preheater(allowed_size: &[usize], pq: &PrefixQuery) -> PreHeater
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) enum LitQuery {
     Term(TermQuery),
     Prefix(PrefixQuery),
@@ -116,6 +117,7 @@ impl fmt::Display for LitQuery {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Literal {
     negated: bool,
     query: LitQuery,

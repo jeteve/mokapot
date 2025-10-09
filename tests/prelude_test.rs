@@ -13,6 +13,26 @@ fn test_percolator() {
     test_nclause_percolator(NonZeroUsize::new(5).unwrap());
 }
 
+#[test]
+#[cfg(feature = "serde")]
+fn test_serialisation() {
+    let mut p = Percolator::default();
+    let qids: Vec<Qid> = vec![
+        p.add_query("A".has_value("a")),                      //0
+        p.add_query("A".has_value("a") | "B".has_value("b")), //1
+        p.add_query("A".has_value("a") & "B".has_value("b")), //2
+        p.add_query(!"A".has_value("a")),                     //3
+    ];
+
+    let json = serde_json::to_string(&p).unwrap();
+    println!("{}", json);
+    let p2: Percolator = serde_json::from_str(&json).unwrap();
+    for qid in qids {
+        // No crash. Query is still there!
+        let _ = p2.get_query(qid);
+    }
+}
+
 fn test_nclause_percolator(n: NonZeroUsize) {
     let mut p = Percolator::builder().n_clause_matchers(n).build();
 

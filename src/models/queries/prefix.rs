@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::models::{document::Document, queries::common::DocMatcher};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct PrefixQuery {
     field: Rc<str>,
     prefix: Rc<str>,

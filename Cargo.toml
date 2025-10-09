@@ -14,12 +14,17 @@ categories = ["algorithms"]
 
 default-run="mokaccino"
 
+[features]
+serde = ["dep:serde", "serde_json"]
+
 [dependencies]
 itertools = "^0.9"
 roaring = "^0.11"
 num-traits = "^0.2"
 hashbrown = "^0.16"
 hstats = "0.1.0"
+serde = { version = "^1.0", optional = true , features = [ "rc" ]}
+serde_json = { version = "^1.0", optional = true }
 
 [dev-dependencies]
 criterion = "0.7.0"
