@@ -35,7 +35,7 @@ pub(crate) fn clause_docs_from_idx(c: &Clause, index: &Index) -> RoaringBitmap {
 }
 
 // For indexing clauses.
-fn clause_to_mi(c: &Clause) -> MatchItem {
+fn clause_to_mi(c: &Clause, conf: &PercolatorConfig) -> MatchItem {
     let lits = c.literals().iter();
 
     // If ANY of the litteral is negated, we need to return a match all.
@@ -47,13 +47,13 @@ fn clause_to_mi(c: &Clause) -> MatchItem {
     }
 
     let mi = MatchItem::new(lits.clone().fold(Document::default(), |a, l| {
-        let pfv = l.percolate_doc_field_value();
+        let pfv = l.percolate_doc_field_value(conf);
         a.with_value(pfv.0, pfv.1)
     }));
 
     // Add the preheaters from the literals
     lits.fold(mi, |mi, li| {
-        if let Some(ph) = li.preheater() {
+        if let Some(ph) = li.preheater(conf) {
             mi.with_preheater(ph)
         } else {
             mi
@@ -64,8 +64,11 @@ fn clause_to_mi(c: &Clause) -> MatchItem {
 /*
     From a CNFQuery, The documents that are meant to be indexed in the percolator
 */
-fn cnf_to_matchitems(q: &Query) -> impl Iterator<Item = MatchItem> + use<'_> {
-    q.clauses().iter().map(clause_to_mi)
+fn cnf_to_matchitems<'a, 'b>(
+    q: &'a Query,
+    conf: &'b PercolatorConfig,
+) -> impl Iterator<Item = MatchItem> + use<'a, 'b> {
+    q.clauses().iter().map(|c| clause_to_mi(c, conf))
 }
 
 #[derive(Debug, Default)]
@@ -76,13 +79,35 @@ struct ClauseMatchers {
 #[derive(Debug)]
 pub struct PercolatorConfig {
     n_clause_matchers: NonZeroUsize,
+    prefix_sizes: Vec<usize>,
 }
 
 impl Default for PercolatorConfig {
     fn default() -> Self {
         Self {
             n_clause_matchers: NonZeroUsize::new(3).unwrap(),
+            prefix_sizes: vec![2, 10, 100, 1000, 2000],
         }
+    }
+}
+impl PercolatorConfig {
+    /// The number of clause matchers to use.
+    /// More clause matchers means less queries
+    /// will need to be fully matched with their
+    /// `matches(document)` method.
+    ///
+    /// The default is 3.
+    pub fn n_clause_matchers(&self) -> NonZeroUsize {
+        self.n_clause_matchers
+    }
+
+    /// The allowed prefix sizes for prefix queries.
+    /// This is used to create synthetic fields for
+    /// indexing the prefixes.
+    ///
+    /// The default is `[2, 10, 100, 1000, 2000]`
+    pub fn prefix_sizes(&self) -> &[usize] {
+        &self.prefix_sizes
     }
 }
 
@@ -176,6 +201,7 @@ impl PercBuilder {
                 .collect(),
             must_filter: RoaringBitmap::new(),
             stats: Default::default(),
+            config: self.config,
         }
     }
 
@@ -226,6 +252,7 @@ pub struct Percolator {
     // their match(document) method.
     must_filter: RoaringBitmap,
     stats: PercolatorStats,
+    config: PercolatorConfig,
 }
 
 impl std::default::Default for Percolator {
@@ -239,6 +266,7 @@ impl std::default::Default for Percolator {
                 .collect(),
             must_filter: RoaringBitmap::new(),
             stats: Default::default(),
+            config: default_config,
         }
     }
 }
@@ -298,7 +326,7 @@ impl Percolator {
             );
         });
 
-        let mis = cnf_to_matchitems(&q).collect_vec();
+        let mis = cnf_to_matchitems(&q, &self.config).collect_vec();
 
         self.stats.clauses_per_query.add(
             TryInto::<u32>::try_into(mis.len())
@@ -401,7 +429,8 @@ mod tests_cnf {
     fn test_empty() {
         use super::*;
         let cnf = Query::default();
-        assert!(cnf_to_matchitems(&cnf).next().is_none());
+        let config = PercolatorConfig::default();
+        assert!(cnf_to_matchitems(&cnf, &config).next().is_none());
     }
 
     #[test]
@@ -410,7 +439,8 @@ mod tests_cnf {
         use crate::prelude::CNFQueryable;
 
         let q = !"f1".has_value("v1") | "f2".has_value("v2");
-        let mis = cnf_to_matchitems(&q).next().unwrap();
+        let config = PercolatorConfig::default();
+        let mis = cnf_to_matchitems(&q, &config).next().unwrap();
         assert!(is_match_all(&mis));
         assert!(mis.must_filter);
     }
@@ -421,11 +451,12 @@ mod tests_cnf {
         use crate::prelude::CNFQueryable;
         let term_query = TermQuery::new("field", "value");
         let cnf_query = Query::from_termquery(term_query);
-        let mi = cnf_to_matchitems(&cnf_query).next().unwrap();
+        let config = PercolatorConfig::default();
+        let mi = cnf_to_matchitems(&cnf_query, &config).next().unwrap();
         assert_eq!(mi.doc, Document::default().with_value("field", "value"));
 
         let cnf_query = !"field".has_value("value");
-        let mi = cnf_to_matchitems(&cnf_query).next().unwrap();
+        let mi = cnf_to_matchitems(&cnf_query, &config).next().unwrap();
         assert!(is_match_all(&mi));
         assert!(mi.must_filter);
     }
@@ -433,6 +464,7 @@ mod tests_cnf {
     #[test]
     fn test_from_and() {
         use super::*;
+        let config = PercolatorConfig::default();
         let term_query1 = TermQuery::new("field1", "value1");
         let term_query2 = TermQuery::new("field2", "value2");
         let cnf_query1 = Query::from_termquery(term_query1);
@@ -443,7 +475,7 @@ mod tests_cnf {
             combined.to_string(),
             "(AND (OR field1=value1) (OR field2=value2))"
         );
-        let mut mis = cnf_to_matchitems(&combined);
+        let mut mis = cnf_to_matchitems(&combined, &config);
         assert_eq!(
             mis.next().unwrap().doc,
             Document::default().with_value("field1", "value1")
@@ -460,9 +492,10 @@ mod tests_cnf {
         use super::super::cnf::CNFQueryable;
         use super::*;
 
+        let config = PercolatorConfig::default();
         let combined = "Y".has_value("y") | "X".has_value("x");
 
-        let mut mis = cnf_to_matchitems(&combined);
+        let mut mis = cnf_to_matchitems(&combined, &config);
         assert_eq!(
             mis.next().unwrap().doc,
             Document::default()
@@ -475,7 +508,7 @@ mod tests_cnf {
         // The Z
         let q = ("X".has_value("x") & "Y".has_value("y")) | "Z".has_value("z");
         assert_eq!(q.to_string(), "(AND (OR X=x Z=z) (OR Y=y Z=z))");
-        let mut mis = cnf_to_matchitems(&q);
+        let mut mis = cnf_to_matchitems(&q, &config);
         assert_eq!(
             mis.next().unwrap().doc,
             Document::default()

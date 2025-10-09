@@ -7,15 +7,17 @@ use crate::models::{
     cnf::Clause,
     document::Document,
     index::Index,
-    percolator::tools::ClauseExpander,
-    percolator::tools::PreHeater,
+    percolator::{
+        PercolatorConfig,
+        tools::{ClauseExpander, PreHeater},
+    },
     queries::{common::DocMatcher, prefix::PrefixQuery, term::TermQuery},
 };
 
 // Returns the clipped len to the smallest number
 // According to clip sizes.
-fn clipped_len(len: usize) -> usize {
-    *([2, 10, 100, 1000, 2000] as [usize; 5])
+fn clipped_len(allowed_size: &[usize], len: usize) -> usize {
+    *allowed_size
         .iter()
         .filter(|&&f| f <= len)
         .next_back()
@@ -30,8 +32,8 @@ fn safe_prefix(s: &str, len: usize) -> std::borrow::Cow<'_, str> {
         ))
 }
 
-fn prefix_query_preheater(pq: &PrefixQuery) -> PreHeater {
-    let clipped_len = clipped_len(pq.prefix().len());
+fn prefix_query_preheater(allowed_size: &[usize], pq: &PrefixQuery) -> PreHeater {
+    let clipped_len = clipped_len(allowed_size, pq.prefix().len());
 
     let pfield = pq.field().clone();
     let synth_field: Rc<str> = format!("__PREFIX{}__{}", clipped_len, pq.field()).into();
@@ -137,11 +139,14 @@ impl Literal {
        How this literal would turn into a document field/value
        when the CNF is indexed for later percolation.
     */
-    pub(crate) fn percolate_doc_field_value(&self) -> (Rc<str>, Rc<str>) {
+    pub(crate) fn percolate_doc_field_value(
+        &self,
+        config: &PercolatorConfig,
+    ) -> (Rc<str>, Rc<str>) {
         match &self.query {
             LitQuery::Term(tq) => (tq.field(), tq.term()),
             LitQuery::Prefix(pq) => {
-                let clipped_len = clipped_len(pq.prefix().len());
+                let clipped_len = clipped_len(config.prefix_sizes(), pq.prefix().len());
 
                 (
                     format!("__PREFIX{}__{}", clipped_len, pq.field()).into(),
@@ -155,9 +160,9 @@ impl Literal {
         }
     }
 
-    pub(crate) fn preheater(&self) -> Option<PreHeater> {
+    pub(crate) fn preheater(&self, config: &PercolatorConfig) -> Option<PreHeater> {
         match &self.query {
-            LitQuery::Prefix(pq) => Some(prefix_query_preheater(pq)),
+            LitQuery::Prefix(pq) => Some(prefix_query_preheater(config.prefix_sizes(), pq)),
             _ => None,
         }
     }
@@ -216,20 +221,22 @@ impl fmt::Display for Literal {
 }
 
 mod test {
-    use super::*;
-    //#[test]
+    #[test]
     #[allow(dead_code)]
     fn test_clip() {
-        assert_eq!(clipped_len(1), 1);
-        assert_eq!(clipped_len(2), 2);
+        use super::*;
+        let sizes = &[1, 2, 3, 5, 8, 89, 1597];
+        assert_eq!(clipped_len(sizes, 0), 0);
+        assert_eq!(clipped_len(sizes, 1), 1);
+        assert_eq!(clipped_len(sizes, 2), 2);
 
-        assert_eq!(clipped_len(3), 3);
-        assert_eq!(clipped_len(4), 3);
-        assert_eq!(clipped_len(5), 5);
-        assert_eq!(clipped_len(6), 5);
-        assert_eq!(clipped_len(7), 5);
-        assert_eq!(clipped_len(8), 8);
-        assert_eq!(clipped_len(100), 89);
-        assert_eq!(clipped_len(2000), 1597);
+        assert_eq!(clipped_len(sizes, 3), 3);
+        assert_eq!(clipped_len(sizes, 4), 3);
+        assert_eq!(clipped_len(sizes, 5), 5);
+        assert_eq!(clipped_len(sizes, 6), 5);
+        assert_eq!(clipped_len(sizes, 7), 5);
+        assert_eq!(clipped_len(sizes, 8), 8);
+        assert_eq!(clipped_len(sizes, 100), 89);
+        assert_eq!(clipped_len(sizes, 2000), 1597);
     }
 }
