@@ -71,8 +71,9 @@ fn cnf_to_matchitems<'a, 'b>(
     q.clauses().iter().map(|c| clause_to_mi(c, conf))
 }
 
+// A structure to match just one clause.
 #[derive(Debug, Default)]
-struct ClauseMatchers {
+struct ClauseMatcher {
     positive_index: Index,
 }
 
@@ -255,9 +256,11 @@ pub struct Percolator {
     config: PercolatorConfig,
     cnf_queries: Vec<Query>,
 
+    // Only when the serde feature is on, add the serde(skip) attribute
+    // so this does not get serialised.
     #[cfg_attr(feature = "serde", serde(skip))]
     // Operational stuff. Not serialisable.
-    clause_matchers: Vec<ClauseMatchers>,
+    clause_matchers: Vec<ClauseMatcher>,
     // To preheat the document clauses.
     #[cfg_attr(feature = "serde", serde(skip))]
     preheaters: Vec<PreHeater>,
@@ -275,6 +278,8 @@ impl<'de> serde::Deserialize<'de> for Percolator {
     where
         D: serde::Deserializer<'de>,
     {
+        // Helper is a stripped down version of the percolator
+        // with only the fields that are serialised/deserialised.
         #[derive(serde::Deserialize)]
         struct Helper {
             config: PercolatorConfig,
@@ -316,7 +321,7 @@ impl Percolator {
             cnf_queries: Vec::new(),
             preheaters: Vec::new(),
             clause_matchers: (0..config.n_clause_matchers.get())
-                .map(|_| ClauseMatchers::default())
+                .map(|_| ClauseMatcher::default())
                 .collect(),
             must_filter: RoaringBitmap::new(),
             stats: Default::default(),
