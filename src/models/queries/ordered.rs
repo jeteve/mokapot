@@ -1,4 +1,8 @@
-use std::{rc::Rc, str::FromStr};
+use std::{
+    fmt::{self, Display},
+    rc::Rc,
+    str::FromStr,
+};
 
 use crate::models::queries::common::DocMatcher;
 
@@ -11,6 +15,18 @@ pub enum Ordering {
     LE,
     EQ,
 }
+impl Display for Ordering {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            Ordering::GT => f.write_str(">"),
+            Ordering::LT => f.write_str("<"),
+            Ordering::GE => f.write_str(">="),
+            Ordering::LE => f.write_str("<="),
+            Ordering::EQ => f.write_str("="),
+        }
+    }
+}
+
 impl Ordering {
     fn compare<T: PartialOrd>(&self, a: &T, b: &T) -> bool {
         match &self {
@@ -54,6 +70,21 @@ impl<T: PartialOrd + FromStr> OrderedQuery<T> {
             cmp_ord,
         }
     }
+    pub(crate) fn field(&self) -> Rc<str> {
+        self.field.clone()
+    }
+
+    pub(crate) fn cmp_point(&self) -> &T {
+        &self.cmp_point
+    }
+}
+
+impl<T: Display + PartialOrd + FromStr> Display for OrderedQuery<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.field.as_ref())?;
+        write!(f, "{}", self.cmp_ord)?;
+        write!(f, "{}", self.cmp_point())
+    }
 }
 
 impl<T: PartialOrd + FromStr> DocMatcher for OrderedQuery<T> {
@@ -79,6 +110,8 @@ mod test_prefix {
         let json = serde_json::to_string(&q).unwrap();
         let q2 = serde_json::from_str(&json).unwrap();
         assert_eq!(q, q2);
+
+        assert_eq!(format!("{}", q), "field=123");
     }
 
     #[test]
@@ -97,7 +130,7 @@ mod test_prefix {
     #[test]
     fn test_lt() {
         let q = I64Query::new("field", 123, Ordering::LT);
-
+        assert_eq!(format!("{}", q), "field<123");
         assert!(!q.matches(&Document::default()));
         assert!(q.matches(&[("field", "122")].into()));
         assert!(!q.matches(&[("field", "123")].into()));
@@ -108,6 +141,8 @@ mod test_prefix {
         assert!(!q.matches(&[("field", "")].into()));
 
         let q = OrderedQuery::<f64>::new("field", 1.23, Ordering::LT);
+        assert_eq!(format!("{}", q), "field<1.23");
+
         assert!(!q.matches(&Document::default()));
         assert!(q.matches(&[("field", "1.22000")].into()));
         assert!(!q.matches(&[("field", "1.23")].into()));

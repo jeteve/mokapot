@@ -47,8 +47,9 @@ fn clause_to_mi(c: &Clause, conf: &PercolatorConfig) -> MatchItem {
     }
 
     let mi = MatchItem::new(lits.clone().fold(Document::default(), |a, l| {
-        let pfv = l.percolate_doc_field_value(conf);
-        a.with_value(pfv.0, pfv.1)
+        let pfvs = l.percolate_doc_field_values(conf);
+        pfvs.into_iter()
+            .fold(a, |a, pfv| a.with_value(pfv.0, pfv.1))
     }));
 
     // Add the preheaters from the literals

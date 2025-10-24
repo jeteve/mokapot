@@ -11,7 +11,7 @@ use crate::models::{
         PercolatorConfig,
         tools::{ClauseExpander, PreHeater},
     },
-    queries::{common::DocMatcher, prefix::PrefixQuery, term::TermQuery},
+    queries::{common::DocMatcher, ordered::I64Query, prefix::PrefixQuery, term::TermQuery},
 };
 
 // Returns the clipped len to the smallest number
@@ -67,6 +67,7 @@ fn prefix_query_preheater(allowed_size: &[usize], pq: &PrefixQuery) -> PreHeater
 pub(crate) enum LitQuery {
     Term(TermQuery),
     Prefix(PrefixQuery),
+    IntQuery(I64Query),
 }
 
 impl LitQuery {
@@ -75,6 +76,7 @@ impl LitQuery {
         match self {
             LitQuery::Term(tq) => tq.matches(d),
             LitQuery::Prefix(pq) => pq.matches(d),
+            LitQuery::IntQuery(oq) => oq.matches(d),
         }
     }
 
@@ -92,17 +94,21 @@ impl LitQuery {
         }
     }
 
+    // Just to order Litteral for display.
     fn sort_field(&self) -> Rc<str> {
         match self {
             LitQuery::Term(tq) => tq.field(),
             LitQuery::Prefix(pq) => pq.field(),
+            LitQuery::IntQuery(oq) => oq.field(),
         }
     }
 
+    // To sort the term of the query in lexicographic order
     fn sort_term(&self) -> Rc<str> {
         match self {
             LitQuery::Term(tq) => tq.term(),
             LitQuery::Prefix(pq) => pq.prefix(),
+            LitQuery::IntQuery(oq) => oq.cmp_point().to_string().into(),
         }
     }
 }
@@ -112,6 +118,7 @@ impl fmt::Display for LitQuery {
         match self {
             LitQuery::Term(tq) => write!(f, "{}={}", tq.field(), tq.term()),
             LitQuery::Prefix(pq) => write!(f, "{}={}*", pq.field(), pq.prefix()),
+            LitQuery::IntQuery(oq) => oq.fmt(f),
         }
     }
 }
@@ -138,26 +145,36 @@ impl Literal {
     */
 
     /*
-       How this literal would turn into a document field/value
+       How this literal would turn into a document (field, value) tuple
        when the CNF is indexed for later percolation.
     */
-    pub(crate) fn percolate_doc_field_value(
+    pub(crate) fn percolate_doc_field_values(
         &self,
         config: &PercolatorConfig,
-    ) -> (Rc<str>, Rc<str>) {
+    ) -> Vec<(Rc<str>, Rc<str>)> {
         match &self.query {
-            LitQuery::Term(tq) => (tq.field(), tq.term()),
+            LitQuery::Term(tq) => vec![(tq.field(), tq.term())],
             LitQuery::Prefix(pq) => {
+                // Logic to index prefix query:
+                // clip the prefix to a fixed set of sizes,
+                // knowing we will use the same set of sizes for the preheaters
+                // and do a last match check on the document.
                 let clipped_len = clipped_len(config.prefix_sizes(), pq.prefix().len());
 
-                (
+                vec![(
                     format!("__PREFIX{}__{}", clipped_len, pq.field()).into(),
                     pq.prefix()
                         .chars()
                         .take(clipped_len)
                         .collect::<String>()
                         .into(),
-                )
+                )]
+            }
+            LitQuery::IntQuery(oq) => {
+                // Logic to index numeric query:
+                // Always index Lower, equal and greater than,
+                // knowing preheaters will generate the lower, equal and greater than
+                todo!()
             }
         }
     }
