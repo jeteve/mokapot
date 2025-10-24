@@ -6,9 +6,9 @@ use std::{
 
 use crate::models::queries::common::DocMatcher;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Ordering {
+pub(crate) enum Ordering {
     GT,
     LT,
     GE,
@@ -76,6 +76,10 @@ impl<T: PartialOrd + FromStr> OrderedQuery<T> {
 
     pub(crate) fn cmp_point(&self) -> &T {
         &self.cmp_point
+    }
+
+    pub(crate) fn cmp_ord(&self) -> Ordering {
+        self.cmp_ord
     }
 }
 

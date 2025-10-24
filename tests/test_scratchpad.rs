@@ -11,6 +11,19 @@ fn safe_prefix(s: &str, len: usize) -> Cow<'_, str> {
 }
 
 #[test]
+fn test_slice() {
+    let v = [1, 2, 3];
+    assert_eq!(v[0..=0], [1]);
+    assert_eq!(v[0..1], [1]);
+    assert_eq!(v[1..=1], [2]);
+    assert_eq!(v[0..=1], [1, 2]);
+    assert_eq!(v[0..2], [1, 2]);
+    assert_eq!(v[0..=2], [1, 2, 3]);
+    assert_eq!(v[1..=2], [2, 3]);
+    assert_eq!(v[2..=2], [3]);
+}
+
+#[test]
 fn test_prefix() {
     let s = "hello 🦀";
     assert_eq!(safe_prefix(s, 3), "hel");

@@ -11,7 +11,12 @@ use crate::models::{
         PercolatorConfig,
         tools::{ClauseExpander, PreHeater},
     },
-    queries::{common::DocMatcher, ordered::I64Query, prefix::PrefixQuery, term::TermQuery},
+    queries::{
+        common::DocMatcher,
+        ordered::{I64Query, Ordering},
+        prefix::PrefixQuery,
+        term::TermQuery,
+    },
 };
 
 // Returns the clipped len to the smallest number
@@ -174,15 +179,23 @@ impl Literal {
                 // Logic to index numeric query:
                 // Always index Lower, equal and greater than,
                 // knowing preheaters will generate the lower, equal and greater than
-                ["LT", "EQ", "GT"]
-                    .into_iter()
+                let tuples: Vec<(Rc<str>, Rc<str>)> = ["LT", "EQ", "GT"]
+                    .iter()
                     .map(|c| {
                         (
                             format!("__INT_{}{}__{}", c, oq.cmp_point(), oq.field()).into(),
                             "true".into(),
                         )
                     })
-                    .collect_vec()
+                    .take(3)
+                    .collect();
+                match oq.cmp_ord() {
+                    Ordering::GT => tuples[2..=2].into(),
+                    Ordering::LT => tuples[0..=0].into(),
+                    Ordering::GE => tuples[1..=2].into(),
+                    Ordering::LE => tuples[0..=1].into(),
+                    Ordering::EQ => tuples[1..=1].into(),
+                }
             }
         }
     }
