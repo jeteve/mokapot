@@ -174,7 +174,15 @@ impl Literal {
                 // Logic to index numeric query:
                 // Always index Lower, equal and greater than,
                 // knowing preheaters will generate the lower, equal and greater than
-                todo!()
+                ["LT", "EQ", "GT"]
+                    .into_iter()
+                    .map(|c| {
+                        (
+                            format!("__INT_{}{}__{}", c, oq.cmp_point(), oq.field()).into(),
+                            "true".into(),
+                        )
+                    })
+                    .collect_vec()
             }
         }
     }
