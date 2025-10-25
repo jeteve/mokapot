@@ -37,6 +37,45 @@ fn safe_prefix(s: &str, len: usize) -> std::borrow::Cow<'_, str> {
         ))
 }
 
+fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
+    // ["LT", "EQ", "GT"]
+    // synth_field: Rc<str> = format!("__INT_{}_{}__{}", c, oq.cmp_point(), oq.field()).into();
+    let oq_field = oq.field();
+    let oq_cmp_point = *oq.cmp_point();
+    let expander = move |mut c: Clause| {
+        // This clause comes from a document. Find the right field
+        let new_tqs = c
+            .term_queries_iter()
+            .filter_map(|tq| {
+                (tq.field() == oq_field)
+                    .then_some(tq.term())
+                    .and_then(|v| v.parse::<i64>().ok())
+            })
+            // At this point, we have a parseable integer value
+            // from the right field.
+            .map(|ivalue| {
+                // Generate the right match
+                let op = match ivalue {
+                    v if v < oq_cmp_point => "LT",
+                    v if v == oq_cmp_point => "EQ",
+                    _ => "GT",
+                };
+
+                TermQuery::new(
+                    format!("__INT_{}_{}__{}", op, oq_cmp_point, oq_field),
+                    "true",
+                )
+            })
+            .collect_vec();
+        c.append_termqueries(new_tqs);
+        c
+    };
+
+    // INT_COMPARE is the name of the preheater.
+    let id_field = format!("INT_COMPARE_{}__{}", oq.cmp_point(), oq.field()).into();
+    PreHeater::new(id_field, ClauseExpander::new(Rc::new(expander))).with_must_filter(false)
+}
+
 fn prefix_query_preheater(allowed_size: &[usize], pq: &PrefixQuery) -> PreHeater {
     let clipped_len = clipped_len(allowed_size, pq.prefix().len());
 
@@ -180,10 +219,10 @@ impl Literal {
                 // Always index Lower, equal and greater than,
                 // knowing preheaters will generate the lower, equal and greater than
                 let tuples: Vec<(Rc<str>, Rc<str>)> = ["LT", "EQ", "GT"]
-                    .iter()
+                    .into_iter()
                     .map(|c| {
                         (
-                            format!("__INT_{}{}__{}", c, oq.cmp_point(), oq.field()).into(),
+                            format!("__INT_{}_{}__{}", c, oq.cmp_point(), oq.field()).into(),
                             "true".into(),
                         )
                     })
@@ -203,6 +242,7 @@ impl Literal {
     pub(crate) fn preheater(&self, config: &PercolatorConfig) -> Option<PreHeater> {
         match &self.query {
             LitQuery::Prefix(pq) => Some(prefix_query_preheater(config.prefix_sizes(), pq)),
+            LitQuery::IntQuery(oq) => Some(intcmp_query_preheater(oq)),
             _ => None,
         }
     }

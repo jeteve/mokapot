@@ -22,7 +22,7 @@ impl Display for Ordering {
             Ordering::LT => f.write_str("<"),
             Ordering::GE => f.write_str(">="),
             Ordering::LE => f.write_str("<="),
-            Ordering::EQ => f.write_str("="),
+            Ordering::EQ => f.write_str("=="),
         }
     }
 }

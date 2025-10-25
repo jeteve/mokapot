@@ -1,7 +1,11 @@
 use crate::models::{
     document::Document,
     index::{DocId, Index},
-    queries::{prefix::PrefixQuery, term::TermQuery},
+    queries::{
+        ordered::{I64Query, OrderedQuery, Ordering},
+        prefix::PrefixQuery,
+        term::TermQuery,
+    },
 };
 
 //use fixedbitset::FixedBitSet;
@@ -260,8 +264,19 @@ impl Query {
 }
 
 pub trait CNFQueryable: Into<Rc<str>> {
+    /// A Query where `"field".has_value("the_value")``
     fn has_value<T: Into<Rc<str>>>(self, v: T) -> Query;
+
+    /// A Query where `"field".has_prefix("/some/prefix")`
     fn has_prefix<T: Into<Rc<str>>>(self, v: T) -> Query;
+
+    /// A query where the field represents an integer (signed)
+    /// and has a value lower than the given `v`.`
+    fn i64_lt(self, v: i64) -> Query;
+    fn i64_le(self, v: i64) -> Query;
+    fn i64_eq(self, v: i64) -> Query;
+    fn i64_ge(self, v: i64) -> Query;
+    fn i64_gt(self, v: i64) -> Query;
 }
 
 impl<T> CNFQueryable for T
@@ -276,6 +291,31 @@ where
     fn has_prefix<U: Into<Rc<str>>>(self, v: U) -> Query {
         let pq = PrefixQuery::new(self, v);
         Query::from_prefixquery(pq)
+    }
+
+    fn i64_lt(self, v: i64) -> Query {
+        let q = OrderedQuery::<i64>::new(self, v, Ordering::LT);
+        Query::from_literal(Literal::new(false, LitQuery::IntQuery(q)))
+    }
+
+    fn i64_le(self, v: i64) -> Query {
+        let q = OrderedQuery::<i64>::new(self, v, Ordering::LE);
+        Query::from_literal(Literal::new(false, LitQuery::IntQuery(q)))
+    }
+
+    fn i64_eq(self, v: i64) -> Query {
+        let q = OrderedQuery::<i64>::new(self, v, Ordering::EQ);
+        Query::from_literal(Literal::new(false, LitQuery::IntQuery(q)))
+    }
+
+    fn i64_ge(self, v: i64) -> Query {
+        let q = OrderedQuery::<i64>::new(self, v, Ordering::GE);
+        Query::from_literal(Literal::new(false, LitQuery::IntQuery(q)))
+    }
+
+    fn i64_gt(self, v: i64) -> Query {
+        let q = OrderedQuery::<i64>::new(self, v, Ordering::GT);
+        Query::from_literal(Literal::new(false, LitQuery::IntQuery(q)))
     }
 }
 
@@ -313,8 +353,26 @@ mod test {
 
         let bla = "taste".to_string();
         let foo = "sweet".to_string();
-        let q2 = bla.has_value(foo);
-        assert_eq!(q2.to_string(), "(AND (OR taste=sweet))");
+        let q = bla.has_value(foo);
+        assert_eq!(q.to_string(), "(AND (OR taste=sweet))");
+
+        let q = "path".has_prefix("/bla");
+        assert_eq!(q.to_string(), "(AND (OR path=/bla*))");
+
+        let q = "some_num".i64_eq(1234);
+        assert_eq!(q.to_string(), "(AND (OR some_num==1234))");
+
+        let q = "some_num".i64_lt(1234);
+        assert_eq!(q.to_string(), "(AND (OR some_num<1234))");
+
+        let q = "some_num".i64_le(1234);
+        assert_eq!(q.to_string(), "(AND (OR some_num<=1234))");
+
+        let q = "some_num".i64_ge(1234);
+        assert_eq!(q.to_string(), "(AND (OR some_num>=1234))");
+
+        let q = "some_num".i64_gt(1234);
+        assert_eq!(q.to_string(), "(AND (OR some_num>1234))");
     }
 
     #[test]

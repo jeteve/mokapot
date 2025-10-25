@@ -22,6 +22,7 @@ fn test_serialisation() {
         p.add_query("A".has_value("a") | "B".has_value("b")), //1
         p.add_query("A".has_value("a") & "B".has_value("b")), //2
         p.add_query(!"A".has_value("a")),                     //3
+        p.add_query("A".i64_lt(10000)),
     ];
 
     let json = serde_json::to_string(&p).unwrap();
@@ -49,8 +50,36 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         p.add_query(
             "A".has_value("aa") & "B".has_value("bb") & "C".has_value("cc") & "D".has_prefix("bla"),
         ), //9
-        p.add_query("P".has_prefix("")),                         // 10
+        p.add_query("P".has_prefix("")),                         // 10 P can mean Path
+        p.add_query("P".i64_gt(1000)),                           // 11 P can mean Price too!
+        p.add_query("W".i64_lt(10)),                             // 12 W for weight
     ];
+
+    assert_eq!(
+        p.percolate(&[("P", ""), ("P", "1001")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4], q[10], q[11]]
+    );
+
+    assert_eq!(
+        p.percolate(&[("W", "Not an int")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
+
+    assert_eq!(
+        p.percolate(&[("W", "10")].into()).collect::<Vec<_>>(), // 10 does not yield query 12
+        vec![q[3], q[4]]
+    );
+
+    assert_eq!(
+        p.percolate(&[("W", "0009")].into()).collect::<Vec<_>>(), // 9 does!
+        vec![q[3], q[4], q[12]]
+    );
+    assert_eq!(
+        p.percolate(&[("W", "-123")].into()).collect::<Vec<_>>(), // As well as a negative number
+        vec![q[3], q[4], q[12]]
+    );
 
     assert_eq!(
         p.percolate(&[("P", "")].into()).collect::<Vec<_>>(),
