@@ -8,12 +8,19 @@ mokaccino is a percolator library in Rust. Consider this beta software.
 
 ## About percolators
 
-In search technology, a percolator is a component that allows the matching of a stream
-of documents (for instance representing events) against a relatively static set
+A Percolator is a component that allows the matching of a stream
+of documents (for instance representing events) against a set
 of queries (representing specific interests in events).
 
-One very common use of a percolator is to implement instant alerting, when you consider incoming
-document as events.
+Another way of seeing it to be the dual of a search. In Search, you
+match transient queries against a persistent set of documents and get the matching documents.
+In Percolation, you match transient documents against a persistent set of queries and get the matching queries.
+
+One very common use of a percolator is to implement instant alerting, where
+incoming events are represented as Document and subscriptions represented as Queries.
+
+Percolators usually exist as part of more general search products, like Lucene.
+
 
 # Features
 
@@ -25,11 +32,15 @@ document as events.
 
 - Support for prefix matching.
 
-- Support for `serde` serialisation/deserialisation. (See Feature flags)
+- Support for integer comparison queries.
+
+- Support for `serde` serialisation/deserialisation (See Feature flags).
 
 # Non-features
 
 - Full text search. For instance this does not contain any document body tokenizing.
+
+- Query parsing. You need to build queries programmatically from your own data structures.
 
 # Example
 
@@ -54,7 +65,13 @@ fn test_percolator() {
             "A".has_value("aa") & "B".has_value("bb") & "C".has_value("cc") & "D".has_prefix("bla"),
         ), //9
         p.add_query("P".has_prefix("")),                         // 10
+        p.add_query("L".i64_gt(1000)),                           // 11
     ];
+
+    assert_eq!(
+        p.percolate(&[("L", "1001")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4], q[11]]
+    );
 
     assert_eq!(
         p.percolate(&[("P", "")].into()).collect::<Vec<_>>(),
@@ -126,6 +143,32 @@ Usage in your Cargo.toml:
 mokaccino: { version = "0.2.0" , features = [ "serde" ] }
 ```
 
+# Application development guidelines
+
+## Queries and Query IDs
+
+Do not treat this crate's Query objects as your primary application objects.
+
+Instead:
+
+Turn your application objects (which can be query like or any other structure) into Queries,
+index them using `add_query` and get `Qid`s.
+
+Using `percolate` will give you an iterator on Qids, and its your application's business to match those
+back to your original application objects.
+
+## Documents
+
+In the same spirit, do NOT use this crate's `Document` objects as your primary application objects.
+Turn your incoming objects (which can be document like, or any other structure) into this crates's `Document`
+and percolate to get `Qid`s.
+
+## Serialisation
+
+Using the `serde` feature, you can serialise the percolator for later deserialising.
+
+The Query IDs  (`Qid`s)will of course stay the same accross serialising/deserialising cycles.
+
 # Configuration optimisation
 
 This comes with some printable statistics to help you decide on what parameters are best suited to
@@ -175,3 +218,15 @@ on the best thresholds.
 
 mokapot is developped at <https://github.com/jeteve/mokapot/>.
 
+
+# Prior art
+
+Luwak (Java), now part of Lucene, is a percolator deriving from
+full text search principles.
+
+https://github.com/flaxsearch/luwak?
+
+
+Elastic Search Service percolator feature:
+
+https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-percolate-query
