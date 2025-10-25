@@ -56,11 +56,7 @@ pub(crate) struct OrderedQuery<T: PartialOrd + FromStr> {
 }
 
 /// Aliases for convenience.
-pub(crate) type I32Query = OrderedQuery<i32>;
 pub(crate) type I64Query = OrderedQuery<i64>;
-
-pub(crate) type U32Query = OrderedQuery<u32>;
-pub(crate) type U64Query = OrderedQuery<u64>;
 
 impl<T: PartialOrd + FromStr> OrderedQuery<T> {
     pub(crate) fn new<F: Into<Rc<str>>>(field: F, cmp_point: T, cmp_ord: Ordering) -> Self {

@@ -2,7 +2,7 @@ use crate::models::{
     document::Document,
     index::{DocId, Index},
     queries::{
-        ordered::{I64Query, OrderedQuery, Ordering},
+        ordered::{OrderedQuery, Ordering},
         prefix::PrefixQuery,
         term::TermQuery,
     },
