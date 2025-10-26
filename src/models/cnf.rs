@@ -60,6 +60,10 @@ impl Clause {
         );
     }
 
+    pub(crate) fn append_literals(&mut self, mut ls: Vec<Literal>) {
+        self.literals.append(&mut ls);
+    }
+
     /// The literals making this clause
     pub(crate) fn literals(&self) -> &[Literal] {
         &self.literals

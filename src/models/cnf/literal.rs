@@ -44,7 +44,7 @@ fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
     let oq_cmp_point = *oq.cmp_point();
     let expander = move |mut c: Clause| {
         // This clause comes from a document. Find the right field
-        let new_tqs = c
+        let new_literals = c
             .term_queries_iter()
             .filter_map(|tq| {
                 (tq.field() == oq_field)
@@ -66,8 +66,9 @@ fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
                     "true",
                 )
             })
+            .map(|q| Literal::new(false, LitQuery::Term(q)))
             .collect_vec();
-        c.append_termqueries(new_tqs);
+        c.append_literals(new_literals);
         c
     };
 
@@ -87,7 +88,7 @@ fn prefix_query_preheater(allowed_size: &[usize], pq: &PrefixQuery) -> PreHeater
         // Find all term queries with the given field, where the term is actually at least
         // as long as the prefix
         // Then turn them into term queries with the synthetic field name
-        let new_term_queries = c
+        let new_literals = c
             .term_queries_iter()
             .filter(|&tq| tq.field() == pfield && tq.term().len() >= clipped_len)
             .map(|tq| {
@@ -96,9 +97,10 @@ fn prefix_query_preheater(allowed_size: &[usize], pq: &PrefixQuery) -> PreHeater
                     safe_prefix(tq.term().as_ref(), clipped_len),
                 )
             })
+            .map(|q| Literal::new(false, LitQuery::Term(q)))
             .collect_vec();
 
-        c.append_termqueries(new_term_queries);
+        c.append_literals(new_literals);
         c
     };
 

@@ -151,7 +151,7 @@ impl std::fmt::Display for PercolatorStats {
 🔥 Preheaters={}
 ❓ Clauses per query:
 {}
-🔥 Perheaters per query:
+🔥 Preheaters per query:
 {}
 📏 Prefix lengths:
 {}",
