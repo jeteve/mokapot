@@ -1,3 +1,5 @@
+// This is dead code and was used when implementing conjunction with
+// conjunction of iterators.
 use num_traits::{Bounded, One};
 use std::ops::AddAssign;
 

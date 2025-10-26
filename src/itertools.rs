@@ -30,14 +30,25 @@ pub(crate) trait InPlaceReduce: Iterator + Sized {
 impl<T> TheShwartz for T where T: Iterator + Sized {}
 impl<T> InPlaceReduce for T where T: Iterator + Sized {}
 
+pub(crate) trait Fiboable:
+    num_traits::Zero + num_traits::One + num_traits::CheckedAdd + num_traits::CheckedNeg + Copy
+{
+}
+
+// Blanket Fiboable
+impl<T> Fiboable for T where
+    T: num_traits::Zero + num_traits::One + num_traits::CheckedAdd + num_traits::CheckedNeg + Copy
+{
+}
+
 #[allow(dead_code)]
-pub(crate) struct Fibo<T> {
+pub(crate) struct Fibo<T: Fiboable> {
     current: T,
     next: T,
 }
 
 #[allow(dead_code)]
-impl<T> Fibo<T>
+impl<T: Fiboable> Fibo<T>
 where
     T: num_traits::Zero + num_traits::One,
 {
@@ -51,7 +62,7 @@ where
 
 impl<T> Iterator for Fibo<T>
 where
-    T: num_traits::CheckedAdd + Copy,
+    T: Fiboable,
 {
     type Item = T;
 
@@ -59,17 +70,71 @@ where
         let new_next = self.current.checked_add(&self.next)?;
         self.current = self.next;
         self.next = new_next;
-        Some(self.next)
+        Some(new_next)
     }
 }
 
-mod test_itertools {
+fn fibo_floor<T: PartialOrd + Fiboable>(n: T) -> T {
+    if n < T::zero() {
+        fibo_ceil(n.checked_neg().expect("n should be negatable"))
+            .checked_neg()
+            .unwrap()
+    } else {
+        let f = Fibo::<T>::new();
+        f.filter(|&fi| fi <= n).last().unwrap_or(T::zero())
+    }
+}
 
+fn fibo_ceil<T: PartialOrd + Fiboable>(n: T) -> T {
+    if n < T::zero() {
+        fibo_floor(n.checked_neg().unwrap()).checked_neg().unwrap()
+    } else {
+        let mut f = Fibo::<T>::new();
+        f.find(|&fi| fi >= n).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod test_itertools {
+    use super::*;
+
+    #[test]
+    fn test_fibo_bounds() {
+        // See https://www.math.net/list-of-fibonacci-numbers
+        assert_eq!(fibo_floor(-1), -1);
+        assert_eq!(fibo_ceil(-1), -1);
+
+        assert_eq!(fibo_floor(-10), -13);
+        assert_eq!(fibo_ceil(-10), -8);
+
+        assert_eq!(fibo_floor(0), 0);
+        assert_eq!(fibo_ceil(0), 1);
+        assert_eq!(fibo_floor(1), 1);
+        assert_eq!(fibo_ceil(1), 1);
+        assert_eq!(fibo_floor(2), 2);
+        assert_eq!(fibo_ceil(2), 2);
+        assert_eq!(fibo_floor(3), 3);
+        assert_eq!(fibo_ceil(3), 3);
+        assert_eq!(fibo_floor(4), 3);
+        assert_eq!(fibo_ceil(4), 5);
+        assert_eq!(fibo_floor(5), 5);
+        assert_eq!(fibo_ceil(5), 5);
+        assert_eq!(fibo_floor(10), 8);
+        assert_eq!(fibo_ceil(10), 13);
+        assert_eq!(fibo_floor(5000), 4181);
+        assert_eq!(fibo_ceil(5000), 6765);
+
+        assert_eq!(fibo_floor(320000), 317811);
+        assert_eq!(fibo_ceil(320000), 514229);
+
+        assert_eq!(fibo_floor::<u64>(1836311904), 1836311903);
+        assert_eq!(fibo_ceil::<u64>(1836311904), 2971215073);
+    }
     #[test]
     fn test_fibo() {
         use super::Fibo;
-        let all_usize = Fibo::<usize>::new();
-        assert_eq!(all_usize.take(3).collect::<Vec<_>>(), vec![1, 2, 3]);
+        let all_usize = Fibo::<i64>::new();
+        assert_eq!(all_usize.take(5).collect::<Vec<_>>(), vec![1, 2, 3, 5, 8]);
     }
 
     #[test]
