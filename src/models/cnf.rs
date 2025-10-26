@@ -52,14 +52,6 @@ impl Clause {
             .push(Literal::new(false, LitQuery::Term(query)));
     }
 
-    pub(crate) fn append_termqueries(&mut self, queries: Vec<TermQuery>) {
-        self.literals.extend(
-            queries
-                .into_iter()
-                .map(|q| Literal::new(false, LitQuery::Term(q))),
-        );
-    }
-
     pub(crate) fn append_literals(&mut self, mut ls: Vec<Literal>) {
         self.literals.append(&mut ls);
     }

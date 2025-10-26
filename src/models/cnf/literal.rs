@@ -1,4 +1,8 @@
-use std::{fmt, rc::Rc};
+use std::{
+    fmt::{self, Display},
+    rc::Rc,
+    str::FromStr,
+};
 
 use itertools::Itertools;
 use roaring::RoaringBitmap;
@@ -13,7 +17,7 @@ use crate::models::{
     },
     queries::{
         common::DocMatcher,
-        ordered::{I64Query, Ordering},
+        ordered::{I64Query, OrderedQuery, Ordering},
         prefix::PrefixQuery,
         term::TermQuery,
     },
@@ -21,7 +25,7 @@ use crate::models::{
 
 // Returns the clipped len to the smallest number
 // According to clip sizes.
-fn clipped_len(allowed_size: &[usize], len: usize) -> usize {
+fn clip_prefix_len(allowed_size: &[usize], len: usize) -> usize {
     *allowed_size
         .iter()
         .filter(|&&f| f <= len)
@@ -78,7 +82,7 @@ fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
 }
 
 fn prefix_query_preheater(allowed_size: &[usize], pq: &PrefixQuery) -> PreHeater {
-    let clipped_len = clipped_len(allowed_size, pq.prefix().len());
+    let clipped_len = clip_prefix_len(allowed_size, pq.prefix().len());
 
     let pfield = pq.field().clone();
     let synth_field: Rc<str> = format!("__PREFIX{}__{}", clipped_len, pq.field()).into();
@@ -169,6 +173,31 @@ impl fmt::Display for LitQuery {
     }
 }
 
+// Turns an ordered query into a vector of field/values
+// for the purpose of indexing the query in the percolator.
+fn oq_to_fvs<T: PartialOrd + FromStr + Display>(oq: &OrderedQuery<T>) -> Vec<(Rc<str>, Rc<str>)> {
+    // Logic to index numeric query:
+    // Always index Lower, equal and greater than,
+    // knowing preheaters will generate the lower, equal and greater than
+    let tuples: Vec<(Rc<str>, Rc<str>)> = ["LT", "EQ", "GT"]
+        .into_iter()
+        .map(|c| {
+            (
+                format!("__INT_{}_{}__{}", c, oq.cmp_point(), oq.field()).into(),
+                "true".into(),
+            )
+        })
+        .take(3)
+        .collect();
+    match oq.cmp_ord() {
+        Ordering::GT => tuples[2..=2].into(),
+        Ordering::LT => tuples[0..=0].into(),
+        Ordering::GE => tuples[1..=2].into(),
+        Ordering::LE => tuples[0..=1].into(),
+        Ordering::EQ => tuples[1..=1].into(),
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Literal {
@@ -205,7 +234,7 @@ impl Literal {
                 // clip the prefix to a fixed set of sizes,
                 // knowing we will use the same set of sizes for the preheaters
                 // and do a last match check on the document.
-                let clipped_len = clipped_len(config.prefix_sizes(), pq.prefix().len());
+                let clipped_len = clip_prefix_len(config.prefix_sizes(), pq.prefix().len());
 
                 vec![(
                     format!("__PREFIX{}__{}", clipped_len, pq.field()).into(),
@@ -216,28 +245,7 @@ impl Literal {
                         .into(),
                 )]
             }
-            LitQuery::IntQuery(oq) => {
-                // Logic to index numeric query:
-                // Always index Lower, equal and greater than,
-                // knowing preheaters will generate the lower, equal and greater than
-                let tuples: Vec<(Rc<str>, Rc<str>)> = ["LT", "EQ", "GT"]
-                    .into_iter()
-                    .map(|c| {
-                        (
-                            format!("__INT_{}_{}__{}", c, oq.cmp_point(), oq.field()).into(),
-                            "true".into(),
-                        )
-                    })
-                    .take(3)
-                    .collect();
-                match oq.cmp_ord() {
-                    Ordering::GT => tuples[2..=2].into(),
-                    Ordering::LT => tuples[0..=0].into(),
-                    Ordering::GE => tuples[1..=2].into(),
-                    Ordering::LE => tuples[0..=1].into(),
-                    Ordering::EQ => tuples[1..=1].into(),
-                }
-            }
+            LitQuery::IntQuery(oq) => oq_to_fvs(oq),
         }
     }
 
@@ -308,17 +316,17 @@ mod test {
     fn test_clip() {
         use super::*;
         let sizes = &[1, 2, 3, 5, 8, 89, 1597];
-        assert_eq!(clipped_len(sizes, 0), 0);
-        assert_eq!(clipped_len(sizes, 1), 1);
-        assert_eq!(clipped_len(sizes, 2), 2);
+        assert_eq!(clip_prefix_len(sizes, 0), 0);
+        assert_eq!(clip_prefix_len(sizes, 1), 1);
+        assert_eq!(clip_prefix_len(sizes, 2), 2);
 
-        assert_eq!(clipped_len(sizes, 3), 3);
-        assert_eq!(clipped_len(sizes, 4), 3);
-        assert_eq!(clipped_len(sizes, 5), 5);
-        assert_eq!(clipped_len(sizes, 6), 5);
-        assert_eq!(clipped_len(sizes, 7), 5);
-        assert_eq!(clipped_len(sizes, 8), 8);
-        assert_eq!(clipped_len(sizes, 100), 89);
-        assert_eq!(clipped_len(sizes, 2000), 1597);
+        assert_eq!(clip_prefix_len(sizes, 3), 3);
+        assert_eq!(clip_prefix_len(sizes, 4), 3);
+        assert_eq!(clip_prefix_len(sizes, 5), 5);
+        assert_eq!(clip_prefix_len(sizes, 6), 5);
+        assert_eq!(clip_prefix_len(sizes, 7), 5);
+        assert_eq!(clip_prefix_len(sizes, 8), 8);
+        assert_eq!(clip_prefix_len(sizes, 100), 89);
+        assert_eq!(clip_prefix_len(sizes, 2000), 1597);
     }
 }

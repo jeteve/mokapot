@@ -51,7 +51,9 @@ fn build_query<R: Rng + ?Sized>(
         q3_field.has_value(q3_value)
     };
 
-    q1 & q1b & q3
+    let q4 = "price".i64_lt((1..100000).fake_with_rng::<i64, _>(rng));
+
+    q1 & q1b & q3 & q4
 }
 
 fn build_percolator<R: Rng + ?Sized>(
@@ -60,7 +62,7 @@ fn build_percolator<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> Percolator {
     let mut p = Percolator::builder()
-        .n_clause_matchers(NonZeroUsize::new(3).unwrap())
+        .n_clause_matchers(NonZeroUsize::new(4).unwrap())
         .build();
     (0..n)
         .map(|n| build_query(n, third_fields, rng))
@@ -82,7 +84,10 @@ fn build_document<R: Rng + ?Sized>(
         .with_value(FIELD2, one_random_data(&TASTE_VALUES, rng));
     let q3_field = one_random_data(&THIRD_FIELDS, rng);
     let q3_value = one_random_from_vec(third_fields.get(q3_field).unwrap(), rng);
-    d.with_value(q3_field, q3_value)
+
+    let price = (1..100000).fake_with_rng::<i64, _>(rng).to_string();
+
+    d.with_value(q3_field, q3_value).with_value("price", price)
 }
 
 fn percolate_real(c: &mut Criterion) {

@@ -114,7 +114,7 @@ impl Document {
     pub fn with_value<T, U>(mut self, field: T, value: U) -> Self
     where
         T: Into<Rc<str>>,
-        U: Into<Rc<str>> + Clone,
+        U: Into<Rc<str>>,
     {
         let val: Rc<str> = value.into();
 
