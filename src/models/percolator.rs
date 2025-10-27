@@ -461,7 +461,7 @@ impl Percolator {
             .reduce_inplace(|acc, b| {
                 *acc &= b;
             })
-            .expect("This cannot work with zero clause matchers")
+            .unwrap_or(RoaringBitmap::new())
     }
 }
 

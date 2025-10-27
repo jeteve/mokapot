@@ -111,7 +111,7 @@ mod test_prefix {
         let q2 = serde_json::from_str(&json).unwrap();
         assert_eq!(q, q2);
 
-        assert_eq!(format!("{}", q), "field=123");
+        assert_eq!(format!("{}", q), "field==123");
     }
 
     #[test]
