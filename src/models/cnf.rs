@@ -266,12 +266,20 @@ pub trait CNFQueryable: Into<Rc<str>> {
     /// A Query where `"field".has_prefix("/some/prefix")`
     fn has_prefix<T: Into<Rc<str>>>(self, v: T) -> Query;
 
-    /// A query where the field represents an integer (signed)
-    /// and has a value lower than the given `v`.`
+    /// A query where the field can represents a signed integer
+    /// that has a value strictly lower than `v`.
     fn i64_lt(self, v: i64) -> Query;
+    /// A query where the field can represents a signed integer
+    /// that has a value lower than or equal to `v`.
     fn i64_le(self, v: i64) -> Query;
+    /// A query where the field can represents a signed integer
+    /// that has a value equal to `v`.
     fn i64_eq(self, v: i64) -> Query;
+    /// A query where the field can represents a signed integer
+    /// that has a value greater than or equal to `v`.
     fn i64_ge(self, v: i64) -> Query;
+    /// A query where the field can represents a signed integer
+    /// that has a value strictly greater than `v`.
     fn i64_gt(self, v: i64) -> Query;
 }
 
