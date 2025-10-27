@@ -53,6 +53,9 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         p.add_query("P".has_prefix("")),                         // 10 P can mean Path
         p.add_query("P".i64_gt(1000)),                           // 11 P can mean Price too!
         p.add_query("W".i64_lt(10)),                             // 12 W for weight
+        p.add_query("W".i64_le(10)),                             // 13
+        p.add_query("W".i64_ge(2000)),                           // 14
+        p.add_query("W".i64_eq(12345)),                          // 15
     ];
 
     assert_eq!(
@@ -69,16 +72,25 @@ fn test_nclause_percolator(n: NonZeroUsize) {
 
     assert_eq!(
         p.percolate(&[("W", "10")].into()).collect::<Vec<_>>(), // 10 does not yield query 12
-        vec![q[3], q[4]]
+        vec![q[3], q[4], q[13]]
     );
 
     assert_eq!(
         p.percolate(&[("W", "0009")].into()).collect::<Vec<_>>(), // 9 does!
-        vec![q[3], q[4], q[12]]
+        vec![q[3], q[4], q[12], q[13]]
     );
     assert_eq!(
         p.percolate(&[("W", "-123")].into()).collect::<Vec<_>>(), // As well as a negative number
-        vec![q[3], q[4], q[12]]
+        vec![q[3], q[4], q[12], q[13]]
+    );
+
+    assert_eq!(
+        p.percolate(&[("W", "2000")].into()).collect::<Vec<_>>(), // As well as a negative number
+        vec![q[3], q[4], q[14]]
+    );
+    assert_eq!(
+        p.percolate(&[("W", "12345")].into()).collect::<Vec<_>>(), // As well as a negative number
+        vec![q[3], q[4], q[14], q[15]]
     );
 
     assert_eq!(
