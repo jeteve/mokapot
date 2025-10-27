@@ -1,6 +1,6 @@
 [package]
 name = "mokaccino"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 readme = "README.md"
 license-file = "LICENSE"
@@ -9,6 +9,12 @@ homepage = "https://github.com/jeteve/mokapot"
 repository = "https://github.com/jeteve/mokapot.git"
 keywords = [ "search", "percolator" ]
 categories = ["algorithms"]
+exclude = [
+    ".devcontainer/*",
+    ".vscode/*",
+    "**.proptest-regressions"
+]
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
