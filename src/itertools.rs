@@ -87,7 +87,9 @@ fn fibo_floor<T: PartialOrd + Fiboable>(n: T) -> T {
 
 fn fibo_ceil<T: PartialOrd + Fiboable>(n: T) -> T {
     if n < T::zero() {
-        fibo_floor(n.checked_neg().unwrap()).checked_neg().unwrap()
+        fibo_floor(n.checked_neg().expect("n should be negatable"))
+            .checked_neg()
+            .unwrap()
     } else {
         let mut f = Fibo::<T>::new();
         f.find(|&fi| fi >= n).unwrap()
