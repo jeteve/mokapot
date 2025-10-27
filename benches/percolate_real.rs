@@ -51,7 +51,7 @@ fn build_query<R: Rng + ?Sized>(
         q3_field.has_value(q3_value)
     };
 
-    let q4 = "price".i64_lt((1..100000).fake_with_rng::<i64, _>(rng));
+    let q4 = "price".i64_lt((10000..100000).fake_with_rng::<i64, _>(rng));
 
     q1 & q1b & q3 & q4
 }
@@ -85,7 +85,7 @@ fn build_document<R: Rng + ?Sized>(
     let q3_field = one_random_data(&THIRD_FIELDS, rng);
     let q3_value = one_random_from_vec(third_fields.get(q3_field).unwrap(), rng);
 
-    let price = (1..100000).fake_with_rng::<i64, _>(rng).to_string();
+    let price = (10000..100000).fake_with_rng::<i64, _>(rng).to_string();
 
     d.with_value(q3_field, q3_value).with_value("price", price)
 }

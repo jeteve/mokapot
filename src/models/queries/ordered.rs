@@ -49,7 +49,7 @@ impl Ordering {
 ///
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) struct OrderedQuery<T: PartialOrd + FromStr> {
+pub(crate) struct OrderedQuery<T: PartialOrd + FromStr + num_traits::Zero> {
     field: Rc<str>,
     cmp_point: T,
     cmp_ord: Ordering,
@@ -58,7 +58,7 @@ pub(crate) struct OrderedQuery<T: PartialOrd + FromStr> {
 /// Aliases for convenience.
 pub(crate) type I64Query = OrderedQuery<i64>;
 
-impl<T: PartialOrd + FromStr> OrderedQuery<T> {
+impl<T: PartialOrd + FromStr + num_traits::Zero> OrderedQuery<T> {
     pub(crate) fn new<F: Into<Rc<str>>>(field: F, cmp_point: T, cmp_ord: Ordering) -> Self {
         OrderedQuery {
             field: field.into(),
@@ -79,7 +79,7 @@ impl<T: PartialOrd + FromStr> OrderedQuery<T> {
     }
 }
 
-impl<T: Display + PartialOrd + FromStr> Display for OrderedQuery<T> {
+impl<T: Display + PartialOrd + FromStr + num_traits::Zero> Display for OrderedQuery<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.field.as_ref())?;
         write!(f, "{}", self.cmp_ord)?;
@@ -87,7 +87,7 @@ impl<T: Display + PartialOrd + FromStr> Display for OrderedQuery<T> {
     }
 }
 
-impl<T: PartialOrd + FromStr> DocMatcher for OrderedQuery<T> {
+impl<T: PartialOrd + FromStr + num_traits::Zero> DocMatcher for OrderedQuery<T> {
     fn matches(&self, d: &crate::prelude::Document) -> bool {
         d.values_iter(&self.field).is_some_and(|mut i| {
             i.any(|v| {
@@ -196,11 +196,6 @@ mod test_prefix {
         assert!(q.matches(&[("field", "not number"), ("field", "0000000124")].into()));
         assert!(!q.matches(&[("field", "foo")].into()));
         assert!(!q.matches(&[("field", "")].into()));
-
-        let q = OrderedQuery::<String>::new("field", "banana".into(), Ordering::GE);
-        assert!(!q.matches(&[("field", "abc")].into()));
-        assert!(q.matches(&[("field", "banana")].into()));
-        assert!(q.matches(&[("field", "cart")].into()));
     }
 
     #[test]

@@ -7,19 +7,22 @@ use std::{
 use itertools::Itertools;
 use roaring::RoaringBitmap;
 
-use crate::models::{
-    cnf::Clause,
-    document::Document,
-    index::Index,
-    percolator::{
-        PercolatorConfig,
-        tools::{ClauseExpander, PreHeater},
-    },
-    queries::{
-        common::DocMatcher,
-        ordered::{I64Query, OrderedQuery, Ordering},
-        prefix::PrefixQuery,
-        term::TermQuery,
+use crate::{
+    itertools::{fibo_ceil, fibo_floor},
+    models::{
+        cnf::Clause,
+        document::Document,
+        index::Index,
+        percolator::{
+            PercolatorConfig,
+            tools::{ClauseExpander, PreHeater},
+        },
+        queries::{
+            common::DocMatcher,
+            ordered::{I64Query, OrderedQuery, Ordering},
+            prefix::PrefixQuery,
+            term::TermQuery,
+        },
     },
 };
 
@@ -45,7 +48,18 @@ fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
     // ["LT", "EQ", "GT"]
     // synth_field: Rc<str> = format!("__INT_{}_{}__{}", c, oq.cmp_point(), oq.field()).into();
     let oq_field = oq.field();
-    let oq_cmp_point = *oq.cmp_point();
+    let oq_ord = oq.cmp_ord();
+    let cmp_point = match oq_ord {
+        Ordering::LT | Ordering::LE | Ordering::EQ => fibo_ceil(*oq.cmp_point()),
+        Ordering::GT | Ordering::GE => fibo_floor(*oq.cmp_point()),
+    };
+    let indexed_name: Rc<str> = match oq_ord {
+        Ordering::LT | Ordering::LE | Ordering::EQ => {
+            format!("__INT_LE_{}__{}", cmp_point, oq_field)
+        }
+        Ordering::GT | Ordering::GE => format!("__INT_GE_{}__{}", cmp_point, oq_field),
+    }.into();
+
     let expander = move |mut c: Clause| {
         // This clause comes from a document. Find the right field
         let new_literals = c
@@ -57,28 +71,29 @@ fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
             })
             // At this point, we have a parseable integer value
             // from the right field.
-            .map(|ivalue| {
-                // Generate the right match
-                let op = match ivalue {
-                    v if v < oq_cmp_point => "LT",
-                    v if v == oq_cmp_point => "EQ",
-                    _ => "GT",
-                };
-
-                TermQuery::new(
-                    format!("__INT_{}_{}__{}", op, oq_cmp_point, oq_field),
-                    "true",
-                )
-            })
+            .filter_map(|iv| 
+                // Generate the right kind of match
+                match oq_ord {
+                    // The query is LE or LT or EQ, we need to use LE
+                    // The floor will have been indexed
+                    Ordering::LT | Ordering::LE | Ordering::EQ if iv <= cmp_point => {
+                        Some(indexed_name.clone())
+                    }
+                    Ordering::GT | Ordering::GE if iv >= cmp_point => Some(indexed_name.clone()),
+                    _ => None,
+                })
+            .map(|indexed_name| TermQuery::new(indexed_name, "true")
+            )
             .map(|q| Literal::new(false, LitQuery::Term(q)))
             .collect_vec();
+
         c.append_literals(new_literals);
         c
     };
 
     // INT_COMPARE is the name of the preheater.
-    let id_field = format!("INT_COMPARE_{}__{}", oq.cmp_point(), oq.field()).into();
-    PreHeater::new(id_field, ClauseExpander::new(Rc::new(expander))).with_must_filter(false)
+    let id_field = format!("INT_COMPARE_{}__{}", cmp_point, oq.field()).into();
+    PreHeater::new(id_field, ClauseExpander::new(Rc::new(expander))).with_must_filter(true)
 }
 
 fn prefix_query_preheater(allowed_size: &[usize], pq: &PrefixQuery) -> PreHeater {
@@ -175,26 +190,28 @@ impl fmt::Display for LitQuery {
 
 // Turns an ordered query into a vector of field/values
 // for the purpose of indexing the query in the percolator.
-fn oq_to_fvs<T: PartialOrd + FromStr + Display>(oq: &OrderedQuery<T>) -> Vec<(Rc<str>, Rc<str>)> {
-    // Logic to index numeric query:
-    // Always index Lower, equal and greater than,
-    // knowing preheaters will generate the lower, equal and greater than
-    let tuples: Vec<(Rc<str>, Rc<str>)> = ["LT", "EQ", "GT"]
-        .into_iter()
-        .map(|c| {
-            (
-                format!("__INT_{}_{}__{}", c, oq.cmp_point(), oq.field()).into(),
-                "true".into(),
-            )
-        })
-        .take(3)
-        .collect();
+fn oq_to_fvs<T: PartialOrd + FromStr + crate::itertools::Fiboable + Display>(
+    oq: &OrderedQuery<T>,
+) -> Vec<(Rc<str>, Rc<str>)> {
     match oq.cmp_ord() {
-        Ordering::GT => tuples[2..=2].into(),
-        Ordering::LT => tuples[0..=0].into(),
-        Ordering::GE => tuples[1..=2].into(),
-        Ordering::LE => tuples[0..=1].into(),
-        Ordering::EQ => tuples[1..=1].into(),
+        Ordering::LT | Ordering::LE | Ordering::EQ => {
+            // LT, LE, and EQ, we need to use LE with the fibo ceil,
+            // as something that is <= ceil is also potentially <= than the original value.
+            let ceil_value = fibo_ceil(*oq.cmp_point());
+            vec![(
+                format!("__INT_LE_{}__{}", ceil_value, oq.field()).into(),
+                "true".into(),
+            )]
+        }
+        Ordering::GT | Ordering::GE => {
+            // GE GT, we need to use GE with the fibo floor,
+            // as something that is >= floor is potentially also >= than the original value.
+            let floor_value = fibo_floor(*oq.cmp_point());
+            vec![dbg!((
+                format!("__INT_GE_{}__{}", floor_value, oq.field()).into(),
+                "true".into(),
+            ))]
+        }
     }
 }
 
