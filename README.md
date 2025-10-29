@@ -1,8 +1,8 @@
 # About mokaccino
 
-[![Rust](https://github.com/jeteve/mokapot/actions/workflows/rust.yml/badge.svg)](https://github.com/jeteve/mokapot/actions/workflows/rust.yml)
+[![Rust](https://github.com/jeteve/mokapot/actions/workflows/rust.yml/badge.svg)](https://github.com/jeteve/mokapot/actions/workflows/rust.yml) [![Crates.io](https://img.shields.io/crates/v/mokaccino.svg)](https://crates.io/crates/mokaccino) [![codecov](https://codecov.io/github/jeteve/mokapot/graph/badge.svg?token=V822XHN6RK)](https://codecov.io/github/jeteve/mokapot)
 
-[![Crates.io](https://img.shields.io/crates/v/mokaccino.svg)](https://crates.io/crates/mokaccino)
+
 
 mokaccino is a percolator library in Rust. Consider this beta software.
 
