@@ -90,6 +90,7 @@ fn build_document<R: Rng + ?Sized>(
     d.with_value(q3_field, q3_value).with_value("price", price)
 }
 
+#[cfg(not(tarpaulin_include))]
 fn percolate_real(c: &mut Criterion) {
     let mut group = c.benchmark_group("Reallife_matching");
 
