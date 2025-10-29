@@ -18,6 +18,8 @@ jobs:
     - uses: actions/checkout@v4
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
+      with:
+        components: "tarpaulin"
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2
       with:
