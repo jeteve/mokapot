@@ -3,13 +3,18 @@ use mokaccino::models::{
     document::Document,
     percolator::{Percolator, Qid},
 };
+use num_traits::Zero;
 
 #[test]
 fn test_percolator() {
-    let mut mp = Percolator::default();
+    let mut mp = Percolator::builder()
+        .prefix_sizes(vec![1, 2, 5, 8, 13])
+        .build();
     let q1 = "colour".has_value("blue");
     let q1_id = mp.add_query(q1);
     assert_eq!(q1_id, 0);
+    assert!(!mp.to_string().is_empty());
+    assert!(!mp.get_query(q1_id).to_string().is_empty());
 
     let d = Document::new().with_value("colour", "blue");
 
@@ -46,4 +51,12 @@ fn test_percolator() {
 
     // This time it also matches the conjunction
     assert_eq!(mp.percolate(&sprout).collect::<Vec<_>>(), vec![1, cid]);
+
+    assert!(!mp.stats().to_string().is_empty());
+
+    let stats = mp.stats();
+    assert!(stats.clauses_per_query().mean() > 0.0);
+    assert!(stats.preheaters_per_query().mean().is_zero());
+    assert_eq!(stats.n_preheaters(), 0);
+    assert_eq!(stats.n_queries(), 3);
 }

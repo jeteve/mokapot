@@ -321,7 +321,7 @@ impl Percolator {
         Self {
             cnf_queries: Vec::new(),
             preheaters: Vec::new(),
-            clause_matchers: (0..config.n_clause_matchers.get())
+            clause_matchers: (0..config.n_clause_matchers().get())
                 .map(|_| ClauseMatcher::default())
                 .collect(),
             must_filter: RoaringBitmap::new(),
