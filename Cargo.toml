@@ -22,6 +22,7 @@ default-run="mokaccino"
 
 [features]
 serde = ["dep:serde", "serde_json"]
+send = []
 
 [dependencies]
 itertools = "^0.9"

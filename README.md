@@ -143,6 +143,8 @@ Usage in your Cargo.toml:
 mokaccino: { version = "0.2.0" , features = [ "serde" ] }
 ```
 
+Use the feature `send` if you want this crate to use only Send types.
+
 # Application development guidelines
 
 ## Queries and Query IDs
