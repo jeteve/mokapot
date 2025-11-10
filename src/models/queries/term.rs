@@ -5,18 +5,18 @@ use crate::models::document::MATCH_ALL;
 use crate::models::index::*;
 use crate::models::queries::common::DocMatcher;
 
-use std::rc::Rc;
+use crate::models::types::OurStr;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct TermQuery {
-    field: Rc<str>,
-    term: Rc<str>,
+    field: OurStr,
+    term: OurStr,
 }
 
 impl TermQuery {
     /// Constructor
-    pub fn new<T: Into<Rc<str>>, U: Into<Rc<str>>>(field: T, term: U) -> Self {
+    pub fn new<T: Into<OurStr>, U: Into<OurStr>>(field: T, term: U) -> Self {
         TermQuery {
             field: field.into(),
             term: term.into(),
@@ -29,12 +29,12 @@ impl TermQuery {
     }
 
     /// The field
-    pub fn field(&self) -> Rc<str> {
+    pub fn field(&self) -> OurStr {
         self.field.clone()
     }
 
     /// The term
-    pub fn term(&self) -> Rc<str> {
+    pub fn term(&self) -> OurStr {
         self.term.clone()
     }
 

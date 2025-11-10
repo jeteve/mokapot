@@ -4,3 +4,4 @@ pub(crate) mod index;
 pub(crate) mod iterators;
 pub mod percolator;
 pub(crate) mod queries;
+pub(crate) mod types;

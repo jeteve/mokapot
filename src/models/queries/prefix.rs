@@ -1,17 +1,16 @@
-use std::rc::Rc;
-
+use crate::models::types::OurStr;
 use crate::models::{document::Document, queries::common::DocMatcher};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct PrefixQuery {
-    field: Rc<str>,
-    prefix: Rc<str>,
+    field: OurStr,
+    prefix: OurStr,
 }
 
 impl PrefixQuery {
     /// Constructor
-    pub(crate) fn new<T: Into<Rc<str>>, U: Into<Rc<str>>>(field: T, prefix: U) -> Self {
+    pub(crate) fn new<T: Into<OurStr>, U: Into<OurStr>>(field: T, prefix: U) -> Self {
         PrefixQuery {
             field: field.into(),
             prefix: prefix.into(),
@@ -19,12 +18,12 @@ impl PrefixQuery {
     }
 
     /// The field
-    pub(crate) fn field(&self) -> Rc<str> {
+    pub(crate) fn field(&self) -> OurStr {
         self.field.clone()
     }
 
     /// The prefix
-    pub(crate) fn prefix(&self) -> Rc<str> {
+    pub(crate) fn prefix(&self) -> OurStr {
         self.prefix.clone()
     }
 }

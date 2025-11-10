@@ -12,10 +12,12 @@ use crate::models::{
 use itertools::Itertools;
 use roaring::MultiOps;
 
-use std::{fmt, rc::Rc};
+use std::fmt;
 
 mod literal;
 use literal::*;
+
+use crate::models::types::OurStr;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -164,8 +166,8 @@ impl Query {
     /// ```
     pub fn term<T, U>(field: T, value: U) -> Self
     where
-        T: Into<Rc<str>>,
-        U: Into<Rc<str>>,
+        T: Into<OurStr>,
+        U: Into<OurStr>,
     {
         Self::from_termquery(TermQuery::new(field, value))
     }
@@ -179,8 +181,8 @@ impl Query {
     /// ```
     pub fn prefix<T, U>(field: T, value: U) -> Self
     where
-        T: Into<Rc<str>>,
-        U: Into<Rc<str>>,
+        T: Into<OurStr>,
+        U: Into<OurStr>,
     {
         Self::from_prefixquery(PrefixQuery::new(field, value))
     }
@@ -259,12 +261,12 @@ impl Query {
     }
 }
 
-pub trait CNFQueryable: Into<Rc<str>> {
+pub trait CNFQueryable: Into<OurStr> {
     /// A Query where `"field".has_value("the_value")``
-    fn has_value<T: Into<Rc<str>>>(self, v: T) -> Query;
+    fn has_value<T: Into<OurStr>>(self, v: T) -> Query;
 
     /// A Query where `"field".has_prefix("/some/prefix")`
-    fn has_prefix<T: Into<Rc<str>>>(self, v: T) -> Query;
+    fn has_prefix<T: Into<OurStr>>(self, v: T) -> Query;
 
     /// A query where the field can represents a signed integer
     /// that has a value strictly lower than `v`.
@@ -285,14 +287,14 @@ pub trait CNFQueryable: Into<Rc<str>> {
 
 impl<T> CNFQueryable for T
 where
-    T: Into<Rc<str>>,
+    T: Into<OurStr>,
 {
-    fn has_value<U: Into<Rc<str>>>(self, v: U) -> Query {
+    fn has_value<U: Into<OurStr>>(self, v: U) -> Query {
         let tq = TermQuery::new(self, v);
         Query::from_termquery(tq)
     }
 
-    fn has_prefix<U: Into<Rc<str>>>(self, v: U) -> Query {
+    fn has_prefix<U: Into<OurStr>>(self, v: U) -> Query {
         let pq = PrefixQuery::new(self, v);
         Query::from_prefixquery(pq)
     }
@@ -583,7 +585,7 @@ mod test_queries {
         assert!(q.docs_from_idx_iter(&index).next().is_some());
         assert_eq!(q.docs_from_idx_iter(&index).count(), 1);
 
-        let colour: Rc<str> = "colour".into();
+        let colour: OurStr = "colour".into();
 
         let q2 = TermQuery::new(colour, "green");
         assert!(q2.matches(&d));

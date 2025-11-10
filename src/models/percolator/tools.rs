@@ -1,9 +1,10 @@
-use std::{fmt, rc::Rc};
+use std::fmt;
 
 use crate::models::cnf::Clause;
 use crate::models::document::Document;
+use crate::models::types::{OurRc, OurStr};
 
-pub(crate) type ExpanderF = Rc<dyn Fn(Clause) -> Clause>;
+pub(crate) type ExpanderF = OurRc<dyn Fn(Clause) -> Clause>;
 
 #[derive(Clone)]
 // Extends Clauses comming from percolated document with extra termqueries.
@@ -23,13 +24,13 @@ impl ClauseExpander {
 
 #[derive(Clone, Debug)]
 pub(crate) struct PreHeater {
-    pub(crate) id: Rc<str>,
+    pub(crate) id: OurStr,
     pub(crate) expand_clause: ClauseExpander,
     pub(crate) must_filter: bool, // must_filter MUST be true when the clause expander is not exact.
 }
 
 impl PreHeater {
-    pub(crate) fn new(id: Rc<str>, ce: ClauseExpander) -> Self {
+    pub(crate) fn new(id: OurStr, ce: ClauseExpander) -> Self {
         Self {
             id,
             expand_clause: ce,

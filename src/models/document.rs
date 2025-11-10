@@ -1,10 +1,10 @@
 use hashbrown::HashMap;
-use std::rc::Rc;
 
 use itertools::Itertools;
 
 use crate::models::cnf::Clause;
 use crate::models::queries::term::TermQuery;
+use crate::models::types::OurStr;
 
 /// A Document is what you build to percolate through the set of queries
 /// using a Percolator. A document is simply a multimap of (field,value)
@@ -32,11 +32,11 @@ use crate::models::queries::term::TermQuery;
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Document {
     // Fields representing the document's content
-    fields: HashMap<Rc<str>, Vec<Rc<str>>>,
+    fields: HashMap<OurStr, Vec<OurStr>>,
     fvs_count: usize,
 }
 
-type FieldValue = (Rc<str>, Rc<str>);
+type FieldValue = (OurStr, OurStr);
 
 pub(crate) const MATCH_ALL: (&str, &str) = ("__match_all__", "true");
 
@@ -113,10 +113,10 @@ impl Document {
     ///
     pub fn with_value<T, U>(mut self, field: T, value: U) -> Self
     where
-        T: Into<Rc<str>>,
-        U: Into<Rc<str>>,
+        T: Into<OurStr>,
+        U: Into<OurStr>,
     {
-        let val: Rc<str> = value.into();
+        let val: OurStr = value.into();
 
         self.fields
             .entry(field.into())
@@ -131,30 +131,30 @@ impl Document {
     }
 
     /// All fields of this document
-    pub fn fields(&self) -> impl Iterator<Item = Rc<str>> + use<'_> {
+    pub fn fields(&self) -> impl Iterator<Item = OurStr> + use<'_> {
         self.fields.keys().cloned()
     }
 
     /// The values of the field, if present in the document.
-    pub fn values_ref(&self, field: &str) -> Option<&Vec<Rc<str>>> {
+    pub fn values_ref(&self, field: &str) -> Option<&Vec<OurStr>> {
         self.fields.get(field)
     }
 
     /// All values of the field
-    pub fn values(&self, field: &str) -> Vec<Rc<str>> {
+    pub fn values(&self, field: &str) -> Vec<OurStr> {
         self.fields.get(field).cloned().unwrap_or_default()
     }
 
     /// All values of the field if it exists
-    pub fn values_iter(&self, field: &str) -> Option<impl Iterator<Item = Rc<str>> + '_ + use<'_>> {
+    pub fn values_iter(&self, field: &str) -> Option<impl Iterator<Item = OurStr> + '_ + use<'_>> {
         self.fields.get(field).map(|v| v.iter().cloned())
     }
 }
 
 impl<K, V, const N: usize> From<[(K, V); N]> for Document
 where
-    K: Into<Rc<str>>,
-    V: Into<Rc<str>> + Clone,
+    K: Into<OurStr>,
+    V: Into<OurStr> + Clone,
 {
     fn from(arr: [(K, V); N]) -> Self {
         arr.into_iter()

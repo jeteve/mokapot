@@ -1,10 +1,10 @@
 use std::{
     fmt::{self, Display},
-    rc::Rc,
     str::FromStr,
 };
 
 use crate::models::queries::common::DocMatcher;
+use crate::models::types::OurStr;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -50,7 +50,7 @@ impl Ordering {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct OrderedQuery<T: PartialOrd + FromStr + num_traits::Zero> {
-    field: Rc<str>,
+    field: OurStr,
     cmp_point: T,
     cmp_ord: Ordering,
 }
@@ -59,14 +59,14 @@ pub(crate) struct OrderedQuery<T: PartialOrd + FromStr + num_traits::Zero> {
 pub(crate) type I64Query = OrderedQuery<i64>;
 
 impl<T: PartialOrd + FromStr + num_traits::Zero> OrderedQuery<T> {
-    pub(crate) fn new<F: Into<Rc<str>>>(field: F, cmp_point: T, cmp_ord: Ordering) -> Self {
+    pub(crate) fn new<F: Into<OurStr>>(field: F, cmp_point: T, cmp_ord: Ordering) -> Self {
         OrderedQuery {
             field: field.into(),
             cmp_point,
             cmp_ord,
         }
     }
-    pub(crate) fn field(&self) -> Rc<str> {
+    pub(crate) fn field(&self) -> OurStr {
         self.field.clone()
     }
 

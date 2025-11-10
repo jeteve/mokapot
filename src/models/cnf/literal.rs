@@ -1,8 +1,9 @@
 use std::{
     fmt::{self, Display},
-    rc::Rc,
     str::FromStr,
 };
+
+use crate::models::types::{OurStr, OurRc};
 
 use itertools::Itertools;
 use roaring::RoaringBitmap;
@@ -53,7 +54,7 @@ fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
         Ordering::LT | Ordering::LE | Ordering::EQ => fibo_ceil(*oq.cmp_point()),
         Ordering::GT | Ordering::GE => fibo_floor(*oq.cmp_point()),
     };
-    let indexed_name: Rc<str> = match oq_ord {
+    let indexed_name: OurStr = match oq_ord {
         Ordering::LT | Ordering::LE | Ordering::EQ => {
             format!("__INT_LE_{}__{}", cmp_point, oq_field)
         }
@@ -93,14 +94,14 @@ fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
 
     // INT_COMPARE is the name of the preheater.
     let id_field = format!("INT_COMPARE_{}__{}", cmp_point, oq.field()).into();
-    PreHeater::new(id_field, ClauseExpander::new(Rc::new(expander))).with_must_filter(true)
+    PreHeater::new(id_field, ClauseExpander::new(OurRc::new(expander))).with_must_filter(true)
 }
 
 fn prefix_query_preheater(allowed_size: &[usize], pq: &PrefixQuery) -> PreHeater {
     let clipped_len = clip_prefix_len(allowed_size, pq.prefix().len());
 
     let pfield = pq.field().clone();
-    let synth_field: Rc<str> = format!("__PREFIX{}__{}", clipped_len, pq.field()).into();
+    let synth_field: OurStr = format!("__PREFIX{}__{}", clipped_len, pq.field()).into();
     let id_field = synth_field.clone();
 
     let expander = move |mut c: Clause| {
@@ -123,7 +124,7 @@ fn prefix_query_preheater(allowed_size: &[usize], pq: &PrefixQuery) -> PreHeater
         c
     };
 
-    PreHeater::new(id_field, ClauseExpander::new(Rc::new(expander)))
+    PreHeater::new(id_field, ClauseExpander::new(OurRc::new(expander)))
         .with_must_filter(clipped_len < pq.prefix().len())
 }
 
@@ -160,7 +161,7 @@ impl LitQuery {
     }
 
     // Just to order Litteral for display.
-    fn sort_field(&self) -> Rc<str> {
+    fn sort_field(&self) -> OurStr {
         match self {
             LitQuery::Term(tq) => tq.field(),
             LitQuery::Prefix(pq) => pq.field(),
@@ -169,7 +170,7 @@ impl LitQuery {
     }
 
     // To sort the term of the query in lexicographic order
-    fn sort_term(&self) -> Rc<str> {
+    fn sort_term(&self) -> OurStr {
         match self {
             LitQuery::Term(tq) => tq.term(),
             LitQuery::Prefix(pq) => pq.prefix(),
@@ -192,7 +193,7 @@ impl fmt::Display for LitQuery {
 // for the purpose of indexing the query in the percolator.
 fn oq_to_fvs<T: PartialOrd + FromStr + crate::itertools::Fiboable + Display>(
     oq: &OrderedQuery<T>,
-) -> Vec<(Rc<str>, Rc<str>)> {
+) -> Vec<(OurStr, OurStr)> {
     match oq.cmp_ord() {
         Ordering::LT | Ordering::LE | Ordering::EQ => {
             // LT, LE, and EQ, we need to use LE with the fibo ceil,
@@ -243,7 +244,7 @@ impl Literal {
     pub(crate) fn percolate_doc_field_values(
         &self,
         config: &PercolatorConfig,
-    ) -> Vec<(Rc<str>, Rc<str>)> {
+    ) -> Vec<(OurStr, OurStr)> {
         match &self.query {
             LitQuery::Term(tq) => vec![(tq.field(), tq.term())],
             LitQuery::Prefix(pq) => {
