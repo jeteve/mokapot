@@ -208,10 +208,10 @@ fn oq_to_fvs<T: PartialOrd + FromStr + crate::itertools::Fiboable + Display>(
             // GE GT, we need to use GE with the fibo floor,
             // as something that is >= floor is potentially also >= than the original value.
             let floor_value = fibo_floor(*oq.cmp_point());
-            vec![dbg!((
+            vec![(
                 format!("__INT_GE_{}__{}", floor_value, oq.field()).into(),
                 "true".into(),
-            ))]
+            )]
         }
     }
 }
