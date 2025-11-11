@@ -4,6 +4,10 @@ use crate::models::cnf::Clause;
 use crate::models::document::Document;
 use crate::models::types::{OurRc, OurStr};
 
+#[cfg(feature = "send")]
+pub(crate) type ExpanderF = OurRc<dyn Fn(Clause) -> Clause + Send + Sync>;
+
+#[cfg(not(feature = "send"))]
 pub(crate) type ExpanderF = OurRc<dyn Fn(Clause) -> Clause>;
 
 #[derive(Clone)]
