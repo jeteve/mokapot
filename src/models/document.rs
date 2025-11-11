@@ -73,6 +73,7 @@ impl Document {
     }
 
     /// An iterator on all the (field,value) tuples of this document.
+    /// In no particular order.
     pub fn field_values(&self) -> impl Iterator<Item = FieldValue> + use<'_> {
         self.fields()
             .map(|f| (f.clone(), self.values_iter(f.as_ref())))
@@ -131,6 +132,7 @@ impl Document {
     }
 
     /// All fields of this document
+    /// in no particular order.
     pub fn fields(&self) -> impl Iterator<Item = OurStr> + use<'_> {
         self.fields.keys().cloned()
     }
