@@ -11,9 +11,7 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
     - name: Setup Rust
@@ -35,10 +33,18 @@ jobs:
       run: cargo test
     - name: Run tests all with all features
       run: cargo test --all-features
-    # See doc: https://github.com/xd009642/tarpaulin
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@nightly
+      # See doc: https://github.com/xd009642/tarpaulin
     - name: Tarpaulin
-      run: | 
-        cargo install cargo-tarpaulin
+      run: |
+        cargo install cargo-binstall
+        cargo binstall cargo-tarpaulin --no-confirm
         cargo tarpaulin --all-features --exclude-files "benches/*" --run-types Tests --run-types Doctests --run-types Lib --timeout 120 --out xml
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v5
