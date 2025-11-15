@@ -8,19 +8,6 @@ enum FieldValue {
     Integer(i64),
 }
 
-fn integer_value_parser<'src>() -> impl Parser<'src, &'src str, FieldValue> {
-    just('-')
-        .or_not()
-        .then(text::int(10))
-        .map(|(sign, s): (_, &str)| {
-            if sign.is_none() {
-                FieldValue::Integer(s.parse().unwrap())
-            } else {
-                FieldValue::Integer(-s.parse::<i64>().unwrap())
-            }
-        })
-}
-
 fn field_value_parser<'src>() -> impl Parser<'src, &'src str, FieldValue> {
     let term_char = just('\\')
         .ignore_then(any()) // After backslash, accept any character
@@ -29,14 +16,7 @@ fn field_value_parser<'src>() -> impl Parser<'src, &'src str, FieldValue> {
     let phrase = just('"')
         .ignore_then(term_char.repeated().collect::<String>())
         .then_ignore(just('"').labelled("closing double quote"))
-        .labelled("Quote enclosed phrase");
-
-    let word = none_of([' ', '\t', '\n', '"', '(', ')', ':', '*'])
-        .repeated()
-        .at_least(1)
-        .collect::<String>();
-
-    let string_based = choice((phrase, word))
+        .labelled("Quote enclosed phrase")
         .then(just('*').or_not())
         .map(|(t, wc)| {
             if wc.is_some() {
@@ -46,7 +26,23 @@ fn field_value_parser<'src>() -> impl Parser<'src, &'src str, FieldValue> {
             }
         });
 
-    choice((integer_value_parser(), string_based)).padded()
+    let naked_string = none_of([' ', '\t', '\n', '"', '(', ')', ':', '*'])
+        .repeated()
+        .at_least(1)
+        .collect::<String>()
+        .then(just('*').or_not())
+        .map(|(t, wc)| {
+            if wc.is_some() {
+                FieldValue::Prefix(t) // With a wild char, this is ALWAYS a word
+            } else {
+                // Attempt to parse as i64. If fail, fallback to just string.
+                t.parse::<i64>()
+                    .map(FieldValue::Integer)
+                    .unwrap_or(FieldValue::Term(t))
+            }
+        });
+
+    choice((phrase, naked_string)).padded()
 }
 
 #[cfg(test)]
@@ -92,8 +88,12 @@ mod tests {
             Some(&FieldValue::Integer(123))
         );
         assert_eq!(
-            parser.parse("-123").output(),
-            Some(&FieldValue::Integer(-123))
+            parser.parse("123*").output(),
+            Some(&FieldValue::Prefix("123".to_string()))
+        );
+        assert_eq!(
+            parser.parse("-123abc").output(),
+            Some(&FieldValue::Term("-123abc".to_string()))
         );
     }
 }
