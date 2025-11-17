@@ -29,41 +29,38 @@ enum FieldValue {
 type MyParseError<'src> = extra::Err<Rich<'src, char>>;
 
 fn query_parser<'src>() -> impl Parser<'src, &'src str, Query, MyParseError<'src>> {
-    let field = identifier_parser();
-    let operator = operator_parser();
-    let value = field_value_parser();
+    recursive(|expr| {
+        let recursive_atom = atom_parser()
+            .or(expr.delimited_by(just('('), just(')')))
+            .padded();
 
-    let atom = field
-        .then(operator)
-        .then(value)
-        .map(|((s, o), v)| Query::Atom(s, o, v))
-        .padded();
+        let unary = text::ascii::keyword("NOT")
+            .padded()
+            .repeated()
+            .foldr(recursive_atom, |_op, rhs| Query::Neg(Box::new(rhs)))
+            .boxed();
 
-    let unary = text::ascii::keyword("NOT")
-        .padded()
-        .repeated()
-        .foldr(atom, |_op, rhs| Query::Neg(Box::new(rhs)))
-        .boxed();
+        let product = unary.clone().foldl(
+            text::ascii::keyword("AND")
+                .to(Query::And as fn(_, _) -> _)
+                .then(unary)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
 
-    let product = unary.clone().foldl(
-        text::ascii::keyword("AND")
-            .to(Query::And as fn(_, _) -> _)
-            .then(unary)
-            .repeated(),
-        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-    );
+        // sum has less precedence than product. So flat queries
+        // is a sum of products.
+        let sum = product.clone().foldl(
+            text::ascii::keyword("OR")
+                .to(Query::Or as fn(_, _) -> _)
+                .then(product)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
 
-    // sum has less precedence than product. So flat queries
-    // is a sum of products.
-    let sum = product.clone().foldl(
-        text::ascii::keyword("OR")
-            .to(Query::Or as fn(_, _) -> _)
-            .then(product)
-            .repeated(),
-        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-    );
-
-    sum
+        sum
+    })
+    .padded()
 }
 
 fn atom_parser<'src>() -> impl Parser<'src, &'src str, Query, MyParseError<'src>> {
@@ -192,6 +189,56 @@ mod tests {
                     Operator::Colon,
                     FieldValue::Prefix("blue".into())
                 ))
+            ))
+        );
+
+        // AND has precedence
+        assert_eq!(
+            p.parse("colour:blue* OR name:abc AND NOT price<=123")
+                .output(),
+            Some(&Query::Or(
+                Box::new(Query::Atom(
+                    "colour".to_string(),
+                    Operator::Colon,
+                    FieldValue::Prefix("blue".into())
+                )),
+                Box::new(Query::And(
+                    Box::new(Query::Atom(
+                        "name".to_string(),
+                        Operator::Colon,
+                        FieldValue::Term("abc".into())
+                    )),
+                    Box::new(Query::Neg(Box::new(Query::Atom(
+                        "price".to_string(),
+                        Operator::Le,
+                        FieldValue::Integer(123)
+                    ))))
+                ))
+            ))
+        );
+
+        // Beat precedence with parenthesis
+        assert_eq!(
+            p.parse("(colour:blue* OR name:abc) AND NOT price<=123")
+                .output(),
+            Some(&Query::And(
+                Box::new(Query::Or(
+                    Box::new(Query::Atom(
+                        "colour".to_string(),
+                        Operator::Colon,
+                        FieldValue::Prefix("blue".into())
+                    )),
+                    Box::new(Query::Atom(
+                        "name".to_string(),
+                        Operator::Colon,
+                        FieldValue::Term("abc".into())
+                    ))
+                )),
+                Box::new(Query::Neg(Box::new(Query::Atom(
+                    "price".to_string(),
+                    Operator::Le,
+                    FieldValue::Integer(123)
+                ))))
             ))
         );
     }
