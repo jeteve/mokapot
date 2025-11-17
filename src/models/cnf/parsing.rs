@@ -40,6 +40,7 @@ fn query_parser<'src>() -> impl Parser<'src, &'src str, Query, MyParseError<'src
         .padded();
 
     let unary = text::ascii::keyword("NOT")
+        .padded()
         .repeated()
         .foldr(atom, |_op, rhs| Query::Neg(Box::new(rhs)))
         .boxed();
@@ -171,7 +172,8 @@ mod tests {
         );
 
         assert_eq!(
-            p.parse("name:abc AND price<=123 OR colour:blue*").output(),
+            p.parse("name:abc AND NOT price<=123 OR colour:blue*")
+                .output(),
             Some(&Query::Or(
                 Box::new(Query::And(
                     Box::new(Query::Atom(
@@ -179,11 +181,11 @@ mod tests {
                         Operator::Colon,
                         FieldValue::Term("abc".into())
                     )),
-                    Box::new(Query::Atom(
+                    Box::new(Query::Neg(Box::new(Query::Atom(
                         "price".to_string(),
                         Operator::Le,
                         FieldValue::Integer(123)
-                    ))
+                    ))))
                 )),
                 Box::new(Query::Atom(
                     "colour".to_string(),
