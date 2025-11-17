@@ -1,12 +1,41 @@
 // Parsing CNF queries
 use chumsky::prelude::*;
 
+use crate::{models::cnf, prelude::CNFQueryable};
+
 #[derive(Debug, PartialEq, Clone)]
 enum Query {
     Neg(Box<Query>),
     Atom(String, Operator, FieldValue),
     And(Box<Query>, Box<Query>),
     Or(Box<Query>, Box<Query>),
+}
+
+fn atom_to_cnf(field: &str, operator: &Operator, field_value: &FieldValue) -> cnf::Query {
+    match (&operator, &field_value) {
+        // A prefix ALWAYS give a prefix, regardless of operator used.
+        // It is a bit dirty, but will fix in the future.
+        (_, FieldValue::Prefix(p)) => field.has_prefix(p.clone()),
+        (_, FieldValue::Term(t)) => field.has_value(t.clone()),
+        // Fallback to term style query in case there is ':123'
+        (Operator::Colon, FieldValue::Integer(i)) => field.has_value(i.to_string()),
+        (Operator::Lt, FieldValue::Integer(i)) => field.i64_lt(*i),
+        (Operator::Le, FieldValue::Integer(i)) => field.i64_le(*i),
+        (Operator::Eq, FieldValue::Integer(i)) => field.i64_eq(*i),
+        (Operator::Ge, FieldValue::Integer(i)) => field.i64_ge(*i),
+        (Operator::Gt, FieldValue::Integer(i)) => field.i64_gt(*i),
+    }
+}
+
+impl Query {
+    fn to_cnf(&self) -> cnf::Query {
+        match &self {
+            Query::Neg(query) => !query.to_cnf(),
+            Query::Atom(field, operator, field_value) => atom_to_cnf(field, operator, field_value),
+            Query::And(query, query1) => query.to_cnf() & query1.to_cnf(),
+            Query::Or(query, query1) => query.to_cnf() | query1.to_cnf(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -143,6 +172,7 @@ mod tests {
     #[test]
     fn test_query_parser() {
         let p = query_parser();
+
         assert_eq!(
             p.parse("name:abc").output(),
             Some(&Query::Atom(
@@ -150,6 +180,11 @@ mod tests {
                 Operator::Colon,
                 FieldValue::Term("abc".into())
             ))
+        );
+
+        assert_eq!(
+            p.parse("name:abc").output().unwrap().to_cnf().to_string(),
+            "(AND (OR name=abc))"
         );
 
         assert_eq!(
@@ -166,6 +201,15 @@ mod tests {
                     FieldValue::Integer(123)
                 ))
             ))
+        );
+
+        assert_eq!(
+            p.parse("name:abc AND price<=123")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR name=abc) (OR price<=123))"
         );
 
         assert_eq!(
@@ -190,6 +234,15 @@ mod tests {
                     FieldValue::Prefix("blue".into())
                 ))
             ))
+        );
+
+        assert_eq!(
+            p.parse("name:abc AND NOT price<=123 OR colour:blue*")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR colour=blue* name=abc) (OR colour=blue* ~price<=123))"
         );
 
         // AND has precedence
@@ -217,6 +270,15 @@ mod tests {
             ))
         );
 
+        assert_eq!(
+            p.parse("colour:blue* OR name:abc AND NOT price<=123")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR colour=blue* name=abc) (OR colour=blue* ~price<=123))"
+        );
+
         // Beat precedence with parenthesis
         assert_eq!(
             p.parse("(colour:blue* OR name:abc) AND NOT price<=123")
@@ -240,6 +302,34 @@ mod tests {
                     FieldValue::Integer(123)
                 ))))
             ))
+        );
+
+        assert_eq!(
+            p.parse("(colour:blue* OR name:abc) AND NOT price<=123")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR colour=blue* name=abc) (OR ~price<=123))"
+        );
+
+        // Try a distributed NOT
+        assert_eq!(
+            p.parse("NOT (colour:blue* OR name:abc) AND price<=123")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR ~colour=blue*) (OR ~name=abc) (OR price<=123))"
+        );
+
+        assert_eq!(
+            p.parse("NOT (colour:blue* AND name:abc) OR price<=123")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR ~colour=blue* ~name=abc price<=123))"
         );
     }
 
