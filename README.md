@@ -30,19 +30,28 @@ Percolators usually exist as part of more general search products, like Lucene.
 
 - Support for any nested boolean queries, including negations.
 
+- Support for query parsing.
+
 - Support for prefix matching.
 
 - Support for integer comparison queries.
 
 - Support for `serde` serialisation/deserialisation (See Feature flags).
 
+- Support for multithreaded environments (See Feature flags)
+
+- Python binding available (see https://pypi.org/project/mokaccino/)
+
 # Non-features
 
 - Full text search. For instance this does not contain any document body tokenizing.
 
-- Query parsing. You need to build queries programmatically from your own data structures.
+# Examples
 
-# Example
+## Basic usage
+
+In this first example, we build a set of queries and check documents
+will yield matching queries.
 
 ```rust
 use mokaccino::prelude::*;
@@ -132,7 +141,43 @@ fn test_percolator() {
 }
 ```
 
+## Query parsing
+
+This supports query parsing for each query building user inputs via the `FromStr` trait.
+
+You'll find some syntax examples below. Use parenthesis to override classic
+boolean operators precedence.
+
+```rust
+use mokaccino::prelude::*;
+
+#[test]
+fn query_parsing() {
+    fn p(s: &str) -> Query{
+        s.parse().unwrap()
+    }
+    assert_eq!(p("A:a"), "A".has_value("a"));
+    assert_eq!(p("A:a OR B:b"), "A".has_value("a") | "B".has_value("b"));
+    assert_eq!(p("A:a AND B:b"), "A".has_value("a") & "B".has_value("b"));
+    assert_eq!(p("NOT A:a"), !"A".has_value("a"));
+    assert_eq!(p("NOT A:\"a a a\" OR B:b"), (!"A".has_value("a a a")) | "B".has_value("b"));
+    assert_eq!(p("NOT A:b AND B:b"), !"A".has_value("a") & "B".has_value("b"));
+    assert_eq!(p("NOT A:a AND A:a"), !"A".has_value("a") & "A".has_value("a"));
+    assert_eq!(p("C:multi*"), "C".has_prefix("multi"));
+    assert_eq!(p("C:\"mul \\\"ti\"* AND NOT C:multimeter"), "C".has_prefix("mul \"ti") & !"C".has_value("multimeter"));
+    assert_eq!(p("P:\"\"*"), "P".has_prefix(""));
+    assert_eq!(p("L<1000"), "L".i64_lt(1000));
+    assert_eq!(p("L<=1000"), "L".i64_le(1000));
+    assert_eq!(p("L==1000"), "L".i64_eq(1000));
+    assert_eq!(p("L>=1000"), "L".i64_ge(1000));
+    assert_eq!(p("L>1000"), "L".i64_gt(1000));
+}
+
+```
+
 # Feature flags
+
+## serde
 
 Use the feature flag `serde` if you want to Serialize/Deserialise the `Percolator` using Serde.
 
@@ -142,6 +187,8 @@ Usage in your Cargo.toml:
 [dependencies]
 mokaccino: { version = "0.2.0" , features = [ "serde" ] }
 ```
+
+## send
 
 Use the feature `send` if you want this crate to use only Send types.
 

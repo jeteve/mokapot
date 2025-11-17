@@ -38,8 +38,8 @@ fn test_nclause_percolator(n: NonZeroUsize) {
     let mut p = Percolator::builder().n_clause_matchers(n).build();
 
     let q: Vec<Qid> = vec![
-        p.add_query("A".has_value("a")),                         //0
-        p.add_query("A".has_value("a") | "B".has_value("b")),    //1
+        p.add_query("A:a".parse().unwrap()),                     //0
+        p.add_query("A:a OR B:b".parse().unwrap()),              //1
         p.add_query("A".has_value("a") & "B".has_value("b")),    //2
         p.add_query(!"A".has_value("a")),                        //3
         p.add_query((!"A".has_value("a")) | "B".has_value("b")), //4

@@ -15,7 +15,7 @@ use roaring::MultiOps;
 use std::fmt;
 
 mod literal;
-mod parsing;
+pub mod parsing;
 use literal::*;
 
 use crate::models::types::OurStr;

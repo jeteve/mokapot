@@ -3,6 +3,23 @@ use chumsky::prelude::*;
 
 use crate::{models::cnf, prelude::CNFQueryable};
 
+impl std::str::FromStr for cnf::Query {
+    type Err = String; // A newline delimited string, with all parsing errors.
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let p = query_parser();
+        p.parse(s)
+            .into_result()
+            .map_err(|e| {
+                e.iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .map(|astq| astq.to_cnf())
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 enum Query {
     Neg(Box<Query>),
