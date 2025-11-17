@@ -26,7 +26,9 @@ enum FieldValue {
     Integer(i64),
 }
 
-fn query_parser<'src>() -> impl Parser<'src, &'src str, Query> {
+type MyParseError<'src> = extra::Err<Rich<'src, char>>;
+
+fn query_parser<'src>() -> impl Parser<'src, &'src str, Query, MyParseError<'src>> {
     let field = identifier_parser();
     let operator = operator_parser();
     let value = field_value_parser();
@@ -43,16 +45,39 @@ fn query_parser<'src>() -> impl Parser<'src, &'src str, Query> {
         .boxed();
 
     let product = unary.clone().foldl(
-        choice((text::ascii::keyword("AND").to(Query::And as fn(_, _) -> _),))
+        text::ascii::keyword("AND")
+            .to(Query::And as fn(_, _) -> _)
             .then(unary)
             .repeated(),
         |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
     );
 
-    product
+    // sum has less precedence than product. So flat queries
+    // is a sum of products.
+    let sum = product.clone().foldl(
+        text::ascii::keyword("OR")
+            .to(Query::Or as fn(_, _) -> _)
+            .then(product)
+            .repeated(),
+        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+    );
+
+    sum
 }
 
-fn operator_parser<'src>() -> impl Parser<'src, &'src str, Operator> {
+fn atom_parser<'src>() -> impl Parser<'src, &'src str, Query, MyParseError<'src>> {
+    let field = identifier_parser();
+    let operator = operator_parser();
+    let value = field_value_parser();
+
+    field
+        .then(operator)
+        .then(value)
+        .map(|((s, o), v)| Query::Atom(s, o, v))
+        .padded()
+}
+
+fn operator_parser<'src>() -> impl Parser<'src, &'src str, Operator, MyParseError<'src>> {
     choice((
         just(':').to(Operator::Colon),
         just("<=").to(Operator::Le),
@@ -64,9 +89,9 @@ fn operator_parser<'src>() -> impl Parser<'src, &'src str, Operator> {
     .padded()
 }
 
-static NON_IDENTIFIERS: [char; 8] = [' ', '\t', '\n', '"', '(', ')', ':', '*'];
+static NON_IDENTIFIERS: [char; 11] = [' ', '\t', '\n', '"', '(', ')', ':', '*', '<', '>', '='];
 
-fn identifier_parser<'src>() -> impl Parser<'src, &'src str, String> {
+fn identifier_parser<'src>() -> impl Parser<'src, &'src str, String, MyParseError<'src>> {
     none_of(NON_IDENTIFIERS)
         .filter(|c: &char| !c.is_whitespace())
         .repeated()
@@ -75,7 +100,7 @@ fn identifier_parser<'src>() -> impl Parser<'src, &'src str, String> {
         .padded()
 }
 
-fn field_value_parser<'src>() -> impl Parser<'src, &'src str, FieldValue> {
+fn field_value_parser<'src>() -> impl Parser<'src, &'src str, FieldValue, MyParseError<'src>> {
     let term_char = just('\\')
         .ignore_then(any()) // After backslash, accept any character
         .or(none_of('"')); // Or any character that's not a quote, as this is meant to use into a phrase parser.
@@ -118,12 +143,96 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_query_parser() {
+        let p = query_parser();
+        assert_eq!(
+            p.parse("name:abc").output(),
+            Some(&Query::Atom(
+                "name".to_string(),
+                Operator::Colon,
+                FieldValue::Term("abc".into())
+            ))
+        );
+
+        assert_eq!(
+            p.parse("name:abc AND price<=123").output(),
+            Some(&Query::And(
+                Box::new(Query::Atom(
+                    "name".to_string(),
+                    Operator::Colon,
+                    FieldValue::Term("abc".into())
+                )),
+                Box::new(Query::Atom(
+                    "price".to_string(),
+                    Operator::Le,
+                    FieldValue::Integer(123)
+                ))
+            ))
+        );
+
+        assert_eq!(
+            p.parse("name:abc AND price<=123 OR colour:blue*").output(),
+            Some(&Query::Or(
+                Box::new(Query::And(
+                    Box::new(Query::Atom(
+                        "name".to_string(),
+                        Operator::Colon,
+                        FieldValue::Term("abc".into())
+                    )),
+                    Box::new(Query::Atom(
+                        "price".to_string(),
+                        Operator::Le,
+                        FieldValue::Integer(123)
+                    ))
+                )),
+                Box::new(Query::Atom(
+                    "colour".to_string(),
+                    Operator::Colon,
+                    FieldValue::Prefix("blue".into())
+                ))
+            ))
+        );
+    }
+
+    #[test]
+    fn test_atom_parser() {
+        let p = atom_parser();
+        assert_eq!(
+            p.parse("  name:abc  ").output(),
+            Some(&Query::Atom(
+                "name".to_string(),
+                Operator::Colon,
+                FieldValue::Term("abc".to_string())
+            ))
+        );
+
+        assert_eq!(
+            p.parse("  price <= 123  ").output(),
+            Some(&Query::Atom(
+                "price".to_string(),
+                Operator::Le,
+                FieldValue::Integer(123)
+            ))
+        );
+
+        assert_eq!(
+            p.parse("  price<=123  ").output(),
+            Some(&Query::Atom(
+                "price".to_string(),
+                Operator::Le,
+                FieldValue::Integer(123)
+            ))
+        );
+    }
+
+    #[test]
     fn test_identifier_parser() {
         let p = identifier_parser();
         assert_eq!(p.parse("abcd").output(), Some(&"abcd".to_string()));
         assert_eq!(p.parse("ab.cd").output(), Some(&"ab.cd".to_string()));
         assert_eq!(p.parse("ab_cd").output(), Some(&"ab_cd".to_string()));
         assert_eq!(p.parse("ab-cd-").output(), Some(&"ab-cd-".to_string()));
+        assert_eq!(p.parse("ab-cd-<").output(), None);
     }
 
     #[test]
