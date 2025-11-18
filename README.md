@@ -46,20 +46,26 @@ Percolators usually exist as part of more general search products, like Lucene.
 
 - Full text search. For instance this does not contain any document body tokenizing.
 
-# Examples
 
-## Basic usage
+# Usage
 
-In this first example, we build a set of queries and check documents
+In the first example test, we build a set of queries and check documents
 will yield matching queries.
+
+
+This supports query parsing for each query building user inputs via the `FromStr` trait.
+
+You'll find some query syntax examples in the second example test. Use parenthesis to override classic
+boolean operators precedence.
+
+
+# Example
 
 ```rust
 use mokaccino::prelude::*;
 
-#[test]
 fn test_percolator() {
     let mut p = Percolator::default();
-
     let q: Vec<Qid> = vec![
         p.add_query("A".has_value("a")),                         //0
         p.add_query("A".has_value("a") | "B".has_value("b")),    //1
@@ -138,40 +144,33 @@ fn test_percolator() {
             .collect::<Vec<_>>(),
         vec![q[0], q[1], q[2], q[4]]
     );
+
 }
-```
 
-## Query parsing
-
-This supports query parsing for each query building user inputs via the `FromStr` trait.
-
-You'll find some syntax examples below. Use parenthesis to override classic
-boolean operators precedence.
-
-```rust
-use mokaccino::prelude::*;
-
-#[test]
-fn query_parsing() {
-    fn p(s: &str) -> Query{
+fn test_query_parsing(){
+    // Query parsing test
+    fn ps(s: &str) -> Query{
         s.parse().unwrap()
     }
-    assert_eq!(p("A:a"), "A".has_value("a"));
-    assert_eq!(p("A:a OR B:b"), "A".has_value("a") | "B".has_value("b"));
-    assert_eq!(p("A:a AND B:b"), "A".has_value("a") & "B".has_value("b"));
-    assert_eq!(p("NOT A:a"), !"A".has_value("a"));
-    assert_eq!(p("NOT A:\"a a a\" OR B:b"), (!"A".has_value("a a a")) | "B".has_value("b"));
-    assert_eq!(p("NOT A:b AND B:b"), !"A".has_value("a") & "B".has_value("b"));
-    assert_eq!(p("NOT A:a AND A:a"), !"A".has_value("a") & "A".has_value("a"));
-    assert_eq!(p("C:multi*"), "C".has_prefix("multi"));
-    assert_eq!(p("C:\"mul \\\"ti\"* AND NOT C:multimeter"), "C".has_prefix("mul \"ti") & !"C".has_value("multimeter"));
-    assert_eq!(p("P:\"\"*"), "P".has_prefix(""));
-    assert_eq!(p("L<1000"), "L".i64_lt(1000));
-    assert_eq!(p("L<=1000"), "L".i64_le(1000));
-    assert_eq!(p("L==1000"), "L".i64_eq(1000));
-    assert_eq!(p("L>=1000"), "L".i64_ge(1000));
-    assert_eq!(p("L>1000"), "L".i64_gt(1000));
+    assert_eq!(ps("A:a"), "A".has_value("a"));
+    assert_eq!(ps("A:a OR B:b"), "A".has_value("a") | "B".has_value("b"));
+    assert_eq!(ps("A:a AND B:b"), "A".has_value("a") & "B".has_value("b"));
+    assert_eq!(ps("NOT A:a"), !"A".has_value("a"));
+    assert_eq!(ps("NOT A:\"a a a\" OR B:b"), (!"A".has_value("a a a")) | "B".has_value("b"));
+    assert_eq!(ps("NOT A:a AND B:b"), !"A".has_value("a") & "B".has_value("b"));
+    assert_eq!(ps("NOT A:a AND A:a"), !"A".has_value("a") & "A".has_value("a"));
+    assert_eq!(ps("C:multi*"), "C".has_prefix("multi"));
+    assert_eq!(ps("C:\"mul \\\"ti\"* AND NOT C:multimeter"), "C".has_prefix("mul \"ti") & !"C".has_value("multimeter"));
+    assert_eq!(ps("P:\"\"*"), "P".has_prefix(""));
+    assert_eq!(ps("L<1000"), "L".i64_lt(1000));
+    assert_eq!(ps("L<=1000"), "L".i64_le(1000));
+    assert_eq!(ps("L=1000"), "L".i64_eq(1000));
+    assert_eq!(ps("L>=1000"), "L".i64_ge(1000));
+    assert_eq!(ps("L>1000"), "L".i64_gt(1000));
 }
+
+test_percolator();
+test_query_parsing();
 
 ```
 
