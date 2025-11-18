@@ -28,23 +28,23 @@ Percolators usually exist as part of more general search products, like Lucene.
 
 - Performance focused.
 
-- Support for any nested boolean queries, including negations.
+- Supports any nested boolean queries, including negations.
 
-- Support for query parsing.
+- Prefix matching queries.
 
-- Support for prefix matching.
+- Integer comparison queries.
 
-- Support for integer comparison queries.
+- Query parsing
 
-- Support for `serde` serialisation/deserialisation (See Feature flags).
+- `serde` serialisation/deserialisation (See Feature flags).
 
-- Support for multithreaded environments (See Feature flags)
+- Multithreaded environments support (See Feature flags)
 
-- Python binding available (see https://pypi.org/project/mokaccino/)
+- [Python binding](https://pypi.org/project/mokaccino/)
 
 # Non-features
 
-- Full text search. For instance this does not contain any document body tokenizing.
+- Full-text search. For instance this does not contain any document body tokenizing.
 
 
 # Usage
@@ -56,7 +56,7 @@ will yield matching queries.
 This supports query parsing for each query building user inputs via the `FromStr` trait.
 
 You'll find some query syntax examples in the second example test. Use parenthesis to override classic
-boolean operators precedence.
+boolean operators' precedence.
 
 
 # Example
