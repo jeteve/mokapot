@@ -96,27 +96,21 @@ fn query_parser<'src>() -> impl Parser<'src, &'src str, Query, MyParseError<'src
 
         // sum has less precedence than product. So flat queries
         // is a sum of products.
-        let sum = product.clone().foldl(
+        product.clone().foldl(
             text::ascii::keyword("OR")
                 .to(Query::Or as fn(_, _) -> _)
                 .then(product)
                 .repeated(),
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
-
-        sum
+        )
     })
     .padded()
 }
 
 fn atom_parser<'src>() -> impl Parser<'src, &'src str, Query, MyParseError<'src>> {
-    let field = identifier_parser();
-    let operator = operator_parser();
-    let value = field_value_parser();
-
-    field
-        .then(operator)
-        .then(value)
+    identifier_parser()
+        .then(operator_parser())
+        .then(field_value_parser())
         .map(|((s, o), v)| Query::Atom(s, o, v))
         .padded()
 }

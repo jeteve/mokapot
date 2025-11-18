@@ -152,7 +152,10 @@ fn test_query_parsing(){
     fn ps(s: &str) -> Query{
         s.parse().unwrap()
     }
+
+    assert!("something".parse::<Query>().is_err());
     assert_eq!(ps("A:a"), "A".has_value("a"));
+    assert_eq!(ps("A:123"), "A".has_value("123"));
     assert_eq!(ps("A:a OR B:b"), "A".has_value("a") | "B".has_value("b"));
     assert_eq!(ps("A:a AND B:b"), "A".has_value("a") & "B".has_value("b"));
     assert_eq!(ps("NOT A:a"), !"A".has_value("a"));
