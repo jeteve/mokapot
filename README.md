@@ -44,7 +44,7 @@ Percolators usually exist as part of more general search products, like Lucene.
 
 # Non-features
 
-- Full-text search. For instance this does not contain any document body tokenizing.
+- Full-text search. For instance, this does not contain any document body tokenizing.
 
 
 # Usage
