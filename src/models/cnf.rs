@@ -15,6 +15,7 @@ use roaring::MultiOps;
 use std::fmt;
 
 mod literal;
+pub mod parsing;
 use literal::*;
 
 use crate::models::types::OurStr;
@@ -142,7 +143,7 @@ impl fmt::Display for Clause {
 ///
 /// See also <https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html>
 ///
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Query(Vec<Clause>);
 impl fmt::Display for Query {
