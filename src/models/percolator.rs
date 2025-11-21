@@ -462,20 +462,12 @@ impl Percolator {
         self.clause_matchers
             .iter()
             .map(|ms| clause_docs_from_idx(&dclause, &ms.positive_index))
-            .reduce_inplace(|acc, b| match (acc.is_empty(), b.is_empty()) {
-                (false, false) => {
-                    // None is empty. do the intersection.
-                    *acc &= b;
-                    false
-                }
-                (false, true) => {
-                    // Second is empty. Just clear the first
-                    acc.clear();
-                    true // And we can stop the reduction
-                }
-                (true, _) => {
-                    // First already empty. Nothing to do.
-                    true // And we can stop the reduction.
+            .reduce_inplace(|acc, b| {
+                if acc.is_empty() {
+                    true // Already empty. Stop the reduction.
+                } else {
+                    *acc &= b; // Not empty. Process and stop the reduction if now empty
+                    acc.is_empty()
                 }
             })
             .unwrap_or(RoaringBitmap::new())
