@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::models::types::{OurStr, OurRc};
+use crate::models::types::{OurRc, OurStr};
 
 use itertools::Itertools;
 use roaring::RoaringBitmap;
@@ -59,7 +59,8 @@ fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
             format!("__INT_LE_{}__{}", cmp_point, oq_field)
         }
         Ordering::GT | Ordering::GE => format!("__INT_GE_{}__{}", cmp_point, oq_field),
-    }.into();
+    }
+    .into();
 
     let expander = move |mut c: Clause| {
         // This clause comes from a document. Find the right field
@@ -72,7 +73,7 @@ fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
             })
             // At this point, we have a parseable integer value
             // from the right field.
-            .filter_map(|iv| 
+            .filter_map(|iv|
                 // Generate the right kind of match
                 match oq_ord {
                     // The query is LE or LT or EQ, we need to use LE
@@ -83,8 +84,7 @@ fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
                     Ordering::GT | Ordering::GE if iv >= cmp_point => Some(indexed_name.clone()),
                     _ => None,
                 })
-            .map(|indexed_name| TermQuery::new(indexed_name, "true")
-            )
+            .map(|indexed_name| TermQuery::new(indexed_name, "true"))
             .map(|q| Literal::new(false, LitQuery::Term(q)))
             .collect_vec();
 
@@ -137,6 +137,17 @@ pub(crate) enum LitQuery {
 }
 
 impl LitQuery {
+    /// Returns the cost of this LitQuery
+    /// Term queries are cheap
+    /// Prefix and IntQuery are expansive
+    fn cost(&self) -> u32 {
+        match self {
+            LitQuery::Term(_) => 10,
+            LitQuery::Prefix(_) => 1000,   // Will have some preheating
+            LitQuery::IntQuery(_) => 1000, // Will have some preheating
+        }
+    }
+
     // Simple delegation.
     fn matches(&self, d: &Document) -> bool {
         match self {
@@ -225,6 +236,14 @@ pub(crate) struct Literal {
 impl Literal {
     pub(crate) fn new(negated: bool, query: LitQuery) -> Self {
         Self { negated, query }
+    }
+
+    pub(crate) fn cost(&self) -> u32 {
+        if self.is_negated() {
+            100000 // Highest cost.
+        } else {
+            self.query.cost()
+        }
     }
 
     pub(crate) fn query(&self) -> &LitQuery {

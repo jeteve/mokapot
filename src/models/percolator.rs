@@ -46,11 +46,14 @@ fn clause_to_mi(c: &Clause, conf: &PercolatorConfig) -> MatchItem {
         return MatchItem::match_all().with_must_filter();
     }
 
-    let mi = MatchItem::new(lits.clone().fold(Document::default(), |a, l| {
-        let pfvs = l.percolate_doc_field_values(conf);
-        pfvs.into_iter()
-            .fold(a, |a, pfv| a.with_value(pfv.0, pfv.1))
-    }));
+    let mi = MatchItem::new(
+        lits.clone().fold(Document::default(), |a, l| {
+            let pfvs = l.percolate_doc_field_values(conf);
+            pfvs.into_iter()
+                .fold(a, |a, pfv| a.with_value(pfv.0, pfv.1))
+        }),
+        c.cost(),
+    );
 
     // Add the preheaters from the literals
     lits.fold(mi, |mi, li| {
@@ -64,12 +67,13 @@ fn clause_to_mi(c: &Clause, conf: &PercolatorConfig) -> MatchItem {
 
 /*
     From a CNFQuery, The documents that are meant to be indexed in the percolator
+    In order of costs. Cheaper ones first.
 */
-fn cnf_to_matchitems<'a, 'b>(
-    q: &'a Query,
-    conf: &'b PercolatorConfig,
-) -> impl Iterator<Item = MatchItem> + use<'a, 'b> {
-    q.clauses().iter().map(|c| clause_to_mi(c, conf))
+fn cnf_to_matchitems(q: &Query, conf: &PercolatorConfig) -> impl Iterator<Item = MatchItem> {
+    q.clauses()
+        .iter()
+        .map(|c| clause_to_mi(c, conf))
+        .sorted_by_key(|mi| mi.cost)
 }
 
 // A structure to match just one clause.

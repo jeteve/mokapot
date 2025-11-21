@@ -36,6 +36,10 @@ impl Clause {
         }
     }
 
+    pub(crate) fn cost(&self) -> u32 {
+        self.literals.iter().map(|l| l.cost()).sum()
+    }
+
     fn term_queries_iter(&self) -> impl Iterator<Item = &TermQuery> {
         self.literals
             .iter()
