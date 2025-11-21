@@ -45,6 +45,19 @@ fn safe_prefix(s: &str, len: usize) -> std::borrow::Cow<'_, str> {
         ))
 }
 
+/// Create a PreHeater that expands document clauses to indexed integer-comparison terms for an ordered integer query.
+///
+/// The returned `PreHeater` produces synthetic `Term` literals on a generated field (based on the query's field and an adjusted comparison point)
+/// for any integer-valued term in a document that satisfies the query's comparison ordering. The comparison point is adjusted via the
+/// file's Fibonacci-based ceiling/floor helpers so it matches how integer ranges are indexed. The preheater is configured with `must_filter = true`.
+///
+/// # Examples
+///
+/// ```
+/// // Given an ordered integer query `oq`, obtain a preheater that will expand document clauses
+/// // into synthetic indexed integer-comparison terms for percolation indexing.
+/// // let preheater = intcmp_query_preheater(&oq);
+/// ```
 fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
     // ["LT", "EQ", "GT"]
     // synth_field: Rc<str> = format!("__INT_{}_{}__{}", c, oq.cmp_point(), oq.field()).into();
@@ -137,9 +150,14 @@ pub(crate) enum LitQuery {
 }
 
 impl LitQuery {
-    /// Returns the cost of this LitQuery
-    /// Term queries are cheap
-    /// Prefix and IntQuery are expansive
+    /// Compute a heuristic cost used for ranking and preheating decisions for this literal query.
+    ///
+    /// Term queries are assigned a low cost; prefix and integer-comparison queries are assigned a higher cost
+    /// to reflect additional work (e.g., preheating).
+    ///
+    /// # Returns
+    ///
+    /// The cost as a `u32`: `10` for `Term`, `1000` for `Prefix`, and `1000` for `IntQuery`.
     fn cost(&self) -> u32 {
         match self {
             LitQuery::Term(_) => 10,
@@ -149,6 +167,21 @@ impl LitQuery {
     }
 
     // Simple delegation.
+    /// Determine whether the literal query matches the given document.
+    ///
+    /// Delegates to the underlying query variant's matching logic.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the inner query matches `d`, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Assuming `doc` is a `Document` and `lit` is a `LitQuery` (e.g., a Term query):
+    /// // let matched = lit.matches(&doc);
+    /// // assert!(matched == (/* expected result */));
+    /// ```
     fn matches(&self, d: &Document) -> bool {
         match self {
             LitQuery::Term(tq) => tq.matches(d),
@@ -234,10 +267,27 @@ pub(crate) struct Literal {
     query: LitQuery,
 }
 impl Literal {
+    /// Create a new `Literal` that pairs a `LitQuery` with a negation flag.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let q = LitQuery::Term(TermQuery::new("field".into(), "value".into()));
+    /// let lit = Literal::new(true, q);
+    /// assert!(lit.is_negated());
+    /// ```
     pub(crate) fn new(negated: bool, query: LitQuery) -> Self {
         Self { negated, query }
     }
 
+    /// Returns the heuristic cost for this literal used during percolation indexing.
+    ///
+    /// If the literal is negated, returns a very high cost to deprioritize it; otherwise
+    /// returns the cost of the contained query.
+    ///
+    /// # Returns
+    ///
+    /// `u32` cost value: `100000` for negated literals, otherwise the inner query's cost.
     pub(crate) fn cost(&self) -> u32 {
         if self.is_negated() {
             100000 // Highest cost.
@@ -246,6 +296,11 @@ impl Literal {
         }
     }
 
+    /// Returns a reference to the inner `LitQuery`.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the contained `LitQuery`.
     pub(crate) fn query(&self) -> &LitQuery {
         &self.query
     }

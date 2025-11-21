@@ -35,6 +35,21 @@ pub(crate) fn clause_docs_from_idx(c: &Clause, index: &Index) -> RoaringBitmap {
 }
 
 // For indexing clauses.
+/// Converts a CNF clause into a percolator `MatchItem`.
+///
+/// If any literal in the clause is negated, returns a `MatchItem` that matches all documents
+/// and is marked with `must_filter`. Otherwise constructs a `MatchItem` whose document
+/// contains the percolation field values extracted from each literal, sets the clause cost
+/// on the `MatchItem`, and attaches any preheaters provided by literals.
+///
+/// # Examples
+///
+/// ```
+/// // Given a Clause `c` and a PercolatorConfig `conf`:
+/// let mi = clause_to_mi(&c, &conf);
+/// // `mi` is now ready to be indexed into the percolator (or inspected).
+/// let _ = mi;
+/// ```
 fn clause_to_mi(c: &Clause, conf: &PercolatorConfig) -> MatchItem {
     let lits = c.literals().iter();
 
@@ -69,6 +84,17 @@ fn clause_to_mi(c: &Clause, conf: &PercolatorConfig) -> MatchItem {
     From a CNFQuery, The documents that are meant to be indexed in the percolator
     In order of costs. Cheaper ones first.
 */
+/// Produce MatchItem objects for each clause in a CNF query, ordered by increasing cost.
+///
+/// Converts every clause of `q` into a `MatchItem` using the percolator configuration
+/// `conf` and yields an iterator sorted by `MatchItem::cost` (cheapest first).
+///
+/// # Examples
+///
+/// ```
+/// // Given a query `q` and configuration `conf`:
+/// let items = cnf_to_matchitems(&q, &conf).collect::<Vec<_>>();
+/// ```
 fn cnf_to_matchitems(q: &Query, conf: &PercolatorConfig) -> impl Iterator<Item = MatchItem> {
     q.clauses()
         .iter()
@@ -446,6 +472,22 @@ impl Percolator {
     }
 
     // Get a RoaringBitMap from the document, using the clause matchers.
+    /// Compute the set of stored query document IDs that the given document can match.
+    ///
+    /// The document is converted to a clause (with an implicit `match_all` term), then each
+    /// configured preheater is applied to expand that clause. Each clause matcher produces a
+    /// bitmap of queries whose indexed clause documents match the expanded clause; the method
+    /// returns the intersection of those bitmaps (short-circuiting if the accumulator becomes empty).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let p = Percolator::default();
+    /// let d = Document::new();
+    /// let bs = p.bs_from_document(&d);
+    /// // with no indexed queries the result is empty
+    /// assert!(bs.is_empty());
+    /// ```
     fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
         // This is where the magic happens.
         let mut dclause = d.to_clause();

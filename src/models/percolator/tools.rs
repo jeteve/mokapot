@@ -58,6 +58,19 @@ pub(crate) struct MatchItem {
 }
 
 impl MatchItem {
+    /// Creates a new `MatchItem` from a document and a cost.
+    ///
+    /// The returned item has no preheaters and `must_filter` initialized to `false`. The `cost` parameter sets the item's cost used for ranking or selection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let doc = Document::match_all();
+    /// let item = MatchItem::new(doc, 42);
+    /// assert_eq!(item.cost, 42);
+    /// assert!(!item.must_filter);
+    /// assert!(item.preheaters.is_empty());
+    /// ```
     pub(crate) fn new(doc: Document, cost: u32) -> Self {
         MatchItem {
             doc,
@@ -67,16 +80,52 @@ impl MatchItem {
         }
     }
 
+    /// Appends a `PreHeater` to this `MatchItem`'s list of preheaters and returns the modified item.
+    ///
+    /// # Parameters
+    ///
+    /// - `ph`: The `PreHeater` to append.
+    ///
+    /// # Returns
+    ///
+    /// The updated `MatchItem` with `ph` appended to its `preheaters`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// let item = MatchItem::new(Document::match_all(), 10000);
+    /// let ph = /* construct a PreHeater */ unimplemented!();
+    /// let item = item.with_preheater(ph);
+    /// ```
     pub(crate) fn with_preheater(mut self, ph: PreHeater) -> Self {
         self.preheaters.push(ph);
         self
     }
 
+    /// Creates a MatchItem that matches any document.
+    ///
+    /// The returned item is an expansive "match all" entry and is constructed with a high cost.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let _item = MatchItem::match_all();
+    /// ```
     pub(crate) fn match_all() -> Self {
         // A match all is expansive
         Self::new(Document::match_all(), 10000)
     }
 
+    /// Mark the `MatchItem` as requiring filtering and return the modified item.
+    ///
+    /// This sets the internal `must_filter` flag to `true` on the receiver and yields the updated `MatchItem`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let item = MatchItem::new(Document::match_all(), 10000).with_must_filter();
+    /// assert!(item.must_filter);
+    /// ```
     pub(crate) fn with_must_filter(mut self) -> Self {
         self.must_filter = true;
         self

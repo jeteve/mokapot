@@ -27,6 +27,16 @@ pub struct Clause {
 }
 
 impl Clause {
+    /// Create a Clause that contains each provided TermQuery wrapped as a non-negated literal.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // construct one or more TermQuery values appropriate for your codebase
+    /// let tq = TermQuery::new("title", "rust");
+    /// let clause = Clause::from_termqueries(vec![tq]);
+    /// assert_eq!(clause.literals().len(), 1);
+    /// ```
     pub(crate) fn from_termqueries(ts: Vec<TermQuery>) -> Self {
         Self {
             literals: ts
@@ -36,10 +46,37 @@ impl Clause {
         }
     }
 
+    /// Compute the total cost of the clause by summing the costs of its literals.
+    ///
+    /// # Returns
+    ///
+    /// `u32` total cost of all literals in the clause.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::models::cnf::Clause;
+    /// use crate::models::term::TermQuery;
+    ///
+    /// let clause = Clause::from_termqueries(vec![TermQuery::new("title", "rust")]);
+    /// let total = clause.cost();
+    /// assert!(total >= 0);
+    /// ```
     pub(crate) fn cost(&self) -> u32 {
         self.literals.iter().map(|l| l.cost()).sum()
     }
 
+    /// Iterates over the `TermQuery` instances embedded in this clause's literals.
+    ///
+    /// Returns an iterator that yields references to each `TermQuery` found among the clause's literals,
+    /// in the same order the literals are stored.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let clause = Clause::from_termqueries(Vec::new());
+    /// assert_eq!(clause.term_queries_iter().count(), 0);
+    /// ```
     fn term_queries_iter(&self) -> impl Iterator<Item = &TermQuery> {
         self.literals
             .iter()

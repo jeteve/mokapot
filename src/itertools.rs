@@ -15,6 +15,29 @@ pub(crate) trait TheShwartz: Iterator + Sized {
 pub(crate) trait InPlaceReduce: Iterator + Sized {
     // The closure it takes should return true if it wants to stop
     // reducing.
+    /// Reduces the iterator by folding subsequent items into its first element, updating that element in place.
+    ///
+    /// The provided closure is called for each remaining item with a mutable reference to the accumulator (the first item)
+    /// and a reference to the next item. If the closure returns `true`, reduction stops early and the current accumulator is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use your_crate::InPlaceReduce; // adjust path as needed
+    ///
+    /// let v = vec![1, 2, 3];
+    /// let sum = v.into_iter()
+    ///     .reduce_inplace(|acc, next| { *acc += *next; false })
+    ///     .unwrap();
+    /// assert_eq!(sum, 6);
+    ///
+    /// // Early stop: stop when accumulator reaches or exceeds 3
+    /// let v = vec![1, 2, 3, 4];
+    /// let partial = v.into_iter()
+    ///     .reduce_inplace(|acc, next| { *acc += *next; *acc >= 3 })
+    ///     .unwrap();
+    /// assert!(partial >= 3);
+    /// ```
     fn reduce_inplace<F>(mut self, mut f: F) -> Option<<Self as Iterator>::Item>
     where
         F: FnMut(&mut <Self as Iterator>::Item, &<Self as Iterator>::Item) -> bool,
