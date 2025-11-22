@@ -54,14 +54,16 @@ pub(crate) struct MatchItem {
     pub(crate) must_filter: bool,
     pub(crate) doc: Document,
     pub(crate) preheaters: Vec<PreHeater>,
+    pub(crate) cost: u32,
 }
 
 impl MatchItem {
-    pub(crate) fn new(doc: Document) -> Self {
+    pub(crate) fn new(doc: Document, cost: u32) -> Self {
         MatchItem {
             doc,
             must_filter: false,
             preheaters: vec![],
+            cost,
         }
     }
 
@@ -71,7 +73,8 @@ impl MatchItem {
     }
 
     pub(crate) fn match_all() -> Self {
-        Self::new(Document::match_all())
+        // A match all is expansive
+        Self::new(Document::match_all(), 10000)
     }
 
     pub(crate) fn with_must_filter(mut self) -> Self {

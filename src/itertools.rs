@@ -13,16 +13,20 @@ pub(crate) trait TheShwartz: Iterator + Sized {
 }
 
 pub(crate) trait InPlaceReduce: Iterator + Sized {
+    // The closure it takes should return true if it wants to stop
+    // reducing.
     fn reduce_inplace<F>(mut self, mut f: F) -> Option<<Self as Iterator>::Item>
     where
-        F: FnMut(&mut <Self as Iterator>::Item, &<Self as Iterator>::Item),
+        F: FnMut(&mut <Self as Iterator>::Item, &<Self as Iterator>::Item) -> bool,
     {
         match self.next() {
             Some(mut i) => {
-                self.for_each(|e| f(&mut i, &e));
+                // This iterator has a first item. Consume the rest,
+                // stopping the computation
+                self.any(|e| f(&mut i, &e));
                 Some(i)
             }
-            _ => None,
+            _ => None, // This iterator did not have any items.
         }
     }
 }
@@ -143,7 +147,10 @@ mod test_itertools {
     fn test_inplace_reduce() {
         use super::InPlaceReduce;
 
-        let sum_all = |a: &mut i32, i: &i32| *a += i;
+        let sum_all = |a: &mut i32, i: &i32| {
+            *a += i;
+            false
+        };
 
         let vs: Vec<i32> = vec![];
         assert_eq!(vs.into_iter().reduce_inplace(sum_all), None);
