@@ -10,7 +10,7 @@
 				"github.vscode-github-actions"
 			]
 		}
-	}
+	},
 
 	// Use 'mounts' to make the cargo cache persistent in a Docker Volume.
 	// "mounts": [
@@ -22,8 +22,10 @@
 	// ]
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
-	// "features": {},
-
+	"features": {
+        "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {}
+    }
+	
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 
