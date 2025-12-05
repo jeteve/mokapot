@@ -34,7 +34,7 @@ impl H3InsideQuery {
 
 // Free function to test a string from a potential string CellIndex to
 // a parent.
-fn has_parent(cell_str: &OurRc<str>, parent: CellIndex) -> bool {
+fn _has_parent(cell_str: &OurRc<str>, parent: CellIndex) -> bool {
     cell_str.as_ref().parse::<CellIndex>().is_ok_and(|cell| {
         cell.parent(parent.resolution())
             .is_some_and(|ancestor| ancestor.eq(&parent))
@@ -45,7 +45,7 @@ impl DocMatcher for H3InsideQuery {
     /// Does this match the document?
     fn matches(&self, d: &Document) -> bool {
         d.values_iter(&self.field)
-            .is_some_and(|mut i| i.any(|v| has_parent(&v, self.cell())))
+            .is_some_and(|mut i| i.any(|v| _has_parent(&v, self.cell())))
     }
 }
 
@@ -73,22 +73,22 @@ mod test_prefix {
     fn test_has_parent() {
         // Find some examples there:
         // https://observablehq.com/@nrabinowitz/h3-index-inspector?collection=@nrabinowitz/h3
-        assert!(has_parent(
+        assert!(_has_parent(
             &"87194d106ffffff".into(),
             "87194d106ffffff".parse::<CellIndex>().unwrap()
         ));
-        assert!(!has_parent(
+        assert!(!_has_parent(
             &"sausage".into(),
             "87194d106ffffff".parse::<CellIndex>().unwrap()
         ));
 
-        assert!(has_parent(
+        assert!(_has_parent(
             &"87194d106ffffff".into(),
             "86194d107ffffff".parse::<CellIndex>().unwrap()
         ));
 
         // But not the other way around:
-        assert!(!has_parent(
+        assert!(!_has_parent(
             &"86194d107ffffff".into(),
             "87194d106ffffff".parse::<CellIndex>().unwrap()
         ));
