@@ -1,3 +1,5 @@
+use std::fmt::{self, Display};
+
 use h3o::CellIndex;
 
 use crate::{
@@ -10,6 +12,12 @@ use crate::{
 pub(crate) struct H3InsideQuery {
     field: OurStr,
     cell: CellIndex,
+}
+
+impl Display for H3InsideQuery {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}=H3IN={}", self.field(), self.cell())
+    }
 }
 
 impl H3InsideQuery {
@@ -32,8 +40,8 @@ impl H3InsideQuery {
     }
 }
 
-// Free function to test a string from a potential string CellIndex to
-// a parent.
+/// Free function to test a string from a potential string CellIndex to
+/// a parent.
 fn _has_parent(cell_str: &OurRc<str>, parent: CellIndex) -> bool {
     cell_str.as_ref().parse::<CellIndex>().is_ok_and(|cell| {
         cell.parent(parent.resolution())

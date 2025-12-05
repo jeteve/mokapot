@@ -3,7 +3,10 @@ use std::{
     str::FromStr,
 };
 
-use crate::models::types::{OurRc, OurStr};
+use crate::models::{
+    queries::h3_inside::H3InsideQuery,
+    types::{OurRc, OurStr},
+};
 
 use itertools::Itertools;
 use roaring::RoaringBitmap;
@@ -134,6 +137,7 @@ pub(crate) enum LitQuery {
     Term(TermQuery),
     Prefix(PrefixQuery),
     IntQuery(I64Query),
+    H3Inside(H3InsideQuery),
 }
 
 impl LitQuery {
@@ -145,6 +149,7 @@ impl LitQuery {
             LitQuery::Term(_) => 10,
             LitQuery::Prefix(_) => 1000,   // Will have some preheating
             LitQuery::IntQuery(_) => 1000, // Will have some preheating
+            LitQuery::H3Inside(_) => 1000, // Will have some preheating, but faster than others.
         }
     }
 
@@ -154,6 +159,7 @@ impl LitQuery {
             LitQuery::Term(tq) => tq.matches(d),
             LitQuery::Prefix(pq) => pq.matches(d),
             LitQuery::IntQuery(oq) => oq.matches(d),
+            LitQuery::H3Inside(h3i) => h3i.matches(d),
         }
     }
 
@@ -177,6 +183,7 @@ impl LitQuery {
             LitQuery::Term(tq) => tq.field(),
             LitQuery::Prefix(pq) => pq.field(),
             LitQuery::IntQuery(oq) => oq.field(),
+            LitQuery::H3Inside(h3i) => h3i.field(),
         }
     }
 
@@ -186,6 +193,7 @@ impl LitQuery {
             LitQuery::Term(tq) => tq.term(),
             LitQuery::Prefix(pq) => pq.prefix(),
             LitQuery::IntQuery(oq) => oq.cmp_point().to_string().into(),
+            LitQuery::H3Inside(h3i) => h3i.cell().to_string().into(),
         }
     }
 }
@@ -196,8 +204,17 @@ impl fmt::Display for LitQuery {
             LitQuery::Term(tq) => write!(f, "{}={}", tq.field(), tq.term()),
             LitQuery::Prefix(pq) => write!(f, "{}={}*", pq.field(), pq.prefix()),
             LitQuery::IntQuery(oq) => oq.fmt(f),
+            LitQuery::H3Inside(h3i) => h3i.fmt(f),
         }
     }
+}
+
+fn h3i_to_fvs(h3i: &H3InsideQuery) -> Vec<(OurStr, OurStr)> {
+    let cell = h3i.cell();
+    vec![(
+        format!("__H3_IN_{}_{}", h3i.field(), cell.resolution()).into(),
+        cell.to_string().into(),
+    )]
 }
 
 // Turns an ordered query into a vector of field/values
@@ -283,6 +300,7 @@ impl Literal {
                 )]
             }
             LitQuery::IntQuery(oq) => oq_to_fvs(oq),
+            LitQuery::H3Inside(h3i) => h3i_to_fvs(h3i),
         }
     }
 

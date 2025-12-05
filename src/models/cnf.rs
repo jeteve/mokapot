@@ -9,6 +9,7 @@ use crate::models::{
 };
 
 //use fixedbitset::FixedBitSet;
+use h3o::CellIndex;
 use itertools::Itertools;
 use roaring::MultiOps;
 
@@ -273,6 +274,9 @@ pub trait CNFQueryable: Into<OurStr> {
     /// A Query where `"field".has_prefix("/some/prefix")`
     fn has_prefix<T: Into<OurStr>>(self, v: T) -> Query;
 
+    
+    fn h3in<U: Into<CellIndex>>(self, cell: U) -> Query;
+
     /// A query where the field can represents a signed integer
     /// that has a value strictly lower than `v`.
     fn i64_lt(self, v: i64) -> Query;
@@ -302,6 +306,10 @@ where
     fn has_prefix<U: Into<OurStr>>(self, v: U) -> Query {
         let pq = PrefixQuery::new(self, v);
         Query::from_prefixquery(pq)
+    }
+
+    fn h3in<U: Into<CellIndex>>(self, cell: U) -> Query {
+        todo!()
     }
 
     fn i64_lt(self, v: i64) -> Query {
