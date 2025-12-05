@@ -2,6 +2,7 @@ use crate::models::{
     document::Document,
     index::{DocId, Index},
     queries::{
+        h3_inside::H3InsideQuery,
         ordered::{OrderedQuery, Ordering},
         prefix::PrefixQuery,
         term::TermQuery,
@@ -274,8 +275,7 @@ pub trait CNFQueryable: Into<OurStr> {
     /// A Query where `"field".has_prefix("/some/prefix")`
     fn has_prefix<T: Into<OurStr>>(self, v: T) -> Query;
 
-    
-    fn h3in<U: Into<CellIndex>>(self, cell: U) -> Query;
+    fn h3in(self, cell: CellIndex) -> Query;
 
     /// A query where the field can represents a signed integer
     /// that has a value strictly lower than `v`.
@@ -308,8 +308,9 @@ where
         Query::from_prefixquery(pq)
     }
 
-    fn h3in<U: Into<CellIndex>>(self, cell: U) -> Query {
-        todo!()
+    fn h3in(self, cell: CellIndex) -> Query {
+        let q = H3InsideQuery::new(self, cell);
+        Query::from_literal(Literal::new(false, LitQuery::H3Inside(q)))
     }
 
     fn i64_lt(self, v: i64) -> Query {
