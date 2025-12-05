@@ -275,6 +275,9 @@ pub trait CNFQueryable: Into<OurStr> {
     /// A Query where `"field".has_prefix("/some/prefix")`
     fn has_prefix<T: Into<OurStr>>(self, v: T) -> Query;
 
+    /// A Query where the field represents an H3 cell index
+    /// that is contained within the given `cell`.
+    /// Use this for geographic queries.
     fn h3in(self, cell: CellIndex) -> Query;
 
     /// A query where the field can represents a signed integer

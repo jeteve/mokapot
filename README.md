@@ -244,6 +244,18 @@ Using the `serde` feature, you can serialise the percolator for later deserialis
 
 The Query IDs  (`Qid`s)will of course stay the same accross serialising/deserialising cycles.
 
+## Geographic Queries
+
+mokaccino supports geographic queries through the H3 hexagonal hierarchical spatial index system. Geographic queries allow you to match documents based on their location within a specific H3 cell. This is particularly useful for location-based alerting and geofencing applications.
+
+When querying, you specify an H3 CellIndex that defines a geographic region, and documents are matched if their location falls within that region or any of its child cells in the H3 hierarchy. This enables efficient spatial queries at any resolution level, from large regions down to very precise locations. For example, the query `"location".h3in("861f09b27ffffff".parse::<CellIndex>().unwrap())` will match any document whose location is within or contained by the specified H3 cell.
+
+Alternatively, the query parser also support this via the syntax: `location H3IN 861f09b27ffffff`.
+
+You can build any shape you like by building geo queries disjunctions, or using negations to make holes in your shape.
+
+Reference: https://h3geo.org/
+
 # Configuration optimisation
 
 This comes with some printable statistics to help you decide on what parameters are best suited to
