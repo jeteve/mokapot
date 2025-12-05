@@ -60,6 +60,7 @@ mod test_h3_inside {
     #[test]
     fn test_doc_matching() {
         let q = H3InsideQuery::new("location", "87194d106ffffff".parse::<CellIndex>().unwrap());
+        assert!(q.field().eq(&"location".into()));
         assert!(!q.matches(&Document::default()));
         assert!(!q.matches(&[("some", "thing")].into()));
         assert!(!q.matches(&[("field", "pr")].into()));
