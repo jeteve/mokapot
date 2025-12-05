@@ -26,7 +26,7 @@ impl H3InsideQuery {
         self.field.clone()
     }
 
-    /// The prefix
+    /// The H3 CellIndex
     pub(crate) fn cell(&self) -> CellIndex {
         self.cell
     }
