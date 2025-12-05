@@ -198,6 +198,15 @@ mod tests {
         );
 
         assert_eq!(
+            p.parse("location H3IN 1234").output(),
+            Some(&Query::Atom(
+                "location".to_string(),
+                Operator::H3Inside,
+                FieldValue::Integer(1234)
+            ))
+        );
+
+        assert_eq!(
             p.parse("name:abc").output(),
             Some(&Query::Atom(
                 "name".to_string(),
@@ -213,6 +222,15 @@ mod tests {
                 .to_cnf()
                 .to_string(),
             "(AND (OR location=abc))"
+        );
+
+        assert_eq!(
+            p.parse("location H3IN 1234")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR location=1234))"
         );
 
         assert_eq!(
