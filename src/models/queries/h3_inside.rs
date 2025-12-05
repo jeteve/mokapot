@@ -50,7 +50,7 @@ impl DocMatcher for H3InsideQuery {
 }
 
 #[cfg(test)]
-mod test_prefix {
+mod test_h3_inside {
     use h3o::CellIndex;
 
     use crate::prelude::Document;
