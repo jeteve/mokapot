@@ -3,8 +3,12 @@ use std::{
     str::FromStr,
 };
 
-use crate::models::types::{OurRc, OurStr};
+use crate::models::{
+    queries::h3_inside::H3InsideQuery,
+    types::{OurRc, OurStr},
+};
 
+use h3o::CellIndex;
 use itertools::Itertools;
 use roaring::RoaringBitmap;
 
@@ -45,6 +49,41 @@ fn safe_prefix(s: &str, len: usize) -> std::borrow::Cow<'_, str> {
         ))
 }
 
+fn h3in_query_preheater(h3i: &H3InsideQuery) -> PreHeater {
+    let qfield = h3i.field();
+    let qcell = h3i.cell();
+
+    // The expander looks at each of the litteral values of the clause
+    // for the field and adds the new Term litterals
+    // to match the __H3IN_.. indexed field at the right resolution.
+    let expander = move |mut c: Clause| {
+        let litfield: OurStr = format!("__H3_IN_{}_{}", qfield, qcell.resolution()).into();
+        let new_literals = c
+            .term_queries_iter()
+            // Filter the right field
+            // and parse term to CellIndex
+            .filter_map(|tq| {
+                (tq.field() == qfield)
+                    .then_some(tq.term())
+                    .and_then(|v| v.parse::<CellIndex>().ok())
+            })
+            // Then upgrade the cell to the resolution of the potential parent
+            .filter_map(|ci| ci.parent(qcell.resolution()))
+            // Then make a new Term query with the right format
+            .map(|upgraded_ci| TermQuery::new(litfield.clone(), upgraded_ci.to_string()))
+            .map(|q| Literal::new(false, LitQuery::Term(q)))
+            .collect_vec();
+
+        c.append_literals(new_literals);
+        c
+    };
+
+    let id_preheater = format!("H3IN_{}__{}", h3i.field(), qcell.resolution()).into();
+
+    PreHeater::new(id_preheater, ClauseExpander::new(OurRc::new(expander))).with_must_filter(false)
+}
+
+// Preheater for interger comparison queries.
 fn intcmp_query_preheater(oq: &I64Query) -> PreHeater {
     // ["LT", "EQ", "GT"]
     // synth_field: Rc<str> = format!("__INT_{}_{}__{}", c, oq.cmp_point(), oq.field()).into();
@@ -134,6 +173,7 @@ pub(crate) enum LitQuery {
     Term(TermQuery),
     Prefix(PrefixQuery),
     IntQuery(I64Query),
+    H3Inside(H3InsideQuery),
 }
 
 impl LitQuery {
@@ -145,6 +185,7 @@ impl LitQuery {
             LitQuery::Term(_) => 10,
             LitQuery::Prefix(_) => 1000,   // Will have some preheating
             LitQuery::IntQuery(_) => 1000, // Will have some preheating
+            LitQuery::H3Inside(_) => 1000, // Will have some preheating, but faster than others.
         }
     }
 
@@ -154,6 +195,7 @@ impl LitQuery {
             LitQuery::Term(tq) => tq.matches(d),
             LitQuery::Prefix(pq) => pq.matches(d),
             LitQuery::IntQuery(oq) => oq.matches(d),
+            LitQuery::H3Inside(h3i) => h3i.matches(d),
         }
     }
 
@@ -177,6 +219,7 @@ impl LitQuery {
             LitQuery::Term(tq) => tq.field(),
             LitQuery::Prefix(pq) => pq.field(),
             LitQuery::IntQuery(oq) => oq.field(),
+            LitQuery::H3Inside(h3i) => h3i.field(),
         }
     }
 
@@ -186,6 +229,7 @@ impl LitQuery {
             LitQuery::Term(tq) => tq.term(),
             LitQuery::Prefix(pq) => pq.prefix(),
             LitQuery::IntQuery(oq) => oq.cmp_point().to_string().into(),
+            LitQuery::H3Inside(h3i) => h3i.cell().to_string().into(),
         }
     }
 }
@@ -196,8 +240,22 @@ impl fmt::Display for LitQuery {
             LitQuery::Term(tq) => write!(f, "{}={}", tq.field(), tq.term()),
             LitQuery::Prefix(pq) => write!(f, "{}={}*", pq.field(), pq.prefix()),
             LitQuery::IntQuery(oq) => oq.fmt(f),
+            LitQuery::H3Inside(h3i) => h3i.fmt(f),
         }
     }
+}
+
+// Turns an H3Inside query into a vector of indexed
+// fields.
+fn h3i_to_fvs(h3i: &H3InsideQuery) -> Vec<(OurStr, OurStr)> {
+    let cell = h3i.cell();
+    vec![(
+        // We need the field and the resolution,
+        // as we will preheat with the resolution.
+        format!("__H3_IN_{}_{}", h3i.field(), cell.resolution()).into(),
+        // And the value is simply the cell at the resolution.
+        cell.to_string().into(),
+    )]
 }
 
 // Turns an ordered query into a vector of field/values
@@ -283,6 +341,7 @@ impl Literal {
                 )]
             }
             LitQuery::IntQuery(oq) => oq_to_fvs(oq),
+            LitQuery::H3Inside(h3i) => h3i_to_fvs(h3i),
         }
     }
 
@@ -290,6 +349,7 @@ impl Literal {
         match &self.query {
             LitQuery::Prefix(pq) => Some(prefix_query_preheater(config.prefix_sizes(), pq)),
             LitQuery::IntQuery(oq) => Some(intcmp_query_preheater(oq)),
+            LitQuery::H3Inside(h3i) => Some(h3in_query_preheater(h3i)),
             _ => None,
         }
     }

@@ -56,7 +56,48 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         p.add_query("W".i64_le(10)),                             // 13
         p.add_query("W".i64_ge(2000)),                           // 14
         p.add_query("W".i64_eq(12345)),                          // 15
+        p.add_query("position".h3in("871f09b20ffffff".parse().unwrap())), // 16 something in gdansk old town
     ];
+
+    assert_eq!(
+        // Invalid position.. Cannot be matched against a h3 CellIndex
+        p.percolate(&[("position", "bla")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
+
+    assert_eq!(
+        // Valid position equal to the cell index
+        p.percolate(&[("position", "871f09b20ffffff")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4], q[16]]
+    );
+
+    assert_eq!(
+        // Valid position inside the query
+        // Use https://observablehq.com/@nrabinowitz/h3-index-inspector?collection=@nrabinowitz/h3
+        p.percolate(&[("position", "881f09b203fffff")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4], q[16]]
+    );
+
+    assert_eq!(
+        // Valid position outside the query
+        // Use https://observablehq.com/@nrabinowitz/h3-index-inspector?collection=@nrabinowitz/h3
+        // Actually something in a neighbour
+        p.percolate(&[("position", "881f09b211fffff")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
+
+    assert_eq!(
+        // Valid position LARGER than the query
+        // Use https://observablehq.com/@nrabinowitz/h3-index-inspector?collection=@nrabinowitz/h3
+        // which means that its not possible to turn it into the query resolution.
+        p.percolate(&[("position", "861f09b27ffffff")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
 
     assert_eq!(
         p.percolate(&[("P", ""), ("P", "1001")].into())

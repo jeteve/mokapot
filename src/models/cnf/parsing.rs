@@ -1,5 +1,6 @@
 // Parsing CNF queries
 use chumsky::prelude::*;
+use h3o::CellIndex;
 
 use crate::{models::cnf, prelude::CNFQueryable};
 
@@ -32,6 +33,11 @@ fn atom_to_cnf(field: &str, operator: &Operator, field_value: &FieldValue) -> cn
     match (&operator, &field_value) {
         // A prefix ALWAYS give a prefix, regardless of operator used.
         // It is a bit dirty, but will fix in the future.
+        (Operator::H3Inside, FieldValue::Term(t)) => 
+         t.parse::<CellIndex>().map_or_else(|_err| field.has_value(t.clone()), |ci| field.h3in(ci))
+,
+        // Cannot do H3 on integers..
+        (Operator::H3Inside, FieldValue::Integer(i)) => field.has_value(i.to_string()),
         (_, FieldValue::Prefix(p)) => field.has_prefix(p.clone()),
         (_, FieldValue::Term(t)) => field.has_value(t.clone()),
         // Fallback to term style query in case there is ':123'
@@ -63,6 +69,7 @@ enum Operator {
     Eq,
     Ge,
     Gt,
+    H3Inside,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -123,6 +130,7 @@ fn operator_parser<'src>() -> impl Parser<'src, &'src str, Operator, MyParseErro
         just('<').to(Operator::Lt),
         just('>').to(Operator::Gt),
         just('=').to(Operator::Eq),
+        just("H3IN").to(Operator::H3Inside),
     ))
     .padded()
 }
@@ -185,12 +193,67 @@ mod tests {
         let p = query_parser();
 
         assert_eq!(
+            p.parse("location H3IN blablabla").output(),
+            Some(&Query::Atom(
+                "location".to_string(),
+                Operator::H3Inside,
+                FieldValue::Term("blablabla".into())
+            ))
+        );
+
+        assert_eq!(
+            p.parse("location H3IN 1234").output(),
+            Some(&Query::Atom(
+                "location".to_string(),
+                Operator::H3Inside,
+                FieldValue::Integer(1234)
+            ))
+        );
+
+        assert_eq!(
             p.parse("name:abc").output(),
             Some(&Query::Atom(
                 "name".to_string(),
                 Operator::Colon,
                 FieldValue::Term("abc".into())
             ))
+        );
+
+        assert_eq!(
+            p.parse("location H3IN abc")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR location=abc))"
+        );
+
+        assert_eq!(
+            p.parse("location H3IN 1234")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR location=1234))"
+        );
+
+        assert_eq!(
+            p.parse("location H3IN invalidh3")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR location=invalidh3))"
+        );
+
+        // And now a valid h3
+        assert_eq!(
+            p.parse("location H3IN 861f09b27ffffff")
+                .output()
+                .unwrap()
+                .to_cnf()
+                .to_string(),
+            "(AND (OR location=H3IN=861f09b27ffffff))"
         );
 
         assert_eq!(
@@ -394,6 +457,7 @@ mod tests {
         assert_eq!(p.parse(" =").output(), Some(&Operator::Eq));
         assert_eq!(p.parse("<=  ").output(), Some(&Operator::Le));
         assert_eq!(p.parse("  >=").output(), Some(&Operator::Ge));
+        assert_eq!(p.parse(" H3IN ").output(), Some(&Operator::H3Inside));
     }
 
     #[test]

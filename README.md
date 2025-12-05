@@ -34,6 +34,8 @@ Percolators usually exist as part of more general search products, like Lucene.
 
 - Integer comparison queries.
 
+- Geo queries.
+
 - Query parsing
 
 - `serde` serialisation/deserialisation (See Feature flags).
@@ -63,6 +65,7 @@ boolean operators' precedence.
 
 ```rust
 use mokaccino::prelude::*;
+use h3o::CellIndex;
 
 fn test_percolator() {
     let mut p = Percolator::default();
@@ -81,7 +84,27 @@ fn test_percolator() {
         ), //9
         p.add_query("P".has_prefix("")),                         // 10
         p.add_query("L".i64_gt(1000)),                           // 11
+        p.add_query("location".h3in("861f09b27ffffff".parse::<CellIndex>().unwrap())) // 12
     ];
+
+    // See https://observablehq.com/@nrabinowitz/h3-index-inspector?collection=@nrabinowitz/h3
+    assert_eq!(
+        // The same location as the query one
+        p.percolate(&[("location", "861f09b27ffffff")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4], q[12]]
+    );
+
+    assert_eq!(
+        // This location is inside the query one.
+        p.percolate(&[("location", "871f09b20ffffff")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4], q[12]]
+    );
+
+    assert_eq!(
+        // This location is outside the query one.
+        p.percolate(&[("location", "871f09b29ffffff")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
 
     assert_eq!(
         p.percolate(&[("L", "1001")].into()).collect::<Vec<_>>(),
@@ -170,6 +193,7 @@ fn test_query_parsing(){
     assert_eq!(ps("L=1000"), "L".i64_eq(1000));
     assert_eq!(ps("L>=1000"), "L".i64_ge(1000));
     assert_eq!(ps("L>1000"), "L".i64_gt(1000));
+    assert_eq!(ps("location H3IN 861f09b27ffffff"), "location".h3in("861f09b27ffffff".parse::<CellIndex>().unwrap()))
 }
 
 test_percolator();
@@ -219,6 +243,18 @@ and percolate to get `Qid`s.
 Using the `serde` feature, you can serialise the percolator for later deserialising.
 
 The Query IDs  (`Qid`s)will of course stay the same accross serialising/deserialising cycles.
+
+## Geographic Queries
+
+mokaccino supports geographic queries through the H3 hexagonal hierarchical spatial index system. Geographic queries allow you to match documents based on their location within a specific H3 cell. This is particularly useful for location-based alerting and geofencing applications.
+
+When querying, you specify an H3 CellIndex that defines a geographic region, and documents are matched if their location falls within that region or any of its child cells in the H3 hierarchy. This enables efficient spatial queries at any resolution level, from large regions down to very precise locations. For example, the query `"location".h3in("861f09b27ffffff".parse::<CellIndex>().unwrap())` will match any document whose location is within or contained by the specified H3 cell.
+
+Alternatively, the query parser also supports this via the syntax: `location H3IN 861f09b27ffffff`.
+
+You can build any shape you like by building geo queries disjunctions, or using negations to make holes in your shape.
+
+Reference: [https://h3geo.org/](https://h3geo.org/)
 
 # Configuration optimisation
 
