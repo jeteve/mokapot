@@ -1,6 +1,14 @@
+use std::{borrow::Cow, fmt::Display};
+
 // Parsing CNF queries
-use chumsky::prelude::*;
+use chumsky::{container::Seq, prelude::*};
 use h3o::CellIndex;
+
+use rand::distr::Alphanumeric;
+use rand::prelude::IteratorRandom;
+
+use strum::EnumIter;
+use strum::IntoEnumIterator;
 
 use crate::{models::cnf, prelude::CNFQueryable};
 
@@ -29,13 +37,28 @@ enum QueryAST {
     Or(Box<QueryAST>, Box<QueryAST>),
 }
 
+impl Display for QueryAST {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueryAST::Neg(query_ast) => write!(f, "NOT {}", query_ast),
+            QueryAST::Atom(field, operator_ast, field_value_ast) => {
+                write!(f, "{}{}{}", field, operator_ast, field_value_ast)
+            }
+            QueryAST::And(query_ast, query_ast1) => {
+                write!(f, "( {} AND {} )", query_ast, query_ast1)
+            }
+            QueryAST::Or(query_ast, query_ast1) => write!(f, "( {} OR {} )", query_ast, query_ast1),
+        }
+    }
+}
+
 fn atom_to_cnf(field: &str, operator: &OperatorAST, field_value: &FieldValueAST) -> cnf::Query {
     match (&operator, &field_value) {
         // A prefix ALWAYS give a prefix, regardless of operator used.
         // It is a bit dirty, but will fix in the future.
-        (OperatorAST::H3Inside, FieldValueAST::Term(t)) => 
-         t.parse::<CellIndex>().map_or_else(|_err| field.has_value(t.clone()), |ci| field.h3in(ci))
-,
+        (OperatorAST::H3Inside, FieldValueAST::Term(t)) => t
+            .parse::<CellIndex>()
+            .map_or_else(|_err| field.has_value(t.clone()), |ci| field.h3in(ci)),
         // Cannot do H3 on integers..
         (OperatorAST::H3Inside, FieldValueAST::Integer(i)) => field.has_value(i.to_string()),
         (_, FieldValueAST::Prefix(p)) => field.has_prefix(p.clone()),
@@ -54,14 +77,16 @@ impl QueryAST {
     fn to_cnf(&self) -> cnf::Query {
         match &self {
             QueryAST::Neg(query) => !query.to_cnf(),
-            QueryAST::Atom(field, operator, field_value) => atom_to_cnf(field, operator, field_value),
+            QueryAST::Atom(field, operator, field_value) => {
+                atom_to_cnf(field, operator, field_value)
+            }
             QueryAST::And(query, query1) => query.to_cnf() & query1.to_cnf(),
             QueryAST::Or(query, query1) => query.to_cnf() | query1.to_cnf(),
         }
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, EnumIter)]
 enum OperatorAST {
     Colon,
     Lt,
@@ -72,11 +97,81 @@ enum OperatorAST {
     H3Inside,
 }
 
+impl Display for OperatorAST {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OperatorAST::Colon => write!(f, ":"),
+            OperatorAST::Lt => write!(f, "<"),
+            OperatorAST::Le => write!(f, "<="),
+            OperatorAST::Eq => write!(f, "="),
+            OperatorAST::Ge => write!(f, ">="),
+            OperatorAST::Gt => write!(f, ">"),
+            OperatorAST::H3Inside => write!(f, " H3IN "),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 enum FieldValueAST {
     Term(String),
     Prefix(String),
     Integer(i64),
+}
+
+static NON_IDENTIFIERS: [char; 12] = [
+    '\\', ' ', '\t', '\n', '"', '(', ')', ':', '*', '<', '>', '=',
+];
+
+// Returns the string if it doesnt contain any NON_IDENTIFIERS characters.
+// Returns the string with NON_IDENTIFIERS characters escaped with a \ instead.
+fn _escape_quote(s: &str) -> Cow<'_, str> {
+    match s.contains(NON_IDENTIFIERS) {
+        false => Cow::Borrowed(s),
+        true => {
+            // 2. We found a special character. We must allocate a new String.
+            // Estimate capacity: original length + a few extra bytes for backslashes.
+            let mut output = String::with_capacity(s.len() + 5);
+            output.push('"');
+
+            // We escape only " and \
+            // Iterate through the remainder of the string starting at the bad character
+            for c in s.chars() {
+                if ['"', '\\'].contains(&c) {
+                    output.push('\\');
+                }
+                output.push(c);
+            }
+            output.push('"');
+            Cow::Owned(output)
+        }
+    }
+}
+
+impl Display for FieldValueAST {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FieldValueAST::Term(s) => write!(f, "{}", _escape_quote(s)),
+            FieldValueAST::Prefix(s) => write!(f, "{}*", _escape_quote(s)),
+            FieldValueAST::Integer(i) => write!(f, "{}", i),
+        }
+    }
+}
+
+fn _random_query<T: rand::Rng>(rng: &mut T, max_depth: usize) -> QueryAST {
+    match (rng.random_range(0..4), max_depth) {
+        (_, 0) => _random_atom(rng), // Reached max depth. do not go deeper.
+        (0, _) => QueryAST::Neg(Box::new(_random_query(rng, max_depth - 1))),
+        (1, _) => _random_atom(rng),
+        (2, _) => QueryAST::And(
+            Box::new(_random_query(rng, max_depth - 1)),
+            Box::new(_random_query(rng, max_depth - 1)),
+        ),
+        (3, _) => QueryAST::Or(
+            Box::new(_random_query(rng, max_depth - 1)),
+            Box::new(_random_query(rng, max_depth - 1)),
+        ),
+        (_, _) => unimplemented!(),
+    }
 }
 
 type MyParseError<'src> = extra::Err<Rich<'src, char>>;
@@ -114,6 +209,14 @@ fn query_parser<'src>() -> impl Parser<'src, &'src str, QueryAST, MyParseError<'
     .padded()
 }
 
+fn _random_atom<T: rand::Rng>(rng: &mut T) -> QueryAST {
+    QueryAST::Atom(
+        _random_identifier(rng),
+        _random_operator(rng),
+        _random_field_value(rng),
+    )
+}
+
 fn atom_parser<'src>() -> impl Parser<'src, &'src str, QueryAST, MyParseError<'src>> {
     identifier_parser()
         .then(operator_parser())
@@ -122,6 +225,9 @@ fn atom_parser<'src>() -> impl Parser<'src, &'src str, QueryAST, MyParseError<'s
         .padded()
 }
 
+fn _random_operator<T: rand::Rng>(rng: &mut T) -> OperatorAST {
+    OperatorAST::iter().choose(rng).unwrap()
+}
 fn operator_parser<'src>() -> impl Parser<'src, &'src str, OperatorAST, MyParseError<'src>> {
     choice((
         just(':').to(OperatorAST::Colon),
@@ -135,7 +241,14 @@ fn operator_parser<'src>() -> impl Parser<'src, &'src str, OperatorAST, MyParseE
     .padded()
 }
 
-static NON_IDENTIFIERS: [char; 11] = [' ', '\t', '\n', '"', '(', ')', ':', '*', '<', '>', '='];
+fn _random_identifier<T: rand::Rng>(rng: &mut T) -> String {
+    // Pick a random value between 1 and 20
+    let len = rng.random_range(1..20);
+    (0..len)
+        .map(|_| rng.sample(Alphanumeric))
+        .map(char::from)
+        .collect::<String>()
+}
 
 fn identifier_parser<'src>() -> impl Parser<'src, &'src str, String, MyParseError<'src>> {
     none_of(NON_IDENTIFIERS)
@@ -144,6 +257,15 @@ fn identifier_parser<'src>() -> impl Parser<'src, &'src str, String, MyParseErro
         .at_least(1)
         .collect::<String>()
         .padded()
+}
+
+fn _random_field_value<T: rand::Rng>(rng: &mut T) -> FieldValueAST {
+    match rng.random_range(0..3) {
+        0 => FieldValueAST::Term(_random_identifier(rng)),
+        1 => FieldValueAST::Prefix(_random_identifier(rng)),
+        2 => FieldValueAST::Integer(rng.random_range(-1000..1000)),
+        _ => unimplemented!(), // This is never hit
+    }
 }
 
 fn field_value_parser<'src>() -> impl Parser<'src, &'src str, FieldValueAST, MyParseError<'src>> {
@@ -186,7 +308,22 @@ fn field_value_parser<'src>() -> impl Parser<'src, &'src str, FieldValueAST, MyP
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
+
+    #[test]
+    fn test_random_queries() {
+        let mut rng = rand::rng();
+        for _ in 0..1000 {
+            let q = _random_query(&mut rng, 4);
+            // Check we can parse the string representation of it.
+            let s = q.to_string();
+            println!("{}", &s);
+
+            let p = query_parser();
+            assert!(p.parse(&s).has_output());
+        }
+    }
 
     #[test]
     fn test_query_parser() {
@@ -397,13 +534,21 @@ mod tests {
             "(AND (OR ~colour=blue*) (OR ~name=abc) (OR price<=123))"
         );
 
+        // This rounds trips with the string representation of the query.
         assert_eq!(
-            p.parse("NOT (colour:blue* AND name:abc) OR price<=123")
+            p.parse("( NOT ( colour:blue* AND name:abc ) OR price<=123 )")
                 .output()
                 .unwrap()
                 .to_cnf()
                 .to_string(),
             "(AND (OR ~colour=blue* ~name=abc price<=123))"
+        );
+        assert_eq!(
+            p.parse("NOT (colour:blue* AND name:abc) OR price<=123")
+                .output()
+                .unwrap()
+                .to_string(),
+            "( NOT ( colour:blue* AND name:abc ) OR price<=123 )"
         );
     }
 
@@ -418,6 +563,10 @@ mod tests {
                 FieldValueAST::Term("abc".to_string())
             ))
         );
+        assert_eq!(
+            p.parse("  name:abc  ").output().unwrap().to_string(),
+            "name:abc"
+        );
 
         assert_eq!(
             p.parse("  price <= 123  ").output(),
@@ -426,6 +575,10 @@ mod tests {
                 OperatorAST::Le,
                 FieldValueAST::Integer(123)
             ))
+        );
+        assert_eq!(
+            p.parse(" price <= 123  ").output().unwrap().to_string(),
+            "price<=123"
         );
 
         assert_eq!(
@@ -436,28 +589,58 @@ mod tests {
                 FieldValueAST::Integer(123)
             ))
         );
+
+        assert_eq!(
+            p.parse(" price<=123  ").output().unwrap().to_string(),
+            "price<=123"
+        );
     }
 
     #[test]
     fn test_identifier_parser() {
         let p = identifier_parser();
         assert_eq!(p.parse("abcd").output(), Some(&"abcd".to_string()));
+        assert_eq!(p.parse("abcd").output().unwrap().to_string(), "abcd");
+
         assert_eq!(p.parse("ab.cd").output(), Some(&"ab.cd".to_string()));
+        assert_eq!(p.parse("ab.cd").output().unwrap().to_string(), "ab.cd");
+
         assert_eq!(p.parse("ab_cd").output(), Some(&"ab_cd".to_string()));
+        assert_eq!(p.parse("ab_cd").output().unwrap().to_string(), "ab_cd");
         assert_eq!(p.parse("ab-cd-").output(), Some(&"ab-cd-".to_string()));
+        assert_eq!(p.parse("ab_cd-").output().unwrap().to_string(), "ab_cd-");
+
         assert_eq!(p.parse("ab-cd-<").output(), None);
+
+        // Test a 100 times the random generation
+        let mut rng = rand::rng();
+        for _ in 0..100 {
+            let id = _random_identifier(&mut rng);
+            let p = identifier_parser();
+            assert_eq!(p.parse(&id).output(), Some(&id));
+        }
     }
 
     #[test]
     fn test_operator_parser() {
         let p = operator_parser();
         assert_eq!(p.parse(":").output(), Some(&OperatorAST::Colon));
+        assert_eq!(p.parse(":").output().unwrap().to_string(), ":");
         assert_eq!(p.parse("<").output(), Some(&OperatorAST::Lt));
+        assert_eq!(p.parse("<").output().unwrap().to_string(), "<");
         assert_eq!(p.parse("> ").output(), Some(&OperatorAST::Gt));
+        assert_eq!(p.parse("> ").output().unwrap().to_string(), ">");
         assert_eq!(p.parse(" =").output(), Some(&OperatorAST::Eq));
+        assert_eq!(p.parse(" =").output().unwrap().to_string(), "=");
+
         assert_eq!(p.parse("<=  ").output(), Some(&OperatorAST::Le));
+        assert_eq!(p.parse("<= ").output().unwrap().to_string(), "<=");
+
         assert_eq!(p.parse("  >=").output(), Some(&OperatorAST::Ge));
-        assert_eq!(p.parse(" H3IN ").output(), Some(&OperatorAST::H3Inside));
+        assert_eq!(p.parse("  >=").output().unwrap().to_string(), ">=");
+
+        assert_eq!(p.parse("  H3IN   ").output(), Some(&OperatorAST::H3Inside));
+        assert_eq!(p.parse("  H3IN   ").output().unwrap().to_string(), " H3IN ");
     }
 
     #[test]
@@ -469,10 +652,14 @@ mod tests {
             parser.parse("abc").output(),
             Some(&FieldValueAST::Term("abc".to_string()))
         );
+        assert_eq!(parser.parse("abc").output().unwrap().to_string(), "abc");
+
         assert_eq!(
             parser.parse("abc*").output(),
             Some(&FieldValueAST::Prefix("abc".to_string()))
         );
+
+        assert_eq!(parser.parse("abc*").output().unwrap().to_string(), "abc*");
 
         assert_eq!(
             parser.parse("\"boudin blanc\"").output(),
@@ -480,13 +667,38 @@ mod tests {
         );
 
         assert_eq!(
-            parser.parse("\"boudin \\\" blanc\"").output(),
-            Some(&FieldValueAST::Term("boudin \" blanc".to_string()))
+            parser
+                .parse("\"boudin blanc\"")
+                .output()
+                .unwrap()
+                .to_string(),
+            "\"boudin blanc\""
         );
 
         assert_eq!(
-            parser.parse("\"boudin\\* \\\" blanc\"*").output(),
+            parser.parse("\"boudin \\\" blanc\"").output(),
+            Some(&FieldValueAST::Term("boudin \" blanc".to_string()))
+        );
+        assert_eq!(
+            parser
+                .parse("\"boudin \\\" blanc\"")
+                .output()
+                .unwrap()
+                .to_string(),
+            "\"boudin \\\" blanc\""
+        );
+
+        assert_eq!(
+            parser.parse("\"boudin* \\\" blanc\"*").output(),
             Some(&FieldValueAST::Prefix("boudin* \" blanc".to_string()))
+        );
+        assert_eq!(
+            parser
+                .parse("\"boudin* \\\" blanc\"*")
+                .output()
+                .unwrap()
+                .to_string(),
+            "\"boudin* \\\" blanc\"*"
         );
 
         assert!(parser.parse("\"boudin blanc").has_errors());
@@ -495,17 +707,27 @@ mod tests {
             parser.parse("\"123\"").output(),
             Some(&FieldValueAST::Term("123".to_string()))
         );
+        assert_eq!(parser.parse("\"123\"").output().unwrap().to_string(), "123");
+
         assert_eq!(
             parser.parse("123").output(),
             Some(&FieldValueAST::Integer(123))
         );
+        assert_eq!(parser.parse("123").output().unwrap().to_string(), "123");
+
         assert_eq!(
             parser.parse("123*").output(),
             Some(&FieldValueAST::Prefix("123".to_string()))
         );
+        assert_eq!(parser.parse("123*").output().unwrap().to_string(), "123*");
+
         assert_eq!(
             parser.parse("-123abc").output(),
             Some(&FieldValueAST::Term("-123abc".to_string()))
+        );
+        assert_eq!(
+            parser.parse("-123abc").output().unwrap().to_string(),
+            "-123abc"
         );
     }
 }
