@@ -3,6 +3,7 @@ use std::{borrow::Cow, fmt::Display};
 // Parsing CNF queries
 use chumsky::{container::Seq, prelude::*};
 use h3o::CellIndex;
+use h3o::{LatLng, Resolution};
 
 use rand::distr::Alphanumeric;
 use rand::prelude::IteratorRandom;
@@ -209,12 +210,38 @@ fn query_parser<'src>() -> impl Parser<'src, &'src str, QueryAST, MyParseError<'
     .padded()
 }
 
+fn _random_h3cell<T: rand::Rng>(rng: &mut T) -> h3o::CellIndex {
+    // 1. Generate a random Longitude: [-180, 180]
+    let lng_deg = rng.random_range(-180.0..180.0);
+
+    // 2. Generate a random Latitude: [-90, 90]
+    // NOTE: To get a truly uniform distribution on the sphere,
+    // we use a sine-weighted distribution for latitude (acos).
+    let lat_deg = rng.random_range::<f64, _>(-1.0..1.0).asin().to_degrees();
+
+    // 3. Convert to H3 Cell
+    let coord = LatLng::new(lat_deg, lng_deg).expect("Valid coordinates");
+    coord.to_cell(Resolution::Nine)
+}
+
 fn _random_atom<T: rand::Rng>(rng: &mut T) -> QueryAST {
-    QueryAST::Atom(
-        _random_identifier(rng),
-        _random_operator(rng),
-        _random_field_value(rng),
-    )
+    let op = _random_operator(rng);
+    let be_correct = rng.random_bool(0.95);
+    match (op, be_correct) {
+        (op, false) => QueryAST::Atom(_random_identifier(rng), op, _random_field_value(rng)),
+        (OperatorAST::Colon, true) => QueryAST::Atom(
+            _random_identifier(rng),
+            OperatorAST::Colon,
+            _random_field_value(rng),
+        ),
+        (OperatorAST::H3Inside, true) => QueryAST::Atom(
+            _random_identifier(rng),
+            OperatorAST::H3Inside,
+            FieldValueAST::Term(_random_h3cell(rng).to_string()),
+        ),
+        // all these other ones are comparison things..
+        (op, true) => QueryAST::Atom(_random_identifier(rng), op, _random_field_int_value(rng)),
+    }
 }
 
 fn atom_parser<'src>() -> impl Parser<'src, &'src str, QueryAST, MyParseError<'src>> {
@@ -250,6 +277,15 @@ fn _random_identifier<T: rand::Rng>(rng: &mut T) -> String {
         .collect::<String>()
 }
 
+fn _random_messy_string<T: rand::Rng>(rng: &mut T) -> String {
+    let len = rng.random_range(1..20);
+    let dist = rand::distr::Uniform::new_inclusive(32u8, 126u8).unwrap();
+    (0..len)
+        .map(|_| rng.sample(dist))
+        .map(char::from)
+        .collect::<String>()
+}
+
 fn identifier_parser<'src>() -> impl Parser<'src, &'src str, String, MyParseError<'src>> {
     none_of(NON_IDENTIFIERS)
         .filter(|c: &char| !c.is_whitespace())
@@ -259,11 +295,15 @@ fn identifier_parser<'src>() -> impl Parser<'src, &'src str, String, MyParseErro
         .padded()
 }
 
+fn _random_field_int_value<T: rand::Rng>(rng: &mut T) -> FieldValueAST {
+    FieldValueAST::Integer(rng.random_range(-1000..1000))
+}
+
 fn _random_field_value<T: rand::Rng>(rng: &mut T) -> FieldValueAST {
     match rng.random_range(0..3) {
-        0 => FieldValueAST::Term(_random_identifier(rng)),
-        1 => FieldValueAST::Prefix(_random_identifier(rng)),
-        2 => FieldValueAST::Integer(rng.random_range(-1000..1000)),
+        0 => FieldValueAST::Term(_escape_quote(&_random_messy_string(rng)).into()),
+        1 => FieldValueAST::Prefix(_escape_quote(&_random_messy_string(rng)).into()),
+        2 => _random_field_int_value(rng),
         _ => unimplemented!(), // This is never hit
     }
 }
@@ -315,13 +355,15 @@ mod tests {
     fn test_random_queries() {
         let mut rng = rand::rng();
         for _ in 0..1000 {
-            let q = _random_query(&mut rng, 4);
+            let q = _random_query(&mut rng, 3);
             // Check we can parse the string representation of it.
             let s = q.to_string();
             println!("{}", &s);
 
             let p = query_parser();
-            assert!(p.parse(&s).has_output());
+            let pres = p.parse(&s);
+            assert!(pres.has_output());
+            println!("{}", pres.output().unwrap().to_cnf())
         }
     }
 
