@@ -199,7 +199,7 @@ fn _random_h3cell<T: rand::Rng>(rng: &mut T) -> h3o::CellIndex {
 
     // 2. Generate a random Latitude: [-90, 90]
     // NOTE: To get a truly uniform distribution on the sphere,
-    // we use a sine-weighted distribution for latitude (acos).
+    // we use a sine-weighted distribution for latitude (asin).
     let lat_deg = rng.random_range::<f64, _>(-1.0..1.0).asin().to_degrees();
 
     // 3. Convert to H3 Cell

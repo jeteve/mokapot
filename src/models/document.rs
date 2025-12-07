@@ -165,6 +165,7 @@ where
 }
 
 mod test {
+    use crate::prelude::Document;
 
     #[test]
     fn test_from() {
@@ -217,5 +218,13 @@ mod test {
 
         let d = Document::default();
         assert_eq!(d.to_clause().to_string(), "(OR )");
+    }
+
+    #[test]
+    fn test_basics() {
+        let d = Document::default();
+        assert!(d.is_empty());
+        assert_eq!(d.fv_count(), 0);
+        assert!(d.values_ref("field").is_none());
     }
 }
