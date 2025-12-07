@@ -378,7 +378,7 @@ impl Percolator {
             );
         });
 
-        let mis = cnf_to_matchitems(&q, &self.config).collect_vec();
+        let mut mis = cnf_to_matchitems(&q, &self.config).collect_vec();
 
         self.stats.clauses_per_query.add(
             TryInto::<u32>::try_into(mis.len())
@@ -393,9 +393,11 @@ impl Percolator {
         let mut n_preheaters: usize = 0;
 
         // Add the preheaters from the Match items.
-        mis.iter()
+        // Note that this will EMPTY all the preheaters from
+        // the match items. So dont expect to use them later.
+        mis.iter_mut()
             .take(self.clause_matchers.len())
-            .flat_map(|mi| mi.preheaters.iter())
+            .flat_map(|mi| std::mem::take(&mut mi.preheaters).into_iter())
             .for_each(|ph| {
                 n_preheaters += 1;
 
@@ -403,8 +405,8 @@ impl Percolator {
                     self.must_filter.insert(new_doc_id);
                 }
 
-                if !self.has_preheater(ph) {
-                    self.preheaters.push(ph.clone());
+                if !self.has_preheater(&ph) {
+                    self.preheaters.push(ph);
                     self.stats.n_preheaters += 1;
                 }
             });

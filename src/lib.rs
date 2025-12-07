@@ -3,3 +3,4 @@
 pub(crate) mod itertools;
 pub mod models;
 pub mod prelude;
+pub mod testing;

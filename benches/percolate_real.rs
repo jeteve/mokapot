@@ -140,7 +140,7 @@ fn percolate_real(c: &mut Criterion) {
         let mut rng = StdRng::seed_from_u64(42);
 
         // Build percolators with n queries
-        let mp = build_percolator::<StdRng>(nqueries, &third_fields, &mut rng);
+        let mp = build_percolator(nqueries, &third_fields, &mut rng);
 
         let input_size = criterion::BatchSize::SmallInput;
 
