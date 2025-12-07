@@ -141,18 +141,18 @@ impl Display for FieldValueAST {
     }
 }
 
-fn _random_query<T: rand::Rng>(rng: &mut T, max_depth: usize) -> QueryAST {
+pub(crate) fn random_query<T: rand::Rng>(rng: &mut T, max_depth: usize) -> QueryAST {
     match (rng.random_range(0..4), max_depth) {
         (_, 0) => _random_atom(rng), // Reached max depth. do not go deeper.
-        (0, _) => QueryAST::Neg(Box::new(_random_query(rng, max_depth - 1))),
+        (0, _) => QueryAST::Neg(Box::new(random_query(rng, max_depth - 1))),
         (1, _) => _random_atom(rng),
         (2, _) => QueryAST::And(
-            Box::new(_random_query(rng, max_depth - 1)),
-            Box::new(_random_query(rng, max_depth - 1)),
+            Box::new(random_query(rng, max_depth - 1)),
+            Box::new(random_query(rng, max_depth - 1)),
         ),
         (3, _) => QueryAST::Or(
-            Box::new(_random_query(rng, max_depth - 1)),
-            Box::new(_random_query(rng, max_depth - 1)),
+            Box::new(random_query(rng, max_depth - 1)),
+            Box::new(random_query(rng, max_depth - 1)),
         ),
         (_, _) => unimplemented!(),
     }
@@ -241,23 +241,30 @@ fn _random_operator<T: rand::Rng>(rng: &mut T) -> OperatorAST {
 fn operator_parser<'src>() -> impl Parser<'src, &'src str, OperatorAST, MyParseError<'src>> {
     choice((
         just(':').to(OperatorAST::Colon),
+        just("H3IN").to(OperatorAST::H3Inside),
         just("<=").to(OperatorAST::Le),
         just(">=").to(OperatorAST::Ge),
         just('<').to(OperatorAST::Lt),
         just('>').to(OperatorAST::Gt),
         just('=').to(OperatorAST::Eq),
-        just("H3IN").to(OperatorAST::H3Inside),
     ))
     .padded()
 }
 
+static RESERVED_WORDS: [&str; 3] = ["AND", "OR", "NOT"];
+
 fn _random_identifier<T: rand::Rng>(rng: &mut T) -> String {
     // Pick a random value between 1 and 20
-    let len = rng.random_range(1..20);
-    (0..len)
+    let len = rng.random_range(2..20);
+    let s = (0..len)
         .map(|_| rng.sample(Alphanumeric))
         .map(char::from)
-        .collect::<String>()
+        .collect::<String>();
+    if RESERVED_WORDS.contains(&s.as_str()) {
+        format!("FIELD_{}", s)
+    } else {
+        s
+    }
 }
 
 fn _random_messy_string<T: rand::Rng>(rng: &mut T) -> String {
@@ -338,7 +345,7 @@ mod tests {
     fn test_random_queries() {
         let mut rng = rand::rng();
         for _ in 0..1000 {
-            let q = _random_query(&mut rng, 3);
+            let q = random_query(&mut rng, 3);
             // Check we can parse the string representation of it.
             let s = q.to_string();
             println!("{}", &s);
