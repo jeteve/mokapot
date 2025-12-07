@@ -82,3 +82,14 @@ impl MatchItem {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::models::{percolator::tools::ClauseExpander, types::OurRc};
+
+    #[test]
+    fn clause_expander() {
+        let e = ClauseExpander::new(OurRc::new(|c| c));
+        let _ = format!("{:?}", e);
+    }
+}
