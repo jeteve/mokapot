@@ -291,8 +291,8 @@ fn _random_field_int_value<T: rand::Rng>(rng: &mut T) -> FieldValueAST {
 
 fn _random_field_value<T: rand::Rng>(rng: &mut T) -> FieldValueAST {
     match rng.random_range(0..3) {
-        0 => FieldValueAST::Term(_escape_quote(&_random_messy_string(rng)).into()),
-        1 => FieldValueAST::Prefix(_escape_quote(&_random_messy_string(rng)).into()),
+        0 => FieldValueAST::Term(_random_messy_string(rng)),
+        1 => FieldValueAST::Prefix(_random_messy_string(rng)),
         2 => _random_field_int_value(rng),
         _ => unimplemented!(), // This is never hit
     }
