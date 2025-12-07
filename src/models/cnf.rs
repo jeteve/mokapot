@@ -1,3 +1,8 @@
+mod literal;
+pub mod parsing;
+
+use literal::*;
+
 use crate::models::{
     document::Document,
     index::{DocId, Index},
@@ -15,10 +20,6 @@ use itertools::Itertools;
 use roaring::MultiOps;
 
 use std::fmt;
-
-mod literal;
-pub mod parsing;
-use literal::*;
 
 use crate::models::types::OurStr;
 
@@ -159,6 +160,24 @@ impl fmt::Display for Query {
             "(AND {})",
             self.0.iter().map(|c| c.to_string()).join(" ")
         )
+    }
+}
+
+impl std::str::FromStr for Query {
+    type Err = String; // A newline delimited string, with all parsing errors.
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use chumsky::Parser;
+        let p = parsing::query_parser();
+        p.parse(s)
+            .into_result()
+            .map_err(|e| {
+                e.iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .map(|astq| astq.to_cnf())
     }
 }
 

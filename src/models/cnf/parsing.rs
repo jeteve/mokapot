@@ -13,25 +13,8 @@ use strum::IntoEnumIterator;
 
 use crate::{models::cnf, prelude::CNFQueryable};
 
-impl std::str::FromStr for cnf::Query {
-    type Err = String; // A newline delimited string, with all parsing errors.
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let p = query_parser();
-        p.parse(s)
-            .into_result()
-            .map_err(|e| {
-                e.iter()
-                    .map(|e| e.to_string())
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            })
-            .map(|astq| astq.to_cnf())
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
-enum QueryAST {
+pub(crate) enum QueryAST {
     Neg(Box<QueryAST>),
     Atom(String, OperatorAST, FieldValueAST),
     And(Box<QueryAST>, Box<QueryAST>),
@@ -75,7 +58,7 @@ fn atom_to_cnf(field: &str, operator: &OperatorAST, field_value: &FieldValueAST)
 }
 
 impl QueryAST {
-    fn to_cnf(&self) -> cnf::Query {
+    pub fn to_cnf(&self) -> cnf::Query {
         match &self {
             QueryAST::Neg(query) => !query.to_cnf(),
             QueryAST::Atom(field, operator, field_value) => {
@@ -88,7 +71,7 @@ impl QueryAST {
 }
 
 #[derive(Debug, PartialEq, Clone, EnumIter)]
-enum OperatorAST {
+pub(crate) enum OperatorAST {
     Colon,
     Lt,
     Le,
@@ -113,7 +96,7 @@ impl Display for OperatorAST {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-enum FieldValueAST {
+pub(crate) enum FieldValueAST {
     Term(String),
     Prefix(String),
     Integer(i64),
@@ -177,7 +160,7 @@ fn _random_query<T: rand::Rng>(rng: &mut T, max_depth: usize) -> QueryAST {
 
 type MyParseError<'src> = extra::Err<Rich<'src, char>>;
 
-fn query_parser<'src>() -> impl Parser<'src, &'src str, QueryAST, MyParseError<'src>> {
+pub(crate) fn query_parser<'src>() -> impl Parser<'src, &'src str, QueryAST, MyParseError<'src>> {
     recursive(|expr| {
         let recursive_atom = atom_parser()
             .or(expr.delimited_by(just('('), just(')')))
