@@ -407,7 +407,43 @@ impl fmt::Display for Literal {
     }
 }
 
+#[cfg(test)]
 mod test {
+    use super::*;
+    use crate::models::{
+        cnf::literal::oq_to_fvs,
+        queries::ordered::{OrderedQuery, Ordering},
+    };
+
+    #[test]
+    #[should_panic]
+    fn test_bad_percolate() {
+        let lit = Literal::new(false, LitQuery::Prefix(PrefixQuery::new("f", "v")));
+        let index = Index::default();
+        let _ = lit.percolate_docs_from_idx(&index); // This will panic.
+    }
+
+    #[test]
+    fn test_cost() {
+        let lit = Literal::new(false, LitQuery::Term(TermQuery::new("f", "v")));
+        let neglit = lit.clone().negate();
+
+        assert!(lit.cost() < neglit.cost());
+    }
+    #[test]
+    fn test_oq_to_fvs() {
+        for ordering in [
+            Ordering::EQ,
+            Ordering::LT,
+            Ordering::LE,
+            Ordering::GE,
+            Ordering::GT,
+        ] {
+            let q = OrderedQuery::new("field", 42, ordering);
+            assert!(!oq_to_fvs(&q).is_empty());
+        }
+    }
+
     #[test]
     #[allow(dead_code)]
     fn test_clip() {
