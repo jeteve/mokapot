@@ -75,10 +75,11 @@ impl Document {
     /// An iterator on all the (field,value) tuples of this document.
     /// In no particular order.
     pub fn field_values(&self) -> impl Iterator<Item = FieldValue> + use<'_> {
-        self.fields()
-            .map(|f| (f.clone(), self.values_iter(f.as_ref())))
-            .filter_map(|(f, ovit)| ovit.map(|vit| (f, vit)))
-            .flat_map(|(f, vit)| vit.map(move |v| (f.clone(), v)))
+        self.fields.iter().flat_map(|(field, values)| {
+            values
+                .iter()
+                .map(move |value| (field.clone(), value.clone()))
+        })
     }
 
     /// The merge of this document with another one.
