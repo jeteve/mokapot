@@ -118,14 +118,30 @@ impl Document {
         T: Into<OurStr>,
         U: Into<OurStr>,
     {
+        self.with_value_mut(field, value);
+        self
+    }
+
+    /// This document with a new field,value, by mutable reference.
+    /// This is more memory-efficient than `with_value` when called in a loop
+    /// as it avoids moving the `Document` instance.
+    /// # Example:
+    /// ```
+    /// use mokaccino::models::document::Document;
+    /// let mut d = Document::default();
+    /// d.with_value_mut("field", "value");
+    /// assert_eq!(d.values("field"), vec!["value".into()]);
+    /// ```
+    ///
+    pub fn with_value_mut<T, U>(&mut self, field: T, value: U)
+    where
+        T: Into<OurStr>,
+        U: Into<OurStr>,
+    {
         let val: OurStr = value.into();
 
-        self.fields
-            .entry(field.into())
-            .and_modify(|v| v.push(val.clone()))
-            .or_insert(vec![val]);
+        self.fields.entry(field.into()).or_default().push(val);
         self.fvs_count += 1;
-        self
     }
 
     pub fn has_field(&self, f: &str) -> bool {
