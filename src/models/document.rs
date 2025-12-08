@@ -164,6 +164,7 @@ where
     }
 }
 
+#[cfg(test)]
 mod test {
     use crate::prelude::Document;
 
