@@ -420,7 +420,7 @@ mod test {
     fn test_bad_percolate() {
         let lit = Literal::new(false, LitQuery::Prefix(PrefixQuery::new("f", "v")));
         let index = Index::default();
-        assert!(lit.percolate_docs_from_idx(&index).is_empty());
+        let _ = lit.percolate_docs_from_idx(&index); // This will panic.
     }
 
     #[test]
