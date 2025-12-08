@@ -65,6 +65,8 @@ mod test {
 
         let doc_id = index.index_document(&d);
         assert_eq!(doc_id, 0);
+
+        assert!(index.docs_from_fv("field", "value").is_empty());
     }
 
     #[test]
