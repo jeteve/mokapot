@@ -4,7 +4,7 @@
 
 
 
-mokaccino is a percolator library in Rust. Consider this beta software.
+mokaccino is a percolator library in Rust.
 
 ## About percolators
 
