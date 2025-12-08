@@ -407,7 +407,27 @@ impl fmt::Display for Literal {
     }
 }
 
+#[cfg(test)]
 mod test {
+    use crate::models::{
+        cnf::literal::oq_to_fvs,
+        queries::ordered::{OrderedQuery, Ordering},
+    };
+
+    #[test]
+    fn test_oq_to_fvs() {
+        for ordering in [
+            Ordering::EQ,
+            Ordering::LT,
+            Ordering::LE,
+            Ordering::GE,
+            Ordering::GT,
+        ] {
+            let q = OrderedQuery::new("field", 42, ordering);
+            assert!(!oq_to_fvs(&q).is_empty());
+        }
+    }
+
     #[test]
     #[allow(dead_code)]
     fn test_clip() {
