@@ -71,3 +71,7 @@ perf report --no-children
 Simple percolator =~ 5M Percolation/s
 (vector based) Multi percolator: 50K Perc/s
 (fixedbitset based) Multi percolator =~ 1M Perc/s 
+
+# Mutation testing
+
+use https://mutants.rs/
