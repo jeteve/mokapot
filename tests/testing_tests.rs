@@ -20,3 +20,12 @@ fn test_random_queries() {
         _ = p.add_query(q);
     }
 }
+
+#[test]
+fn test_random_is_not_default() {
+    let mut rng = rand::rng();
+    for _ in 0..100 {
+        let q = Query::random(&mut rng);
+        assert_ne!(q, Query::default());
+    }
+}

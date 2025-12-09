@@ -582,6 +582,20 @@ mod tests_cnf {
         );
         assert!(mis.next().is_none());
     }
+
+    #[test]
+    fn test_sorting_by_cost() {
+        use super::*;
+        use crate::prelude::CNFQueryable;
+        use itertools::Itertools;
+
+        // A prefix query is more expensive than a term query.
+        let q = "field".has_value("cheap") & "field".has_prefix("expensive");
+        let config = PercolatorConfig::default();
+        let items = cnf_to_matchitems(&q, &config).collect_vec();
+        assert_eq!(items.len(), 2);
+        assert!(items[0].cost < items[1].cost);
+    }
 }
 
 mod test_extensive;
