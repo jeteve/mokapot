@@ -22,3 +22,6 @@ Cargo.lock
 perf.data*
 flamegraph.svg
 
+# Mutation testing data (cargo mutants)
+mutants.out*
+
