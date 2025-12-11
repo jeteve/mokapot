@@ -37,10 +37,20 @@ impl DocMatcher for PrefixQuery {
 }
 
 mod test_prefix {
+    use super::*;
+
+    #[test]
+    fn test_new_and_getters() {
+        let field: OurStr = "test_field".into();
+        let prefix: OurStr = "test_prefix".into();
+        let q = PrefixQuery::new(field.clone(), prefix.clone());
+
+        assert_eq!(q.field(), field);
+        assert_eq!(q.prefix(), prefix);
+    }
 
     #[test]
     fn test_matching() {
-        use super::*;
         let q = PrefixQuery::new("field", "pre");
 
         assert!(!q.matches(&Document::default()));

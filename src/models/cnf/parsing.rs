@@ -763,3 +763,183 @@ mod tests {
         );
     }
 }
+#[cfg(test)]
+mod tests_parsing {
+    use super::*;
+
+    #[test]
+    fn test_escape_quote() {
+        assert_eq!(_escape_quote("abc"), Cow::Borrowed("abc"));
+        assert_eq!(_escape_quote("abc\"def"), Cow::Owned::<str>("\"abc\\\"def\"".into()));
+        assert_eq!(_escape_quote("abc\\def"), Cow::Owned::<str>("\"abc\\\\def\"".into()));
+        assert_eq!(_escape_quote("abc def"), Cow::Owned::<str>("\"abc def\"".into()));
+        assert_eq!(_escape_quote("abc:def"), Cow::Owned::<str>("\"abc:def\"".into()));
+    }
+
+    #[test]
+    fn test_query_ast_display() {
+        // Atom
+        let atom = QueryAST::Atom("f".into(), OperatorAST::Colon, FieldValueAST::Term("v".into()));
+        assert_eq!(format!("{}", atom), "f:v");
+
+        // Neg
+        let neg = QueryAST::Neg(Box::new(atom.clone()));
+        assert_eq!(format!("{}", neg), "NOT f:v");
+
+        // And
+        let and = QueryAST::And(Box::new(atom.clone()), Box::new(neg.clone()));
+        assert_eq!(format!("{}", and), "( f:v AND NOT f:v )");
+
+        // Or
+        let or = QueryAST::Or(Box::new(atom.clone()), Box::new(neg.clone()));
+        assert_eq!(format!("{}", or), "( f:v OR NOT f:v )");
+    }
+
+    #[test]
+    fn test_operator_ast_display() {
+        assert_eq!(format!("{}", OperatorAST::Colon), ":");
+        assert_eq!(format!("{}", OperatorAST::Lt), "<");
+        assert_eq!(format!("{}", OperatorAST::Le), "<=");
+        assert_eq!(format!("{}", OperatorAST::Eq), "=");
+        assert_eq!(format!("{}", OperatorAST::Ge), ">=");
+        assert_eq!(format!("{}", OperatorAST::Gt), ">");
+        assert_eq!(format!("{}", OperatorAST::H3Inside), " H3IN ");
+    }
+
+    #[test]
+    fn test_field_value_ast_display() {
+        assert_eq!(format!("{}", FieldValueAST::Term("v".into())), "v");
+        assert_eq!(format!("{}", FieldValueAST::Term("v space".into())), "\"v space\"");
+        assert_eq!(format!("{}", FieldValueAST::Prefix("p".into())), "p*");
+        assert_eq!(format!("{}", FieldValueAST::Prefix("p space".into())), "\"p space\"*");
+        assert_eq!(format!("{}", FieldValueAST::Integer(42)), "42");
+    }
+
+    #[test]
+    fn test_atom_to_cnf() {
+        // Term
+        let cnf = atom_to_cnf("f", &OperatorAST::Colon, &FieldValueAST::Term("v".into()));
+        assert_eq!(cnf.to_string(), "(AND (OR f=v))");
+
+        // Prefix
+        let cnf = atom_to_cnf("f", &OperatorAST::Colon, &FieldValueAST::Prefix("p".into()));
+        assert_eq!(cnf.to_string(), "(AND (OR f=p*))");
+
+        // Int
+        let cnf = atom_to_cnf("f", &OperatorAST::Lt, &FieldValueAST::Integer(10));
+        assert_eq!(cnf.to_string(), "(AND (OR f<10))");
+
+        let cnf = atom_to_cnf("f", &OperatorAST::Le, &FieldValueAST::Integer(10));
+        assert_eq!(cnf.to_string(), "(AND (OR f<=10))");
+
+        let cnf = atom_to_cnf("f", &OperatorAST::Eq, &FieldValueAST::Integer(10));
+        assert_eq!(cnf.to_string(), "(AND (OR f==10))");
+
+        let cnf = atom_to_cnf("f", &OperatorAST::Ge, &FieldValueAST::Integer(10));
+        assert_eq!(cnf.to_string(), "(AND (OR f>=10))");
+
+        let cnf = atom_to_cnf("f", &OperatorAST::Gt, &FieldValueAST::Integer(10));
+        assert_eq!(cnf.to_string(), "(AND (OR f>10))");
+
+        // H3
+        let cell = "87194d106ffffff";
+        let cnf = atom_to_cnf("f", &OperatorAST::H3Inside, &FieldValueAST::Term(cell.into()));
+        assert_eq!(cnf.to_string(), format!("(AND (OR f=H3IN={}))", cell));
+
+        // H3 with invalid cell -> Term
+        let cnf = atom_to_cnf("f", &OperatorAST::H3Inside, &FieldValueAST::Term("invalid".into()));
+        assert_eq!(cnf.to_string(), "(AND (OR f=invalid))");
+
+        // Fallback int with colon
+        let cnf = atom_to_cnf("f", &OperatorAST::Colon, &FieldValueAST::Integer(123));
+        assert_eq!(cnf.to_string(), "(AND (OR f=123))");
+    }
+
+    #[test]
+    fn test_random_generators_coverage() {
+        let mut rng = rand::rng();
+
+        // _random_h3cell
+        let _ = _random_h3cell(&mut rng);
+
+        // _random_atom
+        let _ = _random_atom(&mut rng);
+
+        // _random_operator
+        let _ = _random_operator(&mut rng);
+
+        // _random_identifier
+        let _ = _random_identifier(&mut rng);
+
+        // _random_messy_string
+        let _ = _random_messy_string(&mut rng);
+
+        // _random_field_int_value
+        let _ = _random_field_int_value(&mut rng);
+
+        // _random_field_value
+        let _ = _random_field_value(&mut rng);
+
+        // random_query
+        let _ = random_query(&mut rng, 2);
+    }
+}
+#[cfg(test)]
+mod tests_parsing_random {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_random_identifier_variety() {
+        let mut rng = rand::rng();
+        let mut seen = HashSet::new();
+        for _ in 0..100 {
+            let id = _random_identifier(&mut rng);
+            seen.insert(id);
+        }
+        // Ensure we got at least 50 different identifiers
+        assert!(seen.len() > 50);
+        // Ensure it's not just "xyzzy"
+        assert!(!seen.contains("xyzzy"));
+    }
+
+    #[test]
+    fn test_random_messy_string_variety() {
+        let mut rng = rand::rng();
+        let mut seen = HashSet::new();
+        for _ in 0..100 {
+            let s = _random_messy_string(&mut rng);
+            seen.insert(s);
+        }
+        assert!(seen.len() > 50);
+        assert!(!seen.contains("xyzzy"));
+    }
+
+    #[test]
+    fn test_random_query_recursion() {
+        // Testing recursion by checking if we get deeper queries
+        let mut rng = rand::rng();
+        // Depth 3 should produce something deeper than atom
+        let q = random_query(&mut rng, 3);
+        // It's probabilistic, but usually we should get nested structure.
+        // We can inspect the structure to verify it's not always simple atom.
+        // We can assert that with enough tries, we get a mix of structure types.
+
+        let mut got_and = false;
+        let mut got_or = false;
+        let mut got_neg = false;
+
+        for _ in 0..100 {
+            let q = random_query(&mut rng, 3);
+            match q {
+                QueryAST::And(_, _) => got_and = true,
+                QueryAST::Or(_, _) => got_or = true,
+                QueryAST::Neg(_) => got_neg = true,
+                _ => {}
+            }
+        }
+        assert!(got_and);
+        assert!(got_or);
+        assert!(got_neg);
+    }
+}

@@ -66,6 +66,15 @@ mod test_h3_inside {
     use super::*;
 
     #[test]
+    fn test_getters_and_display() {
+        let cell = "87194d106ffffff".parse::<CellIndex>().unwrap();
+        let q = H3InsideQuery::new("location", cell);
+        assert_eq!(q.field(), "location".into());
+        assert_eq!(q.cell(), cell);
+        assert_eq!(format!("{}", q), format!("location=H3IN={}", cell));
+    }
+
+    #[test]
     fn test_doc_matching() {
         let q = H3InsideQuery::new("location", "87194d106ffffff".parse::<CellIndex>().unwrap());
         assert!(q.field().eq(&"location".into()));
@@ -100,6 +109,18 @@ mod test_h3_inside {
         assert!(!_has_parent(
             &"86194d107ffffff".into(),
             "87194d106ffffff".parse::<CellIndex>().unwrap()
+        ));
+
+        // Test parent that is not a direct parent but an ancestor
+        assert!(_has_parent(
+            &"88194d1069fffff".into(), // Res 8
+            "86194d107ffffff".parse::<CellIndex>().unwrap() // Res 6
+        ));
+
+        // Test with different valid cell that is NOT a child
+        assert!(!_has_parent(
+            &"87194d106ffffff".into(),
+            "87195d106ffffff".parse::<CellIndex>().unwrap() // Different cell
         ));
     }
 }

@@ -93,3 +93,58 @@ mod tests {
         let _ = format!("{:?}", e);
     }
 }
+#[cfg(test)]
+mod tests_tools {
+    use super::*;
+    use crate::models::cnf::Clause;
+    use crate::models::types::OurRc;
+
+    #[test]
+    fn test_clause_expander() {
+        let e = ClauseExpander::new(OurRc::new(|c| c));
+        let debug = format!("{:?}", e);
+        assert!(debug.contains("_OPAQUE FUNCTION_"));
+    }
+
+    #[test]
+    fn test_preheater_methods() {
+        let expander = ClauseExpander::new(OurRc::new(|c| c));
+        let ph = PreHeater::new("id".into(), expander.clone());
+
+        assert_eq!(ph.must_filter, false);
+
+        let ph2 = ph.with_must_filter(true);
+        assert_eq!(ph2.must_filter, true);
+
+        // Coverage for default false in new
+        let ph3 = PreHeater::new("id2".into(), expander.clone());
+        assert_eq!(ph3.must_filter, false);
+    }
+
+    #[test]
+    fn test_match_item_methods() {
+        let doc = Document::default();
+        let mi = MatchItem::new(doc.clone(), 10);
+
+        assert_eq!(mi.must_filter, false);
+        assert!(mi.preheaters.is_empty());
+        assert_eq!(mi.cost, 10);
+
+        let expander = ClauseExpander::new(OurRc::new(|c| c));
+        let ph = PreHeater::new("id".into(), expander);
+
+        let mi2 = mi.with_preheater(ph);
+        assert_eq!(mi2.preheaters.len(), 1);
+
+        let mi3 = mi2.with_must_filter();
+        assert_eq!(mi3.must_filter, true);
+    }
+
+    #[test]
+    fn test_match_item_match_all() {
+        let mi = MatchItem::match_all();
+        assert!(mi.doc.is_match_all());
+        assert_eq!(mi.cost, 10000);
+        assert_eq!(mi.must_filter, false);
+    }
+}

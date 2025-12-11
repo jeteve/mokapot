@@ -463,3 +463,262 @@ mod test {
         assert_eq!(clip_prefix_len(sizes, 2000), 1597);
     }
 }
+#[cfg(test)]
+mod tests_literal {
+    use super::*;
+    use crate::models::queries::{term::TermQuery, prefix::PrefixQuery, ordered::I64Query, ordered::Ordering};
+    use crate::models::percolator::PercolatorConfig;
+    use crate::models::document::Document;
+    use crate::models::index::Index;
+
+    #[test]
+    fn test_literal_cost() {
+        // Term
+        let term_q = TermQuery::new("f", "v");
+        let lit_term = Literal::new(false, LitQuery::Term(term_q));
+        assert_eq!(lit_term.cost(), 10);
+        assert_eq!(lit_term.query().cost(), 10);
+
+        // Prefix
+        let prefix_q = PrefixQuery::new("f", "p");
+        let lit_prefix = Literal::new(false, LitQuery::Prefix(prefix_q));
+        assert_eq!(lit_prefix.cost(), 1000);
+
+        // Negated
+        let lit_neg = Literal::new(true, LitQuery::Term(TermQuery::new("f", "v")));
+        assert_eq!(lit_neg.cost(), 100000);
+    }
+
+    #[test]
+    fn test_literal_query_getter() {
+        let term_q = TermQuery::new("f", "v");
+        let lit = Literal::new(false, LitQuery::Term(term_q.clone()));
+        if let LitQuery::Term(tq) = lit.query() {
+            assert_eq!(tq.field(), term_q.field());
+            assert_eq!(tq.term(), term_q.term());
+        } else {
+            panic!("Expected TermQuery");
+        }
+    }
+
+    #[test]
+    fn test_percolate_doc_field_values() {
+        let config = PercolatorConfig::default();
+
+        // Term
+        let lit_term = Literal::new(false, LitQuery::Term(TermQuery::new("f", "v")));
+        let fvs = lit_term.percolate_doc_field_values(&config);
+        assert_eq!(fvs, vec![("f".into(), "v".into())]);
+
+        // Prefix (default sizes usually include small numbers)
+        let lit_prefix = Literal::new(false, LitQuery::Prefix(PrefixQuery::new("f", "pre")));
+        let fvs = lit_prefix.percolate_doc_field_values(&config);
+        // Assuming default config has some prefix sizes.
+        // percolate_doc_field_values calls clip_prefix_len.
+        // It returns keys like __PREFIX{len}__{field} and value {prefix} clipped.
+        assert!(!fvs.is_empty());
+        assert!(fvs[0].0.starts_with("__PREFIX"));
+    }
+
+    #[test]
+    fn test_preheater() {
+        let config = PercolatorConfig::default();
+
+        // Term - no preheater
+        let lit_term = Literal::new(false, LitQuery::Term(TermQuery::new("f", "v")));
+        assert!(lit_term.preheater(&config).is_none());
+
+        // Prefix - has preheater
+        let lit_prefix = Literal::new(false, LitQuery::Prefix(PrefixQuery::new("f", "pre")));
+        assert!(lit_prefix.preheater(&config).is_some());
+
+        // Int - has preheater
+        let lit_int = Literal::new(false, LitQuery::IntQuery(I64Query::new("f", 10, Ordering::EQ)));
+        assert!(lit_int.preheater(&config).is_some());
+
+        // H3Inside - has preheater (needs h3o dep but H3InsideQuery constructs it)
+        // Skipping complex setup for H3Inside preheater verification unless needed for coverage
+    }
+
+    #[test]
+    fn test_negate_and_is_negated() {
+        let lit = Literal::new(false, LitQuery::Term(TermQuery::new("f", "v")));
+        assert!(!lit.is_negated());
+
+        let neg_lit = lit.negate();
+        assert!(neg_lit.is_negated());
+
+        let double_neg = neg_lit.negate();
+        assert!(!double_neg.is_negated());
+    }
+
+    #[test]
+    fn test_matches() {
+        let lit = Literal::new(false, LitQuery::Term(TermQuery::new("f", "v")));
+        let doc_match = Document::default().with_value("f", "v");
+        let doc_miss = Document::default().with_value("f", "x");
+
+        // Positive
+        assert!(lit.matches(&doc_match));
+        assert!(!lit.matches(&doc_miss));
+
+        // Negated
+        let lit_neg = lit.negate();
+        assert!(!lit_neg.matches(&doc_match)); // !true -> false
+        assert!(lit_neg.matches(&doc_miss));   // !false -> true
+
+        // Bitwise XOR logic check: negated ^ matches
+        // false ^ true = true
+        // false ^ false = false
+        // true ^ true = false
+        // true ^ false = true
+    }
+
+    #[test]
+    fn test_percolate_docs_from_idx() {
+        let mut index = Index::default();
+        let doc = Document::default().with_value("f", "v");
+        let doc_id = index.index_document(&doc);
+
+        let lit = Literal::new(false, LitQuery::Term(TermQuery::new("f", "v")));
+        let bitmap = lit.percolate_docs_from_idx(&index);
+        assert!(bitmap.contains(doc_id));
+    }
+
+    #[test]
+    fn test_ordering() {
+        let l1 = Literal::new(false, LitQuery::Term(TermQuery::new("f", "a")));
+        let l2 = Literal::new(false, LitQuery::Term(TermQuery::new("f", "b")));
+        let l3 = Literal::new(false, LitQuery::Term(TermQuery::new("g", "a")));
+
+        assert!(l1 < l2);
+        assert!(l2 > l1);
+        assert!(l1 < l3); // Field compare first
+
+        // Ordering does not depend on negated status based on implementation
+        // It delegates to query.sort_field() and query.sort_term()
+    }
+
+    #[test]
+    fn test_partial_ord() {
+        let l1 = Literal::new(false, LitQuery::Term(TermQuery::new("f", "a")));
+        let l2 = Literal::new(false, LitQuery::Term(TermQuery::new("f", "b")));
+        assert_eq!(l1.partial_cmp(&l2), Some(std::cmp::Ordering::Less));
+    }
+
+    #[test]
+    fn test_display() {
+        let lit = Literal::new(false, LitQuery::Term(TermQuery::new("f", "v")));
+        assert_eq!(format!("{}", lit), "f=v");
+
+        let lit_neg = lit.negate();
+        assert_eq!(format!("{}", lit_neg), "~f=v");
+    }
+
+    #[test]
+    fn test_litquery_methods() {
+        let term_q = TermQuery::new("f", "v");
+        let lit_q = LitQuery::Term(term_q.clone());
+
+        assert!(lit_q.term_query().is_some());
+        assert!(lit_q.prefix_query().is_none());
+
+        let prefix_q = PrefixQuery::new("f", "p");
+        let lit_pq = LitQuery::Prefix(prefix_q);
+        assert!(lit_pq.term_query().is_none());
+        assert!(lit_pq.prefix_query().is_some());
+    }
+}
+
+#[cfg(test)]
+mod tests_literal_preheater {
+    use super::*;
+    use crate::models::queries::{ordered::{I64Query, Ordering}, prefix::PrefixQuery};
+    use crate::models::percolator::PercolatorConfig;
+    use crate::models::cnf::Clause;
+
+    // Testing logic of intcmp_query_preheater
+    #[test]
+    fn test_intcmp_preheater_logic() {
+        // We need to verify that the expander logic correctly checks iv <= cmp_point and iv >= cmp_point
+        // The expander is an opaque function, but we can call it on a Clause with TermQueries representing document fields.
+
+        // Case 1: LE (Less or Equal)
+        // cmp_point will be fibo_ceil(10) = 13 (depending on fibo impl)
+        // Let's check fibo values first if we can, but assuming fibo logic is correct.
+        // fibo_ceil(10) -> 13
+        // So LE 10 means we index with __INT_LE_13__field
+        // And preheater expander should produce that term if the document value <= 13.
+
+        let q = I64Query::new("f", 10, Ordering::LE);
+        let ph = intcmp_query_preheater(&q);
+        let expander = ph.expand_clause;
+
+        // Document with value 10 (should match)
+        let clause = Clause::from_termqueries(vec![TermQuery::new("f", "10")]);
+        let expanded = (expander.0)(clause);
+        // Should contain __INT_LE_13__f=true
+        assert!(expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__INT_LE_")));
+
+        // Document with value 14 (should NOT match) -> 14 > 13
+        let clause = Clause::from_termqueries(vec![TermQuery::new("f", "14")]);
+        let expanded = (expander.0)(clause);
+        // Should NOT contain the synthetic field
+        assert!(!expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__INT_LE_")));
+
+        // Case 2: GE (Greater or Equal)
+        // fibo_floor(10) -> 8 (assuming)
+        // GE 10 means we index with __INT_GE_8__field
+        // Preheater expander should produce that term if doc value >= 8.
+
+        let q = I64Query::new("f", 10, Ordering::GE);
+        let ph = intcmp_query_preheater(&q);
+        let expander = ph.expand_clause;
+
+        // Document with value 10 (should match)
+        let clause = Clause::from_termqueries(vec![TermQuery::new("f", "10")]);
+        let expanded = (expander.0)(clause);
+        assert!(expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__INT_GE_")));
+
+        // Document with value 7 (should NOT match) -> 7 < 8
+        let clause = Clause::from_termqueries(vec![TermQuery::new("f", "7")]);
+        let expanded = (expander.0)(clause);
+        assert!(!expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__INT_GE_")));
+    }
+
+    // Testing logic of prefix_query_preheater
+    #[test]
+    fn test_prefix_preheater_must_filter() {
+        let sizes = vec![2, 4];
+
+        // Case 1: Prefix length in sizes (exact match possibility)
+        // prefix "abcd" (len 4), clipped len 4. must_filter should be false (optimization)
+
+        let q = PrefixQuery::new("f", "abcd"); // len 4
+        let ph = prefix_query_preheater(&sizes, &q);
+        assert_eq!(clip_prefix_len(&sizes, 4), 4);
+        assert_eq!(ph.must_filter, false);
+
+        // Case 2: Prefix length NOT in sizes (must filter)
+        // prefix "abcde" (len 5), clipped len 4. must_filter should be true.
+        let q = PrefixQuery::new("f", "abcde");
+        let ph = prefix_query_preheater(&sizes, &q);
+        assert_eq!(clip_prefix_len(&sizes, 5), 4);
+        assert_eq!(ph.must_filter, true);
+
+        // Testing the expander logic too
+        // It should match doc values with len >= clipped_len
+        let expander = ph.expand_clause;
+
+        // Doc value "abc" (len 3) < 4. Should NOT expand.
+        let clause = Clause::from_termqueries(vec![TermQuery::new("f", "abc")]);
+        let expanded = (expander.0)(clause);
+        // Check no new literals added (or at least no synthetic prefix one)
+        assert!(!expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__PREFIX")));
+
+        // Doc value "abcde" (len 5) >= 4. Should expand.
+        let clause = Clause::from_termqueries(vec![TermQuery::new("f", "abcde")]);
+        let expanded = (expander.0)(clause);
+        assert!(expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__PREFIX")));
+    }
+}
