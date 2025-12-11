@@ -1,4 +1,4 @@
-use std::num::NonZeroUsize;
+use std::num::{NonZeroUsize, TryFromIntError};
 use std::{fmt, iter};
 
 use hstats::Hstats;
@@ -240,6 +240,18 @@ impl PercBuilder {
     }
 }
 
+#[derive(Debug)]
+pub enum PercolatorError {
+    /// Too many queries added to the percolator (more than u32::MAX)
+    TooManyQueries,
+    /// A prefix in a prefix query is too long (length exceeds u32::MAX)
+    PrefixTooLong(usize),
+    /// A query has too many clauses (exceeds u32::MAX)
+    TooManyClauses,
+    /// A query has too many non pure-term query atoms (exceeds u32::MAX)
+    TooManyPreheaters,
+}
+
 /// This is the primary object you need to keep to percolate documents
 /// through a set of queries.
 ///
@@ -320,6 +332,11 @@ impl fmt::Display for Percolator {
     }
 }
 
+fn usize_to_f64(u: usize) -> Result<f64, TryFromIntError> {
+    let u: u32 = u.try_into()?;
+    Ok(f64::from(u))
+}
+
 impl Percolator {
     pub fn from_config(config: PercolatorConfig) -> Self {
         Self {
@@ -357,34 +374,57 @@ impl Percolator {
         &self.stats
     }
 
-    ///
     /// Adds a query to this percolator. Will panic if
     /// there is more than u32::MAX queries.
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    /// let mut p = Percolator::default();
+    /// let qid = p.add_query("field".has_value("value"));
+    /// ```
     ///
     pub fn add_query(&mut self, q: Query) -> Qid {
+        self.safe_add_query(q).unwrap()
+    }
+
+    /// Safely adds a query to this percolator, reporting errors
+    /// when there are too many queries or other limits are exceeded.
+    ///
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    /// let mut p = Percolator::default();
+    /// match p.safe_add_query("field".has_value("value")) {
+    ///    Ok(qid) => println!("Added query with id {}", qid),
+    ///   Err(e) => println!("Failed to add query: {:?}", e),
+    /// }
+    /// ```
+    ///
+    pub fn safe_add_query(&mut self, q: Query) -> Result<Qid, PercolatorError> {
         // Get the document from the query
         // and index in the query index
         // The Clause index is controlling the zip.
         let expected_index_len = self.cnf_queries.len() + 1;
 
-        let new_doc_id = self.cnf_queries.len().try_into().expect("Too many queries");
+        let new_doc_id = self
+            .cnf_queries
+            .len()
+            .try_into()
+            .map_err(|_| PercolatorError::TooManyQueries)?;
         self.stats.n_queries += 1;
 
-        q.prefix_queries().for_each(|pq| {
+        for prefix_query in q.prefix_queries() {
             self.stats.prefix_lengths.add(
-                TryInto::<u32>::try_into(pq.prefix().len())
-                    .expect("Prefix len more than u32::MAX !?!")
-                    .into(),
+                usize_to_f64(prefix_query.prefix().len())
+                    .map_err(|_| PercolatorError::PrefixTooLong(prefix_query.prefix().len()))?,
             );
-        });
+        }
 
         let mut mis = cnf_to_matchitems(&q, &self.config).collect_vec();
 
-        self.stats.clauses_per_query.add(
-            TryInto::<u32>::try_into(mis.len())
-                .expect("Too many match items - More than u32::MAX !?!")
-                .into(),
-        );
+        self.stats
+            .clauses_per_query
+            .add(usize_to_f64(mis.len()).map_err(|_| PercolatorError::TooManyClauses)?);
 
         if mis.len() > self.clause_matchers.len() {
             self.must_filter.insert(new_doc_id);
@@ -395,42 +435,43 @@ impl Percolator {
         // Add the preheaters from the Match items.
         // Note that this will EMPTY all the preheaters from
         // the match items. So dont expect to use them later.
-        mis.iter_mut()
+        for preheater in mis
+            .iter_mut()
             .take(self.clause_matchers.len())
             .flat_map(|mi| std::mem::take(&mut mi.preheaters).into_iter())
-            .for_each(|ph| {
-                n_preheaters += 1;
+        {
+            n_preheaters += 1;
 
-                if ph.must_filter {
-                    self.must_filter.insert(new_doc_id);
-                }
+            if preheater.must_filter {
+                self.must_filter.insert(new_doc_id);
+            }
 
-                if !self.has_preheater(&ph) {
-                    self.preheaters.push(ph);
-                    self.stats.n_preheaters += 1;
-                }
-            });
+            if !self.has_preheater(&preheater) {
+                self.preheaters.push(preheater);
+                self.stats.n_preheaters += 1;
+            }
+        }
 
-        self.stats.preheaters_per_query.add(
-            TryInto::<u32>::try_into(n_preheaters)
-                .expect("Too many preheaters - More than u32::MAX !?!")
-                .into(),
-        );
-
-        //dbg!(self.preheaters.iter().map(|ph| &ph.id).collect_vec());
+        self.stats
+            .preheaters_per_query
+            .add(usize_to_f64(n_preheaters).map_err(|_| PercolatorError::TooManyPreheaters)?);
 
         let cms = self.clause_matchers.iter_mut();
-        cms.zip(mis.into_iter().chain(iter::repeat(MatchItem::match_all())))
-            .for_each(|(ms, mi)| {
-                if mi.must_filter {
-                    self.must_filter.insert(new_doc_id);
-                }
-                ms.positive_index.index_document(&mi.doc);
-                assert_eq!(ms.positive_index.len(), expected_index_len);
-            });
+        for (clause_matcher, match_item) in
+            cms.zip(mis.into_iter().chain(iter::repeat(MatchItem::match_all())))
+        {
+            if match_item.must_filter {
+                self.must_filter.insert(new_doc_id);
+            }
+            clause_matcher
+                .positive_index
+                .index_document(&match_item.doc);
+
+            assert_eq!(clause_matcher.positive_index.len(), expected_index_len);
+        }
 
         self.cnf_queries.push(q);
-        new_doc_id
+        Ok(new_doc_id)
     }
 
     pub fn get_query(&self, qid: Qid) -> &Query {

@@ -38,24 +38,24 @@ fn test_nclause_percolator(n: NonZeroUsize) {
     let mut p = Percolator::builder().n_clause_matchers(n).build();
 
     let q: Vec<Qid> = vec![
-        p.add_query("A:a".parse().unwrap()),                     //0
-        p.add_query("A:a OR B:b".parse().unwrap()),              //1
-        p.add_query("A".has_value("a") & "B".has_value("b")),    //2
-        p.add_query(!"A".has_value("a")),                        //3
+        p.safe_add_query("A:a".parse().unwrap()).unwrap(), //0
+        p.add_query("A:a OR B:b".parse().unwrap()),        //1
+        p.add_query("A".has_value("a") & "B".has_value("b")), //2
+        p.add_query(!"A".has_value("a")),                  //3
         p.add_query((!"A".has_value("a")) | "B".has_value("b")), //4
-        p.add_query(!"A".has_value("a") & "B".has_value("b")),   //5
-        p.add_query(!"A".has_value("a") & "A".has_value("a")),   //6 - should NEVER match anything.
-        p.add_query("C".has_prefix("multi")),                    //7
+        p.add_query(!"A".has_value("a") & "B".has_value("b")), //5
+        p.add_query(!"A".has_value("a") & "A".has_value("a")), //6 - should NEVER match anything.
+        p.add_query("C".has_prefix("multi")),              //7
         p.add_query("C".has_prefix("multi") & !"C".has_value("multimeter")), //8
         p.add_query(
             "A".has_value("aa") & "B".has_value("bb") & "C".has_value("cc") & "D".has_prefix("bla"),
         ), //9
-        p.add_query("P".has_prefix("")),                         // 10 P can mean Path
-        p.add_query("P".i64_gt(1000)),                           // 11 P can mean Price too!
-        p.add_query("W".i64_lt(10)),                             // 12 W for weight
-        p.add_query("W".i64_le(10)),                             // 13
-        p.add_query("W".i64_ge(2000)),                           // 14
-        p.add_query("W".i64_eq(12345)),                          // 15
+        p.add_query("P".has_prefix("")),                   // 10 P can mean Path
+        p.add_query("P".i64_gt(1000)),                     // 11 P can mean Price too!
+        p.add_query("W".i64_lt(10)),                       // 12 W for weight
+        p.add_query("W".i64_le(10)),                       // 13
+        p.add_query("W".i64_ge(2000)),                     // 14
+        p.add_query("W".i64_eq(12345)),                    // 15
         p.add_query("position".h3in("871f09b20ffffff".parse().unwrap())), // 16 something in gdansk old town
     ];
 
