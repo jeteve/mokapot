@@ -99,9 +99,67 @@ impl<T: PartialOrd + FromStr + num_traits::Zero> DocMatcher for OrderedQuery<T> 
 }
 
 #[cfg(test)]
-mod test_prefix {
+mod test_ordered {
     use super::*;
     use crate::prelude::Document;
+
+    #[test]
+    fn test_getters_and_display() {
+        let q = I64Query::new("field", 123, Ordering::EQ);
+        assert_eq!(q.field(), "field".into());
+        assert_eq!(*q.cmp_point(), 123);
+        assert_eq!(q.cmp_ord(), Ordering::EQ);
+        assert_eq!(format!("{}", q), "field==123");
+
+        let q = I64Query::new("field", 123, Ordering::GT);
+        assert_eq!(format!("{}", q), "field>123");
+
+        let q = I64Query::new("field", 123, Ordering::LT);
+        assert_eq!(format!("{}", q), "field<123");
+
+        let q = I64Query::new("field", 123, Ordering::GE);
+        assert_eq!(format!("{}", q), "field>=123");
+
+        let q = I64Query::new("field", 123, Ordering::LE);
+        assert_eq!(format!("{}", q), "field<=123");
+    }
+
+    #[test]
+    fn test_ordering_display() {
+        assert_eq!(format!("{}", Ordering::GT), ">");
+        assert_eq!(format!("{}", Ordering::LT), "<");
+        assert_eq!(format!("{}", Ordering::GE), ">=");
+        assert_eq!(format!("{}", Ordering::LE), "<=");
+        assert_eq!(format!("{}", Ordering::EQ), "==");
+    }
+
+    #[test]
+    fn test_ordering_compare() {
+        // GT
+        assert!(Ordering::GT.compare(&2, &1));
+        assert!(!Ordering::GT.compare(&1, &1));
+        assert!(!Ordering::GT.compare(&0, &1));
+
+        // LT
+        assert!(!Ordering::LT.compare(&2, &1));
+        assert!(!Ordering::LT.compare(&1, &1));
+        assert!(Ordering::LT.compare(&0, &1));
+
+        // GE
+        assert!(Ordering::GE.compare(&2, &1));
+        assert!(Ordering::GE.compare(&1, &1));
+        assert!(!Ordering::GE.compare(&0, &1));
+
+        // LE
+        assert!(!Ordering::LE.compare(&2, &1));
+        assert!(Ordering::LE.compare(&1, &1));
+        assert!(Ordering::LE.compare(&0, &1));
+
+        // EQ
+        assert!(!Ordering::EQ.compare(&2, &1));
+        assert!(Ordering::EQ.compare(&1, &1));
+        assert!(!Ordering::EQ.compare(&0, &1));
+    }
 
     #[test]
     #[cfg(feature = "serde")]
