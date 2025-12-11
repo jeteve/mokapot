@@ -36,6 +36,7 @@ impl DocMatcher for PrefixQuery {
     }
 }
 
+#[cfg(test)]
 mod test_prefix {
     use super::*;
 

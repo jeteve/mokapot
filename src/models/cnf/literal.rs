@@ -466,10 +466,12 @@ mod test {
 #[cfg(test)]
 mod tests_literal {
     use super::*;
-    use crate::models::queries::{term::TermQuery, prefix::PrefixQuery, ordered::I64Query, ordered::Ordering};
-    use crate::models::percolator::PercolatorConfig;
     use crate::models::document::Document;
     use crate::models::index::Index;
+    use crate::models::percolator::PercolatorConfig;
+    use crate::models::queries::{
+        ordered::I64Query, ordered::Ordering, prefix::PrefixQuery, term::TermQuery,
+    };
 
     #[test]
     fn test_literal_cost() {
@@ -533,7 +535,10 @@ mod tests_literal {
         assert!(lit_prefix.preheater(&config).is_some());
 
         // Int - has preheater
-        let lit_int = Literal::new(false, LitQuery::IntQuery(I64Query::new("f", 10, Ordering::EQ)));
+        let lit_int = Literal::new(
+            false,
+            LitQuery::IntQuery(I64Query::new("f", 10, Ordering::EQ)),
+        );
         assert!(lit_int.preheater(&config).is_some());
 
         // H3Inside - has preheater (needs h3o dep but H3InsideQuery constructs it)
@@ -565,7 +570,7 @@ mod tests_literal {
         // Negated
         let lit_neg = lit.negate();
         assert!(!lit_neg.matches(&doc_match)); // !true -> false
-        assert!(lit_neg.matches(&doc_miss));   // !false -> true
+        assert!(lit_neg.matches(&doc_miss)); // !false -> true
 
         // Bitwise XOR logic check: negated ^ matches
         // false ^ true = true
@@ -633,9 +638,11 @@ mod tests_literal {
 #[cfg(test)]
 mod tests_literal_preheater {
     use super::*;
-    use crate::models::queries::{ordered::{I64Query, Ordering}, prefix::PrefixQuery};
-    use crate::models::percolator::PercolatorConfig;
     use crate::models::cnf::Clause;
+    use crate::models::queries::{
+        ordered::{I64Query, Ordering},
+        prefix::PrefixQuery,
+    };
 
     // Testing logic of intcmp_query_preheater
     #[test]
@@ -658,13 +665,25 @@ mod tests_literal_preheater {
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "10")]);
         let expanded = (expander.0)(clause);
         // Should contain __INT_LE_13__f=true
-        assert!(expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__INT_LE_")));
+        assert!(expanded.literals().iter().any(|l| {
+            l.query()
+                .term_query()
+                .unwrap()
+                .field()
+                .starts_with("__INT_LE_")
+        }));
 
         // Document with value 14 (should NOT match) -> 14 > 13
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "14")]);
         let expanded = (expander.0)(clause);
         // Should NOT contain the synthetic field
-        assert!(!expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__INT_LE_")));
+        assert!(!expanded.literals().iter().any(|l| {
+            l.query()
+                .term_query()
+                .unwrap()
+                .field()
+                .starts_with("__INT_LE_")
+        }));
 
         // Case 2: GE (Greater or Equal)
         // fibo_floor(10) -> 8 (assuming)
@@ -678,12 +697,24 @@ mod tests_literal_preheater {
         // Document with value 10 (should match)
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "10")]);
         let expanded = (expander.0)(clause);
-        assert!(expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__INT_GE_")));
+        assert!(expanded.literals().iter().any(|l| {
+            l.query()
+                .term_query()
+                .unwrap()
+                .field()
+                .starts_with("__INT_GE_")
+        }));
 
         // Document with value 7 (should NOT match) -> 7 < 8
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "7")]);
         let expanded = (expander.0)(clause);
-        assert!(!expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__INT_GE_")));
+        assert!(!expanded.literals().iter().any(|l| {
+            l.query()
+                .term_query()
+                .unwrap()
+                .field()
+                .starts_with("__INT_GE_")
+        }));
     }
 
     // Testing logic of prefix_query_preheater
@@ -697,14 +728,14 @@ mod tests_literal_preheater {
         let q = PrefixQuery::new("f", "abcd"); // len 4
         let ph = prefix_query_preheater(&sizes, &q);
         assert_eq!(clip_prefix_len(&sizes, 4), 4);
-        assert_eq!(ph.must_filter, false);
+        assert!(!ph.must_filter);
 
         // Case 2: Prefix length NOT in sizes (must filter)
         // prefix "abcde" (len 5), clipped len 4. must_filter should be true.
         let q = PrefixQuery::new("f", "abcde");
         let ph = prefix_query_preheater(&sizes, &q);
         assert_eq!(clip_prefix_len(&sizes, 5), 4);
-        assert_eq!(ph.must_filter, true);
+        assert!(ph.must_filter);
 
         // Testing the expander logic too
         // It should match doc values with len >= clipped_len
@@ -714,11 +745,23 @@ mod tests_literal_preheater {
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "abc")]);
         let expanded = (expander.0)(clause);
         // Check no new literals added (or at least no synthetic prefix one)
-        assert!(!expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__PREFIX")));
+        assert!(!expanded.literals().iter().any(|l| {
+            l.query()
+                .term_query()
+                .unwrap()
+                .field()
+                .starts_with("__PREFIX")
+        }));
 
         // Doc value "abcde" (len 5) >= 4. Should expand.
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "abcde")]);
         let expanded = (expander.0)(clause);
-        assert!(expanded.literals().iter().any(|l| l.query().term_query().unwrap().field().starts_with("__PREFIX")));
+        assert!(expanded.literals().iter().any(|l| {
+            l.query()
+                .term_query()
+                .unwrap()
+                .field()
+                .starts_with("__PREFIX")
+        }));
     }
 }

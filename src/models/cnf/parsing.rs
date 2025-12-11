@@ -770,16 +770,32 @@ mod tests_parsing {
     #[test]
     fn test_escape_quote() {
         assert_eq!(_escape_quote("abc"), Cow::Borrowed("abc"));
-        assert_eq!(_escape_quote("abc\"def"), Cow::Owned::<str>("\"abc\\\"def\"".into()));
-        assert_eq!(_escape_quote("abc\\def"), Cow::Owned::<str>("\"abc\\\\def\"".into()));
-        assert_eq!(_escape_quote("abc def"), Cow::Owned::<str>("\"abc def\"".into()));
-        assert_eq!(_escape_quote("abc:def"), Cow::Owned::<str>("\"abc:def\"".into()));
+        assert_eq!(
+            _escape_quote("abc\"def"),
+            Cow::Owned::<str>("\"abc\\\"def\"".into())
+        );
+        assert_eq!(
+            _escape_quote("abc\\def"),
+            Cow::Owned::<str>("\"abc\\\\def\"".into())
+        );
+        assert_eq!(
+            _escape_quote("abc def"),
+            Cow::Owned::<str>("\"abc def\"".into())
+        );
+        assert_eq!(
+            _escape_quote("abc:def"),
+            Cow::Owned::<str>("\"abc:def\"".into())
+        );
     }
 
     #[test]
     fn test_query_ast_display() {
         // Atom
-        let atom = QueryAST::Atom("f".into(), OperatorAST::Colon, FieldValueAST::Term("v".into()));
+        let atom = QueryAST::Atom(
+            "f".into(),
+            OperatorAST::Colon,
+            FieldValueAST::Term("v".into()),
+        );
         assert_eq!(format!("{}", atom), "f:v");
 
         // Neg
@@ -809,9 +825,15 @@ mod tests_parsing {
     #[test]
     fn test_field_value_ast_display() {
         assert_eq!(format!("{}", FieldValueAST::Term("v".into())), "v");
-        assert_eq!(format!("{}", FieldValueAST::Term("v space".into())), "\"v space\"");
+        assert_eq!(
+            format!("{}", FieldValueAST::Term("v space".into())),
+            "\"v space\""
+        );
         assert_eq!(format!("{}", FieldValueAST::Prefix("p".into())), "p*");
-        assert_eq!(format!("{}", FieldValueAST::Prefix("p space".into())), "\"p space\"*");
+        assert_eq!(
+            format!("{}", FieldValueAST::Prefix("p space".into())),
+            "\"p space\"*"
+        );
         assert_eq!(format!("{}", FieldValueAST::Integer(42)), "42");
     }
 
@@ -843,11 +865,19 @@ mod tests_parsing {
 
         // H3
         let cell = "87194d106ffffff";
-        let cnf = atom_to_cnf("f", &OperatorAST::H3Inside, &FieldValueAST::Term(cell.into()));
+        let cnf = atom_to_cnf(
+            "f",
+            &OperatorAST::H3Inside,
+            &FieldValueAST::Term(cell.into()),
+        );
         assert_eq!(cnf.to_string(), format!("(AND (OR f=H3IN={}))", cell));
 
         // H3 with invalid cell -> Term
-        let cnf = atom_to_cnf("f", &OperatorAST::H3Inside, &FieldValueAST::Term("invalid".into()));
+        let cnf = atom_to_cnf(
+            "f",
+            &OperatorAST::H3Inside,
+            &FieldValueAST::Term("invalid".into()),
+        );
         assert_eq!(cnf.to_string(), "(AND (OR f=invalid))");
 
         // Fallback int with colon
@@ -920,7 +950,7 @@ mod tests_parsing_random {
         // Testing recursion by checking if we get deeper queries
         let mut rng = rand::rng();
         // Depth 3 should produce something deeper than atom
-        let q = random_query(&mut rng, 3);
+        let _ = random_query(&mut rng, 3);
         // It's probabilistic, but usually we should get nested structure.
         // We can inspect the structure to verify it's not always simple atom.
         // We can assert that with enough tries, we get a mix of structure types.

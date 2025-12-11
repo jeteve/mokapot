@@ -96,7 +96,6 @@ mod tests {
 #[cfg(test)]
 mod tests_tools {
     use super::*;
-    use crate::models::cnf::Clause;
     use crate::models::types::OurRc;
 
     #[test]
@@ -111,14 +110,14 @@ mod tests_tools {
         let expander = ClauseExpander::new(OurRc::new(|c| c));
         let ph = PreHeater::new("id".into(), expander.clone());
 
-        assert_eq!(ph.must_filter, false);
+        assert!(!ph.must_filter);
 
         let ph2 = ph.with_must_filter(true);
-        assert_eq!(ph2.must_filter, true);
+        assert!(ph2.must_filter);
 
         // Coverage for default false in new
         let ph3 = PreHeater::new("id2".into(), expander.clone());
-        assert_eq!(ph3.must_filter, false);
+        assert!(!ph3.must_filter);
     }
 
     #[test]
@@ -126,7 +125,7 @@ mod tests_tools {
         let doc = Document::default();
         let mi = MatchItem::new(doc.clone(), 10);
 
-        assert_eq!(mi.must_filter, false);
+        assert!(!mi.must_filter);
         assert!(mi.preheaters.is_empty());
         assert_eq!(mi.cost, 10);
 
@@ -137,7 +136,7 @@ mod tests_tools {
         assert_eq!(mi2.preheaters.len(), 1);
 
         let mi3 = mi2.with_must_filter();
-        assert_eq!(mi3.must_filter, true);
+        assert!(mi3.must_filter);
     }
 
     #[test]
@@ -145,6 +144,6 @@ mod tests_tools {
         let mi = MatchItem::match_all();
         assert!(mi.doc.is_match_all());
         assert_eq!(mi.cost, 10000);
-        assert_eq!(mi.must_filter, false);
+        assert!(!mi.must_filter);
     }
 }
