@@ -49,12 +49,10 @@ fn choose_resolution(radius_m: u64, target_k: u32) -> Resolution {
 /// - `target_k`: Desired density (approximate ring count).
 ///    ~4 is a good balance for shape accuracy vs performance.
 pub(crate) fn get_adaptive_covering(
-    lat: f64,
-    lng: f64,
+    center: LatLng,
     radius_m: u64,
     target_k: u32,
 ) -> Vec<CellIndex> {
-    let center = LatLng::new(lat, lng).expect("Invalid coordinates");
     let res = choose_resolution(radius_m, target_k);
     let edge_len = res.edge_length_m();
 
@@ -117,7 +115,9 @@ mod tests {
     fn test_covering_generates_cells() {
         // Integration test: Ensure we actually get cells back
         // Center of London, 500m radius
-        let cells = get_adaptive_covering(54.35499723397377, 18.662987684795226, 50_000, 2);
+        let center =
+            LatLng::new(54.35499723397377, 18.662987684795226).expect("Invalid coordinates");
+        let cells = get_adaptive_covering(center, 50_000, 2);
 
         assert!(!cells.is_empty());
         println!(
