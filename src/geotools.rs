@@ -41,6 +41,8 @@ fn choose_resolution(radius_m: u64, target_k: u32) -> Resolution {
     Resolution::try_from(res_index as u8).unwrap()
 }
 
+pub(crate) struct Meters(u64);
+
 /// Generates a set of H3 cells covering a circular area.
 /// The resolution is automatically adapted based on the radius.
 ///
@@ -50,15 +52,15 @@ fn choose_resolution(radius_m: u64, target_k: u32) -> Resolution {
 ///    ~4 is a good balance for shape accuracy vs performance.
 pub(crate) fn get_adaptive_covering(
     center: LatLng,
-    radius_m: u64,
+    radius: Meters,
     target_k: u32,
 ) -> Vec<CellIndex> {
-    let res = choose_resolution(radius_m, target_k);
+    let res = choose_resolution(radius.0, target_k);
     let edge_len = res.edge_length_m();
 
     // Calculate grid radius (k).
     // We add a buffer (+1) to account for grid distortion and edge cases.
-    let k = (radius_m as f64 / edge_len).ceil() as u32 + 1;
+    let k = (radius.0 as f64 / edge_len).ceil() as u32 + 1;
 
     center
         .to_cell(res)
@@ -66,7 +68,7 @@ pub(crate) fn get_adaptive_covering(
         .into_iter()
         .filter(|cell| {
             let cell_center = LatLng::from(*cell);
-            center.distance_m(cell_center) <= radius_m as f64
+            center.distance_m(cell_center) <= radius.0 as f64
         })
         .collect()
 }
@@ -117,7 +119,7 @@ mod tests {
         // Center of London, 500m radius
         let center =
             LatLng::new(54.35499723397377, 18.662987684795226).expect("Invalid coordinates");
-        let cells = get_adaptive_covering(center, 50_000, 2);
+        let cells = get_adaptive_covering(center, Meters(50_000), 2);
 
         assert!(!cells.is_empty());
         println!(
