@@ -25,7 +25,7 @@ const EDGE_LENGTHS: [f64; 16] = [
 /// to fit `target_k` times within the given radius.
 ///
 /// - `radius_m`: The search radius in meters.
-/// - `target_k`: The minimum grid distance desired (controls granularity).
+/// - `target_k`: The minimum grid distance (how many cells from center) desired (controls granularity).
 fn choose_resolution(radius_m: u64, target_k: u32) -> Resolution {
     if target_k == 0 {
         return Resolution::Zero;

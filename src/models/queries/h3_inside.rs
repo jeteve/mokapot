@@ -3,7 +3,7 @@ use std::fmt::{self, Display};
 use h3o::CellIndex;
 
 use crate::{
-    models::{queries::common::DocMatcher, types::OurRc, types::OurStr},
+    models::{queries::common::DocMatcher, types::OurStr},
     prelude::Document,
 };
 
@@ -42,7 +42,7 @@ impl H3InsideQuery {
 
 /// Free function to test a string from a potential string CellIndex to
 /// a parent.
-fn _has_parent(cell_str: &OurRc<str>, parent: CellIndex) -> bool {
+fn _has_parent(cell_str: &OurStr, parent: CellIndex) -> bool {
     cell_str.as_ref().parse::<CellIndex>().is_ok_and(|cell| {
         cell.parent(parent.resolution())
             .is_some_and(|ancestor| ancestor.eq(&parent))
@@ -113,8 +113,8 @@ mod test_h3_inside {
 
         // Test parent that is not a direct parent but an ancestor
         assert!(_has_parent(
-            &"88194d1069fffff".into(), // Res 8
-            "86194d107ffffff".parse::<CellIndex>().unwrap() // Res 6
+            &"88194d1069fffff".into(),                       // Res 8
+            "86194d107ffffff".parse::<CellIndex>().unwrap()  // Res 6
         ));
 
         // Test with different valid cell that is NOT a child
