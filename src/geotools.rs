@@ -41,7 +41,7 @@ fn choose_resolution(radius_m: u64, target_k: u32) -> Resolution {
     Resolution::try_from(res_index as u8).unwrap()
 }
 
-pub(crate) struct Meters(u64);
+pub(crate) struct Meters(pub(crate) u64);
 
 /// Generates a set of H3 cells covering a circular area.
 /// The resolution is automatically adapted based on the radius.
