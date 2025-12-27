@@ -228,6 +228,7 @@ mod test {
             .with_value("taste", "bitter")
             .with_value("taste", "sweet");
         assert!(!d.is_empty());
+        assert!(!d.is_match_all());
 
         let clause = d.to_clause();
         assert_eq!(
