@@ -109,7 +109,7 @@ pub(crate) fn parse_latlng_within(input: &str) -> Option<(LatLng, Meters)> {
 }
 
 // The cell value must be a valid double,double representing
-// a lattitude,longitude pair.
+// a latitude,longitude pair.
 fn _latlng_within(doc_value: &OurStr, q: &LatLngWithinQuery) -> bool {
     parse_latlng(doc_value).is_some_and(|ll| ll.distance_m(q.latlng) <= q.within.0 as f64)
 }

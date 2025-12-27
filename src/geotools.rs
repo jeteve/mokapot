@@ -144,7 +144,7 @@ mod tests {
     #[test]
     fn test_covering_generates_cells() {
         // Integration test: Ensure we actually get cells back
-        // Center of London, 500m radius
+        // Center of Gdansk, 500m radius
         let center =
             LatLng::new(54.35499723397377, 18.662987684795226).expect("Invalid coordinates");
         let res = resolution_within_k(Meters(50_000), 9);
