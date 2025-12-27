@@ -74,25 +74,22 @@ pub(crate) fn disk_covering(
 
     let center_cell = center.to_cell(res);
 
-    // Edge case for zero radii
-    if radius.0 == 0 {
-        return nonempty![center_cell];
-    }
+    let filtered_cells: Vec<_> = center_cell
+        .grid_disk::<Vec<_>>(k)
+        .into_iter()
+        .filter(|cell| {
+            let cell_center = LatLng::from(*cell);
+            // This cannot work for radii zero, as the distance from a lat/lng
+            // to the center of the containing cell is rarely ever <= 0.0000
+            center.distance_m(cell_center) <= radius.0 as f64
+        })
+        .collect();
 
-    // General case. Will always be at least one element
-    NonEmpty::from_vec(
-        center_cell
-            .grid_disk::<Vec<_>>(k)
-            .into_iter()
-            .filter(|cell| {
-                let cell_center = LatLng::from(*cell);
-                // This cannot work for radii zero, as the distance from a lat/lng
-                // to the center of the containing cell is rarely ever <= 0.0000
-                center.distance_m(cell_center) <= radius.0 as f64
-            })
-            .collect(),
-    )
-    .expect("Covering should always be at least one cell.")
+    if filtered_cells.is_empty() {
+        nonempty![center_cell]
+    } else {
+        NonEmpty::from_vec(filtered_cells).expect("Always non empty")
+    }
 }
 
 #[cfg(test)]
