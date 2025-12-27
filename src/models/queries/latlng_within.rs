@@ -157,6 +157,8 @@ mod tests {
             LatLng::new(48.864716, 2.349014).unwrap(),
             Meters(1000),
         );
+        assert_eq!(q.latlng(), q.latlng);
+        assert_eq!(q.within(), q.within);
         assert_eq!(
             q.to_string(),
             "location LATLNG_WITHIN (48.8647160000, 2.3490140000),1000"

@@ -366,7 +366,7 @@ mod tests {
     #[test]
     fn test_random_queries() {
         let mut rng = rand::rng();
-        for _ in 0..1000 {
+        for _ in 0..5000 {
             let q = random_query(&mut rng, 3);
             // Check we can parse the string representation of it.
             let s = q.to_string();

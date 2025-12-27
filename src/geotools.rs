@@ -100,6 +100,12 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_meters() {
+        assert_eq!(Meters(0).to_string(), "0m");
+        assert_eq!(Meters(1).to_string(), "1m");
+    }
+
+    #[test]
     fn test_tiny_radius_selects_finest_resolution() {
         // 1m radius / 4 = 0.25m edge target.
         // Smallest H3 edge (Res 15) is ~0.51m.
