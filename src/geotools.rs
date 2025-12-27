@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use h3o::{CellIndex, LatLng, Resolution};
+use nonempty::{NonEmpty, nonempty};
 
 // Average edge lengths (meters) for H3 resolutions 0..=15.
 // Source: https://h3geo.org/docs/core-library/restable/
@@ -26,14 +27,15 @@ const EDGE_LENGTHS: [f64; 16] = [
 /// Selects the coarsest resolution where the edge length is small enough
 /// to fit `target_k` times within the given radius.
 ///
-/// - `radius_m`: The search radius in meters.
+/// - `radius`: Circle radius.
 /// - `target_k`: The minimum grid distance (how many cells from center) desired (controls granularity).
-fn choose_resolution(radius_m: u64, target_k: u32) -> Resolution {
+///   ~4 is a good balance for shape accuracy vs performance.
+pub(crate) fn resolution_within_k(radius: Meters, target_k: u32) -> Resolution {
     if target_k == 0 {
         return Resolution::Zero;
     }
 
-    let target_edge = radius_m as f64 / target_k as f64;
+    let target_edge = radius.0 as f64 / target_k as f64;
 
     let res_index = EDGE_LENGTHS
         .iter()
@@ -45,7 +47,7 @@ fn choose_resolution(radius_m: u64, target_k: u32) -> Resolution {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) struct Meters(pub(crate) u64);
+pub struct Meters(pub u64);
 impl Display for Meters {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}m", self.0)
@@ -53,33 +55,44 @@ impl Display for Meters {
 }
 
 /// Generates a set of H3 cells covering a circular area.
-/// The resolution is automatically adapted based on the radius.
+/// You need to choose the resolution.
+/// This is guarantee to at least cover the actual disk.
 ///
 /// - `lat`, `lng`: Center point coordinates.
 /// - `radius_m`: Radius in meters.
-/// - `target_k`: Desired density (approximate ring count).
-///    ~4 is a good balance for shape accuracy vs performance.
-pub(crate) fn get_adaptive_covering(
+/// - `Resolution`: Desired cells resolution (influence number of cells and accuracy of coverage).
+pub(crate) fn disk_covering(
     center: LatLng,
     radius: Meters,
-    target_k: u32,
-) -> Vec<CellIndex> {
-    let res = choose_resolution(radius.0, target_k);
+    res: Resolution,
+) -> NonEmpty<CellIndex> {
     let edge_len = res.edge_length_m();
 
     // Calculate grid radius (k).
     // We add a buffer (+1) to account for grid distortion and edge cases.
     let k = (radius.0 as f64 / edge_len).ceil() as u32 + 1;
 
-    center
-        .to_cell(res)
-        .grid_disk::<Vec<_>>(k)
-        .into_iter()
-        .filter(|cell| {
-            let cell_center = LatLng::from(*cell);
-            center.distance_m(cell_center) <= radius.0 as f64
-        })
-        .collect()
+    let center_cell = center.to_cell(res);
+
+    // Edge case for zero radii
+    if radius.0 == 0 {
+        return nonempty![center_cell];
+    }
+
+    // General case. Will always be at least one element
+    NonEmpty::from_vec(
+        center_cell
+            .grid_disk::<Vec<_>>(k)
+            .into_iter()
+            .filter(|cell| {
+                let cell_center = LatLng::from(*cell);
+                // This cannot work for radii zero, as the distance from a lat/lng
+                // to the center of the containing cell is rarely ever <= 0.0000
+                center.distance_m(cell_center) <= radius.0 as f64
+            })
+            .collect(),
+    )
+    .expect("Covering should always be at least one cell.")
 }
 
 #[cfg(test)]
@@ -91,7 +104,10 @@ mod tests {
         // 1m radius / 4 = 0.25m edge target.
         // Smallest H3 edge (Res 15) is ~0.51m.
         // 0.51 is > 0.25, so it should fall through to fallback (Res 15).
-        let res = choose_resolution(1, 4);
+        let res = resolution_within_k(Meters(0), 4);
+        assert_eq!(res, Resolution::Fifteen);
+
+        let res = resolution_within_k(Meters(1), 4);
         assert_eq!(res, Resolution::Fifteen);
     }
 
@@ -101,7 +117,7 @@ mod tests {
         // Res 1 is ~418km (too big).
         // Res 2 is ~158km (fits!).
         // Expect Res 2.
-        let res = choose_resolution(1_000_000, 4);
+        let res = resolution_within_k(Meters(1_000_000), 4);
         assert_eq!(res, Resolution::Two);
     }
 
@@ -111,14 +127,14 @@ mod tests {
         // Res 9 is ~174m (too big).
         // Res 10 is ~65.9m (fits!).
         // Expect Res 10.
-        let res = choose_resolution(500, 4);
+        let res = resolution_within_k(Meters(500), 4);
         assert_eq!(res, Resolution::Ten);
     }
 
     #[test]
     fn test_zero_target_k_returns_safe_default() {
         // Should not panic or crash
-        let res = choose_resolution(1000, 0);
+        let res = resolution_within_k(Meters(1000), 0);
         assert_eq!(res, Resolution::Zero);
     }
 
@@ -128,11 +144,13 @@ mod tests {
         // Center of London, 500m radius
         let center =
             LatLng::new(54.35499723397377, 18.662987684795226).expect("Invalid coordinates");
-        let cells = get_adaptive_covering(center, Meters(50_000), 2);
+        let res = resolution_within_k(Meters(50_000), 9);
+
+        let cells = disk_covering(center, Meters(50_000), res);
 
         assert!(!cells.is_empty());
         println!(
-            "The cells: {}",
+            "Inspect at https://observablehq.com/@nrabinowitz/h3-index-inspector {}",
             cells
                 .iter()
                 .map(|c| c.to_string())
@@ -143,5 +161,15 @@ mod tests {
         // With k=4, we expect a decent number of cells (roughly > 30, < 100 usually)
         // Exact count varies by grid alignment, but shouldn't be 1.
         assert!(cells.len() > 1);
+
+        // test just a point and 1 radius. We should have at least one cell
+        let res = resolution_within_k(Meters(1), 9);
+        let cells = disk_covering(center, Meters(1), res);
+        assert!(!cells.is_empty());
+
+        // test just a point and zero radius. We should have at least one cell
+        let res = resolution_within_k(Meters(0), 9);
+        let cells = disk_covering(center, Meters(0), res);
+        assert!(!cells.is_empty());
     }
 }

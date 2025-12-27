@@ -4,7 +4,10 @@ use std::{
 };
 
 use crate::models::{
-    queries::{h3_inside::H3InsideQuery, latlng_within::LatLngWithinQuery},
+    queries::{
+        h3_inside::H3InsideQuery,
+        latlng_within::{LatLngWithinQuery, parse_latlng},
+    },
     types::{OurRc, OurStr},
 };
 
@@ -49,15 +52,45 @@ fn safe_prefix(s: &str, len: usize) -> std::borrow::Cow<'_, str> {
         ))
 }
 
+fn latlngwithin_preheater(llq: &LatLngWithinQuery) -> PreHeater {
+    let qfield = llq.field();
+    let resolution = llq.resolution();
+
+    let litfield: OurStr = format!("__H3_IN_{}_{}", qfield, resolution).into();
+
+    // We are going to run what looks like a lat,lng field
+    // into a h3 cell at the given resolution
+    let expander = move |mut c: Clause| {
+        let new_literals = c
+            .term_queries_iter()
+            .filter_map(|tq| {
+                (tq.field() == qfield) // Good original field.
+                    .then_some(tq.term()) // Focus on the term
+                    .and_then(|v| parse_latlng(v.as_ref())) // Parse as lat,lng if possible.
+            }) // Ok we have LatLng from the good field.
+            .map(|ll| ll.to_cell(resolution)) // Map to a cell at the same resolution of the index.
+            // Then make a new Term query with the right format
+            .map(|ci| TermQuery::new(litfield.clone(), ci.to_string()))
+            .map(|q| Literal::new(false, LitQuery::Term(q)))
+            .collect_vec();
+        c.append_literals(new_literals);
+        c
+    };
+
+    let id_preheater = format!("LATLNGWITHIN_AT_RES_{}__{}", llq.field(), resolution).into();
+    // We want must filter to do some exact matching.
+    PreHeater::new(id_preheater, ClauseExpander::new(OurRc::new(expander))).with_must_filter(true)
+}
+
 fn h3in_query_preheater(h3i: &H3InsideQuery) -> PreHeater {
     let qfield = h3i.field();
     let qcell = h3i.cell();
+    let litfield: OurStr = format!("__H3_IN_{}_{}", qfield, qcell.resolution()).into();
 
     // The expander looks at each of the litteral values of the clause
     // for the field and adds the new Term litterals
     // to match the __H3IN_.. indexed field at the right resolution.
     let expander = move |mut c: Clause| {
-        let litfield: OurStr = format!("__H3_IN_{}_{}", qfield, qcell.resolution()).into();
         let new_literals = c
             .term_queries_iter()
             // Filter the right field
@@ -234,9 +267,7 @@ impl LitQuery {
             LitQuery::Prefix(pq) => pq.prefix(),
             LitQuery::IntQuery(oq) => oq.cmp_point().to_string().into(),
             LitQuery::H3Inside(h3i) => h3i.cell().to_string().into(),
-            LitQuery::LatLngWithin(llq) => {
-                format!("{},{}", llq.latlng().to_string(), llq.within().to_string()).into()
-            }
+            LitQuery::LatLngWithin(llq) => format!("{},{}", llq.latlng(), llq.within()).into(),
         }
     }
 }
@@ -251,6 +282,25 @@ impl fmt::Display for LitQuery {
             LitQuery::LatLngWithin(llq) => llq.fmt(f),
         }
     }
+}
+
+// Turns a LatLngWithin query into a vector of
+// indexed fields.
+fn llq_to_fvs(llq: &LatLngWithinQuery) -> Vec<(OurStr, OurStr)> {
+    // We are going to have a collection of H3 cells to index.
+    let cells = llq.h3_cells();
+    // They are all going to be of the same resolution.
+    let resolution = llq.resolution();
+
+    cells
+        .into_iter()
+        .map(|cell| {
+            (
+                format!("__H3_IN_{}_{}", llq.field(), resolution).into(),
+                cell.to_string().into(),
+            )
+        })
+        .collect()
 }
 
 // Turns an H3Inside query into a vector of indexed
@@ -350,7 +400,7 @@ impl Literal {
             }
             LitQuery::IntQuery(oq) => oq_to_fvs(oq),
             LitQuery::H3Inside(h3i) => h3i_to_fvs(h3i),
-            LitQuery::LatLngWithin(llq) => vec![],
+            LitQuery::LatLngWithin(llq) => llq_to_fvs(llq),
         }
     }
 
@@ -359,6 +409,7 @@ impl Literal {
             LitQuery::Prefix(pq) => Some(prefix_query_preheater(config.prefix_sizes(), pq)),
             LitQuery::IntQuery(oq) => Some(intcmp_query_preheater(oq)),
             LitQuery::H3Inside(h3i) => Some(h3in_query_preheater(h3i)),
+            LitQuery::LatLngWithin(llq) => Some(latlngwithin_preheater(llq)),
             _ => None,
         }
     }

@@ -1,9 +1,11 @@
 use std::{fmt::Display, hash::Hash};
 
-use h3o::LatLng;
+use nonempty::NonEmpty;
+
+use h3o::{LatLng, Resolution};
 
 use crate::{
-    geotools::Meters,
+    geotools::{Meters, disk_covering, resolution_within_k},
     models::{queries::common::DocMatcher, types::OurStr},
 };
 
@@ -27,9 +29,7 @@ impl Display for LatLngWithinQuery {
         write!(
             f,
             "{} LATLNG_WITHIN {},{}",
-            self.field,
-            self.latlng.to_string(),
-            self.within.0
+            self.field, self.latlng, self.within.0
         )
     }
 }
@@ -62,6 +62,16 @@ impl LatLngWithinQuery {
 
     pub(crate) fn within(&self) -> Meters {
         self.within
+    }
+
+    // The resolution of the h3 cells covering this disk.
+    pub(crate) fn resolution(&self) -> Resolution {
+        resolution_within_k(self.within, 4)
+    }
+
+    // The h3 cells covering this disk
+    pub(crate) fn h3_cells(&self) -> NonEmpty<h3o::CellIndex> {
+        disk_covering(self.latlng, self.within, self.resolution())
     }
 }
 
@@ -101,7 +111,7 @@ pub(crate) fn parse_latlng_within(input: &str) -> Option<(LatLng, Meters)> {
 // The cell value must be a valid double,double representing
 // a lattitude,longitude pair.
 fn _latlng_within(doc_value: &OurStr, q: &LatLngWithinQuery) -> bool {
-    parse_latlng(doc_value).is_some_and(|ll| dbg!(ll.distance_m(q.latlng)) <= q.within.0 as f64)
+    parse_latlng(doc_value).is_some_and(|ll| ll.distance_m(q.latlng) <= q.within.0 as f64)
 }
 
 impl DocMatcher for LatLngWithinQuery {
@@ -146,6 +156,10 @@ mod tests {
             "location",
             LatLng::new(48.864716, 2.349014).unwrap(),
             Meters(1000),
+        );
+        assert_eq!(
+            q.to_string(),
+            "location LATLNG_WITHIN (48.8647160000, 2.3490140000),1000"
         );
 
         let d = Document::default();
