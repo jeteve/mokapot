@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::models::{
-    queries::h3_inside::H3InsideQuery,
+    queries::{h3_inside::H3InsideQuery, latlng_within::LatLngWithinQuery},
     types::{OurRc, OurStr},
 };
 
@@ -174,6 +174,7 @@ pub(crate) enum LitQuery {
     Prefix(PrefixQuery),
     IntQuery(I64Query),
     H3Inside(H3InsideQuery),
+    LatLngWithin(LatLngWithinQuery),
 }
 
 impl LitQuery {
@@ -185,7 +186,8 @@ impl LitQuery {
             LitQuery::Term(_) => 10,
             LitQuery::Prefix(_) => 1000,   // Will have some preheating
             LitQuery::IntQuery(_) => 1000, // Will have some preheating
-            LitQuery::H3Inside(_) => 1000, // Will have some preheating, but faster than others.
+            LitQuery::H3Inside(_) => 900,  // Will have some preheating, but faster than others.
+            LitQuery::LatLngWithin(_) => 1000, // Will have some preheating, but will have some post check
         }
     }
 
@@ -196,6 +198,7 @@ impl LitQuery {
             LitQuery::Prefix(pq) => pq.matches(d),
             LitQuery::IntQuery(oq) => oq.matches(d),
             LitQuery::H3Inside(h3i) => h3i.matches(d),
+            LitQuery::LatLngWithin(llq) => llq.matches(d),
         }
     }
 
@@ -220,6 +223,7 @@ impl LitQuery {
             LitQuery::Prefix(pq) => pq.field(),
             LitQuery::IntQuery(oq) => oq.field(),
             LitQuery::H3Inside(h3i) => h3i.field(),
+            LitQuery::LatLngWithin(llq) => llq.field(),
         }
     }
 
@@ -230,6 +234,9 @@ impl LitQuery {
             LitQuery::Prefix(pq) => pq.prefix(),
             LitQuery::IntQuery(oq) => oq.cmp_point().to_string().into(),
             LitQuery::H3Inside(h3i) => h3i.cell().to_string().into(),
+            LitQuery::LatLngWithin(llq) => {
+                format!("{},{}", llq.latlng().to_string(), llq.within().to_string()).into()
+            }
         }
     }
 }
@@ -241,6 +248,7 @@ impl fmt::Display for LitQuery {
             LitQuery::Prefix(pq) => write!(f, "{}={}*", pq.field(), pq.prefix()),
             LitQuery::IntQuery(oq) => oq.fmt(f),
             LitQuery::H3Inside(h3i) => h3i.fmt(f),
+            LitQuery::LatLngWithin(llq) => llq.fmt(f),
         }
     }
 }
@@ -342,6 +350,7 @@ impl Literal {
             }
             LitQuery::IntQuery(oq) => oq_to_fvs(oq),
             LitQuery::H3Inside(h3i) => h3i_to_fvs(h3i),
+            LitQuery::LatLngWithin(llq) => vec![],
         }
     }
 

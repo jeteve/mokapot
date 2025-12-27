@@ -1,3 +1,5 @@
+use std::{fmt::Display, hash::Hash};
+
 use h3o::LatLng;
 
 use crate::{
@@ -12,10 +14,31 @@ use nom::{
     sequence::preceded,
 };
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct LatLngWithinQuery {
     field: OurStr,
     latlng: LatLng,
     within: Meters,
+}
+
+impl Display for LatLngWithinQuery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} LATLNG_WITHIN {},{}",
+            self.field,
+            self.latlng.to_string(),
+            self.within.0
+        )
+    }
+}
+
+// Use the string representation for hashing.
+impl Hash for LatLngWithinQuery {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.to_string().hash(state);
+    }
 }
 
 impl LatLngWithinQuery {
@@ -31,6 +54,14 @@ impl LatLngWithinQuery {
     /// The field
     pub(crate) fn field(&self) -> OurStr {
         self.field.clone()
+    }
+
+    pub(crate) fn latlng(&self) -> LatLng {
+        self.latlng
+    }
+
+    pub(crate) fn within(&self) -> Meters {
+        self.within
     }
 }
 

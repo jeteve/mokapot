@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use h3o::{CellIndex, LatLng, Resolution};
 
 // Average edge lengths (meters) for H3 resolutions 0..=15.
@@ -41,7 +43,14 @@ fn choose_resolution(radius_m: u64, target_k: u32) -> Resolution {
     Resolution::try_from(res_index as u8).unwrap()
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Meters(pub(crate) u64);
+impl Display for Meters {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}m", self.0)
+    }
+}
 
 /// Generates a set of H3 cells covering a circular area.
 /// The resolution is automatically adapted based on the radius.

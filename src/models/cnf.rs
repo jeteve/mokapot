@@ -23,7 +23,7 @@ use std::fmt;
 
 use crate::models::types::OurStr;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Clause {
     literals: Vec<Literal>,
