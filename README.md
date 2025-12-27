@@ -66,6 +66,7 @@ boolean operators' precedence.
 ```rust
 use mokaccino::prelude::*;
 use h3o::CellIndex;
+use h3o::LatLng;
 
 fn test_percolator() {
     let mut p = Percolator::default();
@@ -84,8 +85,28 @@ fn test_percolator() {
         ), //9
         p.add_query("P".has_prefix("")),                         // 10
         p.add_query("L".i64_gt(1000)),                           // 11
-        p.add_query("location".h3in("861f09b27ffffff".parse::<CellIndex>().unwrap())) // 12
+        p.add_query("location".h3in("861f09b27ffffff".parse::<CellIndex>().unwrap())), // 12
+        p.add_query("geo_point".latlng_within(LatLng::new(48.864716, 2.349014).unwrap(), Meters(1000))) // 13
     ];
+
+        assert_eq!(
+        // Invalid lat/lng.. Cannot be matched against query 13
+        p.percolate(&[("geo_point", "bla")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
+    assert_eq!(
+        // Valid lat/lng and within the given radius
+        p.percolate(&[("geo_point", "48.859430,2.354946")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4], q[13]]
+    );
+
+    assert_eq!(
+        // Valid lat/lng but outside the given radius
+        p.percolate(&[("geo_point", "48.857999,2.359755")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
 
     // See https://observablehq.com/@nrabinowitz/h3-index-inspector?collection=@nrabinowitz/h3
     assert_eq!(
@@ -246,7 +267,12 @@ The Query IDs  (`Qid`s)will of course stay the same accross serialising/deserial
 
 ## Geographic Queries
 
-mokaccino supports geographic queries through the H3 hexagonal hierarchical spatial index system. Geographic queries allow you to match documents based on their location within a specific H3 cell. This is particularly useful for location-based alerting and geofencing applications.
+### Via H3 Indexing
+
+mokaccino supports geographic queries through the H3 hexagonal hierarchical spatial index system. This is the preferred
+method for geographic queries, as it bring the most flexibility and performance.
+
+Geographic queries allow you to match documents based on their location within a specific H3 cell. This is particularly useful for location-based alerting and geofencing applications.
 
 When querying, you specify an H3 CellIndex that defines a geographic region, and documents are matched if their location falls within that region or any of its child cells in the H3 hierarchy. This enables efficient spatial queries at any resolution level, from large regions down to very precise locations. For example, the query `"location".h3in("861f09b27ffffff".parse::<CellIndex>().unwrap())` will match any document whose location is within or contained by the specified H3 cell.
 
@@ -255,6 +281,21 @@ Alternatively, the query parser also supports this via the syntax: `location H3I
 You can build any shape you like by building geo queries disjunctions, or using negations to make holes in your shape.
 
 Reference: [https://h3geo.org/](https://h3geo.org/)
+
+### Via Geo Latitude/Longitude/Radius 
+
+You can also define queries that would match document or events within a certain range (in whole Meters) around
+a given lat/long in the WGS84 Coordinate system/EPSG:4326 authalic radius.
+
+For example, the query `"geo_point".latlng_within(LatLng::new(48.864716, 2.349014).unwrap(), Meters(100))`
+will match documents where the field `geo_point` is a lat,lng like `48.864716,2.349015` falling within 100 meters
+of the query.
+
+Alternatively, the query parser supports the syntax: `geo_point LLWITHIN 48.859430,2.354946,100`.
+
+Use this ONLY if you need the matching accuracy. For general Geo queries, you are encouraged to use
+H3 indexing method. Under the hood, this uses H3 anyway for a rough matching, and some post filtering for accurate
+cutoff at the required distance.
 
 # Configuration optimisation
 

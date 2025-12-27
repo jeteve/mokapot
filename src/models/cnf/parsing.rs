@@ -11,6 +11,7 @@ use rand::prelude::IteratorRandom;
 use strum::EnumIter;
 use strum::IntoEnumIterator;
 
+use crate::models::queries::latlng_within::parse_latlng_within;
 use crate::{models::cnf, prelude::CNFQueryable};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -45,6 +46,14 @@ fn atom_to_cnf(field: &str, operator: &OperatorAST, field_value: &FieldValueAST)
             .map_or_else(|_err| field.has_value(t.clone()), |ci| field.h3in(ci)),
         // Cannot do H3 on integers..
         (OperatorAST::H3Inside, FieldValueAST::Integer(i)) => field.has_value(i.to_string()),
+
+        (OperatorAST::LatLngWithin, FieldValueAST::Term(t)) => parse_latlng_within(t).map_or_else(
+            || field.has_value(t.clone()),
+            |(ll, radius)| field.latlng_within(ll, radius),
+        ),
+        // Cannot do LL WITHIN on integers..
+        (OperatorAST::LatLngWithin, FieldValueAST::Integer(i)) => field.has_value(i.to_string()),
+
         (_, FieldValueAST::Prefix(p)) => field.has_prefix(p.clone()),
         (_, FieldValueAST::Term(t)) => field.has_value(t.clone()),
         // Fallback to term style query in case there is ':123'
@@ -79,6 +88,7 @@ pub(crate) enum OperatorAST {
     Ge,
     Gt,
     H3Inside,
+    LatLngWithin,
 }
 
 impl Display for OperatorAST {
@@ -91,6 +101,7 @@ impl Display for OperatorAST {
             OperatorAST::Ge => write!(f, ">="),
             OperatorAST::Gt => write!(f, ">"),
             OperatorAST::H3Inside => write!(f, " H3IN "),
+            OperatorAST::LatLngWithin => write!(f, " LLWITHIN "),
         }
     }
 }
@@ -222,6 +233,16 @@ fn _random_atom<T: rand::Rng>(rng: &mut T) -> QueryAST {
             OperatorAST::H3Inside,
             FieldValueAST::Term(_random_h3cell(rng).to_string()),
         ),
+        (OperatorAST::LatLngWithin, true) => {
+            let ll = LatLng::from(_random_h3cell(rng));
+            let distance = rng.random_range::<u64, _>(0..10_000_000);
+
+            QueryAST::Atom(
+                _random_identifier(rng),
+                OperatorAST::LatLngWithin,
+                FieldValueAST::Term(format!("{},{},{}", ll.lat(), ll.lng(), distance)),
+            )
+        }
         // all these other ones are comparison things..
         (op, true) => QueryAST::Atom(_random_identifier(rng), op, _random_field_int_value(rng)),
     }
@@ -242,6 +263,7 @@ fn operator_parser<'src>() -> impl Parser<'src, &'src str, OperatorAST, MyParseE
     choice((
         just(':').to(OperatorAST::Colon),
         just("H3IN").to(OperatorAST::H3Inside),
+        just("LLWITHIN").to(OperatorAST::LatLngWithin),
         just("<=").to(OperatorAST::Le),
         just(">=").to(OperatorAST::Ge),
         just('<').to(OperatorAST::Lt),
@@ -251,7 +273,7 @@ fn operator_parser<'src>() -> impl Parser<'src, &'src str, OperatorAST, MyParseE
     .padded()
 }
 
-static RESERVED_WORDS: [&str; 3] = ["AND", "OR", "NOT"];
+static RESERVED_WORDS: [&str; 5] = ["AND", "OR", "NOT", "H3IN", "LLWITHIN"];
 
 fn _random_identifier<T: rand::Rng>(rng: &mut T) -> String {
     // Pick a random value between 1 and 20
@@ -344,7 +366,7 @@ mod tests {
     #[test]
     fn test_random_queries() {
         let mut rng = rand::rng();
-        for _ in 0..1000 {
+        for _ in 0..5000 {
             let q = random_query(&mut rng, 3);
             // Check we can parse the string representation of it.
             let s = q.to_string();

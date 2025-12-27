@@ -3,6 +3,8 @@ pub mod parsing;
 
 use literal::*;
 
+use crate::geotools::Meters;
+use crate::models::queries::latlng_within::LatLngWithinQuery;
 use crate::models::{
     document::Document,
     index::{DocId, Index},
@@ -15,7 +17,7 @@ use crate::models::{
 };
 
 //use fixedbitset::FixedBitSet;
-use h3o::CellIndex;
+use h3o::{CellIndex, LatLng};
 use itertools::Itertools;
 use roaring::MultiOps;
 
@@ -23,7 +25,7 @@ use std::fmt;
 
 use crate::models::types::OurStr;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Clause {
     literals: Vec<Literal>,
@@ -282,7 +284,7 @@ impl Query {
         MultiOps::intersection(subits).into_iter()
     }
 
-    pub(crate) fn prefix_queries(&self) -> impl Iterator<Item = &PrefixQuery> + use<'_> {
+    pub(crate) fn prefix_queries(&self) -> impl Iterator<Item = &PrefixQuery> {
         self.0.iter().flat_map(|c| c.prefix_queries_iter())
     }
 }
@@ -298,6 +300,11 @@ pub trait CNFQueryable: Into<OurStr> {
     /// that is contained within the given `cell`.
     /// Use this for geographic queries.
     fn h3in(self, cell: CellIndex) -> Query;
+
+    /// A Query where the field represents a `h3o::coord::latlng`
+    /// ( for instance 54.35499723397377,18.662987684795226 )
+    /// with must be in a disk defined by `center` and `radius`.
+    fn latlng_within(self, center: LatLng, radius: Meters) -> Query;
 
     /// A query where the field can represents a signed integer
     /// that has a value strictly lower than `v`.
@@ -333,6 +340,11 @@ where
     fn h3in(self, cell: CellIndex) -> Query {
         let q = H3InsideQuery::new(self, cell);
         Query::from_literal(Literal::new(false, LitQuery::H3Inside(q)))
+    }
+
+    fn latlng_within(self, center: LatLng, radius: Meters) -> Query {
+        let q = LatLngWithinQuery::new(self, center, radius);
+        Query::from_literal(Literal::new(false, LitQuery::LatLngWithin(q)))
     }
 
     fn i64_lt(self, v: i64) -> Query {
@@ -399,6 +411,7 @@ mod test {
         assert_eq!(q.to_string(), "(AND (OR taste=sweet))");
 
         let q = "path".has_prefix("/bla");
+        assert!(q.prefix_queries().next().is_some());
         assert_eq!(q.to_string(), "(AND (OR path=/bla*))");
 
         let q = "some_num".i64_eq(1234);

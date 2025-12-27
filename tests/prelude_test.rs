@@ -1,5 +1,6 @@
 use std::num::NonZeroUsize;
 
+use h3o::LatLng;
 use mokaccino::prelude::*;
 
 #[test]
@@ -57,7 +58,29 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         p.add_query("W".i64_ge(2000)),                     // 14
         p.add_query("W".i64_eq(12345)),                    // 15
         p.add_query("position".h3in("871f09b20ffffff".parse().unwrap())), // 16 something in gdansk old town
+        p.add_query(
+            "latlng".latlng_within(LatLng::new(48.864716, 2.349014).unwrap(), Meters(1000)),
+        ), // 17 . Somewhere in Paris, within 1KM from this point.
     ];
+
+    assert_eq!(
+        // Invalid lat/lng.. Cannot be matched against query 17
+        p.percolate(&[("latlng", "bla")].into()).collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
+    assert_eq!(
+        // Valid lat/lng and within the given radius
+        p.percolate(&[("latlng", "48.859430,2.354946")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4], q[17]]
+    );
+
+    assert_eq!(
+        // Valid lat/lng and outside the given radius
+        p.percolate(&[("latlng", "48.857999,2.359755")].into())
+            .collect::<Vec<_>>(),
+        vec![q[3], q[4]]
+    );
 
     assert_eq!(
         // Invalid position.. Cannot be matched against a h3 CellIndex
