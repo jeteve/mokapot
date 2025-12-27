@@ -284,7 +284,7 @@ impl Query {
         MultiOps::intersection(subits).into_iter()
     }
 
-    pub(crate) fn prefix_queries(&self) -> impl Iterator<Item = &PrefixQuery> + use<'_> {
+    pub(crate) fn prefix_queries(&self) -> impl Iterator<Item = &PrefixQuery> {
         self.0.iter().flat_map(|c| c.prefix_queries_iter())
     }
 }
@@ -411,6 +411,7 @@ mod test {
         assert_eq!(q.to_string(), "(AND (OR taste=sweet))");
 
         let q = "path".has_prefix("/bla");
+        assert!(q.prefix_queries().next().is_some());
         assert_eq!(q.to_string(), "(AND (OR path=/bla*))");
 
         let q = "some_num".i64_eq(1234);
