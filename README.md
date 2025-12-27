@@ -294,7 +294,7 @@ of the query.
 Alternatively, the query parser supports the syntax: `geo_point LLWITHIN 48.859430,2.354946,100`.
 
 Use this ONLY if you need the matching accuracy. For general Geo queries, you are encouraged to use
-H3 indexing method. Under the hood this uses H3 anyway for a rough matching, and some post filtering for accurate
+H3 indexing method. Under the hood, this uses H3 anyway for a rough matching, and some post filtering for accurate
 cutoff at the required distance.
 
 # Configuration optimisation
