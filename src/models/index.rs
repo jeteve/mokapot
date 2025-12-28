@@ -35,6 +35,17 @@ impl Index {
             .unwrap_or(&self.empty_bs)
     }
 
+    /// Make the given DocID unfindable in this index.
+    /// This cannot be undone.
+    #[allow(dead_code)]
+    pub(crate) fn unindex_docid(&mut self, doc_id: DocId) {
+        // Remove the docID for all the bitmaps.
+        self.term_idxs.values_mut().for_each(|b| {
+            b.remove(doc_id);
+        });
+    }
+
+    /// Index a document in this index. Returns a new DocID
     pub(crate) fn index_document(&mut self, d: &Document) -> DocId {
         let new_doc_id = self.n_documents;
 
@@ -179,5 +190,21 @@ mod test {
             .iter()
             .collect::<Vec<_>>();
         assert_eq!(blue_docs, vec![0, 2]);
+
+        // Unindex DocID 0
+        index.unindex_docid(0);
+        // Check only DodID 2 is left.
+        assert_eq!(
+            index
+                .docs_from_fv(colour.clone(), "blue")
+                .iter()
+                .collect::<Vec<_>>(),
+            vec![2]
+        );
+
+        // Unindex DocID 2
+        index.unindex_docid(2);
+        // Check nothing is left.
+        assert!(index.docs_from_fv(colour.clone(), "blue").is_empty());
     }
 }
