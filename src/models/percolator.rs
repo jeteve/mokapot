@@ -272,6 +272,7 @@ pub struct Percolator {
     // Serialisable data.
     config: PercolatorConfig,
     cnf_queries: Vec<Query>,
+    unindexed_qids: RoaringBitmap,
 
     // Only when the serde feature is on, add the serde(skip) attribute
     // so this does not get serialised.
@@ -301,6 +302,7 @@ impl<'de> serde::Deserialize<'de> for Percolator {
         struct Helper {
             config: PercolatorConfig,
             cnf_queries: Vec<Query>,
+            unindexed_qids: Vec<Qid>,
         }
 
         let helper = Helper::deserialize(deserializer)?;
@@ -309,6 +311,11 @@ impl<'de> serde::Deserialize<'de> for Percolator {
         // Rebuild the indexes from the queries.
         for q in helper.cnf_queries {
             p.add_query(q);
+        }
+
+        // and from the removed queries.
+        for qid in helper.unindexed_qids {
+            p.remove_qid(qid);
         }
 
         Ok(p)
@@ -341,12 +348,15 @@ impl Percolator {
     pub fn from_config(config: PercolatorConfig) -> Self {
         Self {
             cnf_queries: Vec::new(),
+            unindexed_qids: RoaringBitmap::new(),
+
             preheaters: Vec::new(),
             clause_matchers: (0..config.n_clause_matchers().get())
                 .map(|_| ClauseMatcher::default())
                 .collect(),
             must_filter: RoaringBitmap::new(),
             stats: Default::default(),
+
             config,
         }
     }
@@ -474,6 +484,49 @@ impl Percolator {
         Ok(new_doc_id)
     }
 
+    /// Removes a query from this percolator by Query ID.
+    ///
+    /// Returns true if the query was removed, false if
+    /// it had already been removed earlier.
+    ///
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    ///
+    /// let mut p = Percolator::default();
+    /// let qid = p.add_query("field".has_value("value"));
+    /// assert!( p.safe_get_query(qid).is_some() );
+    ///
+    /// assert!( p.remove_qid(qid) ); // was removed.
+    /// assert!( ! p.remove_qid(qid) ); // already removed.
+    /// assert!( p.safe_get_query(qid).is_none() );
+    /// ```
+    pub fn remove_qid(&mut self, qid: Qid) -> bool {
+        // mark as unindexed.
+        if !self.unindexed_qids.insert(qid) {
+            // Value was already marked as unindexed.
+            return false;
+        }
+
+        for cm in self.clause_matchers.iter_mut() {
+            cm.positive_index.unindex_docid(qid);
+        }
+
+        // must_filter is now useless.
+        self.must_filter.remove(qid);
+        true
+    }
+
+    /// Safe version of get_query. Will be None if no such query exists.
+    pub fn safe_get_query(&self, qid: Qid) -> Option<&Query> {
+        if !self.unindexed_qids.contains(qid) {
+            self.cnf_queries.get(qid as usize)
+        } else {
+            None
+        }
+    }
+
+    /// Get the query identified by the Qid
     pub fn get_query(&self, qid: Qid) -> &Query {
         &self.cnf_queries[qid as usize]
     }

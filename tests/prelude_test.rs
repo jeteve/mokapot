@@ -203,6 +203,13 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         vec![q[3], q[4]]
     );
 
+    // Remove 3
+    p.remove_qid(q[3]);
+    assert_eq!(
+        p.percolate(&[("A", "b")].into()).collect::<Vec<_>>(),
+        vec![q[4]]
+    );
+
     assert_eq!(
         p.percolate(&[("A", "a")].into()).collect::<Vec<_>>(),
         vec![q[0], q[1]]
@@ -212,5 +219,13 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         p.percolate(&[("A", "a"), ("B", "b")].into())
             .collect::<Vec<_>>(),
         vec![q[0], q[1], q[2], q[4]]
+    );
+
+    // Remove 4
+    p.remove_qid(q[4]);
+    assert_eq!(
+        p.percolate(&[("A", "a"), ("B", "b")].into())
+            .collect::<Vec<_>>(),
+        vec![q[0], q[1], q[2]]
     );
 }

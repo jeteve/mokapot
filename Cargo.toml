@@ -21,7 +21,7 @@ exclude = [
 default-run="mokaccino"
 
 [features]
-serde = ["dep:serde", "serde_json", "h3o/serde"]
+serde = ["dep:serde", "serde_json", "h3o/serde", "roaring/serde"]
 send = []
 
 [dependencies]

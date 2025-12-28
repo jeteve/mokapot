@@ -15,6 +15,7 @@ fn test_percolator() {
     assert_eq!(q1_id, 0);
     assert!(!mp.to_string().is_empty());
     assert!(!mp.get_query(q1_id).to_string().is_empty());
+    assert_eq!(Some(mp.get_query(q1_id)), mp.safe_get_query(q1_id));
 
     let d = Document::new().with_value("colour", "blue");
 
