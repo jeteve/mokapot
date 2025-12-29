@@ -325,14 +325,8 @@ impl PercolatorCore {
 
     /// Adds a query to this percolator. Will panic if
     /// there is more than u32::MAX queries.
-    /// Example:
-    /// ```
-    /// use mokaccino::prelude::*;
-    /// let mut p = Percolator::default();
-    /// let qid = p.add_query("field".has_value("value"));
-    /// ```
     ///
-    pub(crate) fn add_query(&mut self, q: Query) -> Qid {
+    fn add_query(&mut self, q: Query) -> Qid {
         self.safe_add_query(q).unwrap()
     }
 
