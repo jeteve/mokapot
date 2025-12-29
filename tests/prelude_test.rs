@@ -31,8 +31,10 @@ fn test_serialisation() {
     let p2: Percolator = serde_json::from_str(&json).unwrap();
     for qid in qids {
         // No crash. Query is still there!
-        let _ = p2.get_query(qid);
+        assert!(p2.safe_get_query(qid).is_some());
     }
+    // Check some bonkers qid return none.
+    assert!(p2.safe_get_query(1234).is_none());
 }
 
 fn test_nclause_percolator(n: NonZeroUsize) {
