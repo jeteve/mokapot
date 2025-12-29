@@ -23,7 +23,7 @@ use crate::models::cnf::Query;
 use crate::models::document::Document;
 
 #[cfg(test)]
-use crate::models::percolator::Percolator;
+use crate::models::percolator_core::Percolator;
 
 #[cfg(test)]
 use crate::models::queries::term::TermQuery;

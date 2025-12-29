@@ -280,7 +280,7 @@ impl Query {
         let subits = self
             .0
             .iter()
-            .map(|c| crate::models::percolator::clause_docs_from_idx(c, index));
+            .map(|c| crate::models::percolator_core::clause_docs_from_idx(c, index));
         MultiOps::intersection(subits).into_iter()
     }
 
@@ -547,7 +547,7 @@ mod test_clause {
     #[test]
     fn test_clause() {
         use super::*;
-        use crate::models::percolator::clause_docs_from_idx;
+        use crate::models::percolator_core::clause_docs_from_idx;
         use std::collections::HashSet;
 
         let d: Document = Document::default()

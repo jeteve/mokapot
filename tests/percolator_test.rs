@@ -1,7 +1,7 @@
 use mokaccino::models::{
     cnf::*,
     document::Document,
-    percolator::{Percolator, Qid},
+    percolator_core::{Percolator, Qid},
 };
 use num_traits::Zero;
 

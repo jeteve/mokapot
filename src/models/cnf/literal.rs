@@ -21,7 +21,7 @@ use crate::{
         cnf::Clause,
         document::Document,
         index::Index,
-        percolator::{
+        percolator_core::{
             PercolatorConfig,
             tools::{ClauseExpander, PreHeater},
         },
@@ -528,7 +528,7 @@ mod tests_literal {
     use super::*;
     use crate::models::document::Document;
     use crate::models::index::Index;
-    use crate::models::percolator::PercolatorConfig;
+    use crate::models::percolator_core::PercolatorConfig;
     use crate::models::queries::{
         ordered::I64Query, ordered::Ordering, prefix::PrefixQuery, term::TermQuery,
     };

@@ -571,7 +571,7 @@ impl Percolator {
 }
 
 mod tests_cnf {
-    use crate::models::percolator::MatchItem;
+    use crate::models::percolator_core::MatchItem;
 
     #[allow(dead_code)]
     fn is_match_all(mi: &MatchItem) -> bool {
