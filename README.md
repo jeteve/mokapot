@@ -69,7 +69,7 @@ use h3o::CellIndex;
 use h3o::LatLng;
 
 fn test_percolator() {
-    let mut p = Percolator::default();
+    let mut p = PercolatorCore::default();
     let q: Vec<Qid> = vec![
         p.add_query("A".has_value("a")),                         //0
         p.add_query("A".has_value("a") | "B".has_value("b")),    //1
@@ -306,7 +306,7 @@ To display statistics, simply do:
 
 ```rust
 use mokaccino::prelude::*;
-let p = Percolator::default();
+let p = PercolatorCore::default();
 // Add some queries and then
 println!("{}", p.stats())
 ```
@@ -319,7 +319,7 @@ in this example:
 use mokaccino::prelude::*;
 use std::num::NonZeroUsize;
 
-let p = Percolator::builder()
+let p = PercolatorCore::builder()
          .n_clause_matchers(NonZeroUsize::new(3).unwrap())
          .prefix_sizes(vec![2, 6, 10, 50])
          .build();

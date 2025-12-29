@@ -199,8 +199,8 @@ pub struct PercBuilder {
 }
 
 impl PercBuilder {
-    pub fn build(self) -> Percolator {
-        Percolator::from_config(self.config)
+    pub fn build(self) -> PercolatorCore {
+        PercolatorCore::from_config(self.config)
     }
 
     /// Sets the expected number of clauses of indexed queries
@@ -217,7 +217,7 @@ impl PercBuilder {
     /// use mokaccino::prelude::*;
     /// use std::num::NonZeroUsize;
     ///
-    /// let p = Percolator::builder().n_clause_matchers(NonZeroUsize::new(5).unwrap()).build();
+    /// let p = PercolatorCore::builder().n_clause_matchers(NonZeroUsize::new(5).unwrap()).build();
     ///
     /// ```
     pub fn n_clause_matchers(mut self, n: NonZeroUsize) -> Self {
@@ -231,7 +231,7 @@ impl PercBuilder {
     /// Example:
     /// ```
     /// use mokaccino::prelude::*;
-    /// let p = Percolator::builder().prefix_sizes(vec![3, 7, 42]).build();
+    /// let p = PercolatorCore::builder().prefix_sizes(vec![3, 7, 42]).build();
     /// ```
     ///
     pub fn prefix_sizes(mut self, sizes: Vec<usize>) -> Self {
@@ -259,7 +259,7 @@ pub enum PercolatorError {
 /// ```
 /// use mokaccino::prelude::*;
 ///
-/// let mut p = Percolator::default();
+/// let mut p = PercolatorCore::default();
 /// let qid = p.add_query("field".has_value("value"));
 /// assert_eq!(p.percolate(&[("field", "value")].into()).next().unwrap(), qid);
 /// ```
@@ -268,7 +268,7 @@ pub enum PercolatorError {
 ///
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct Percolator {
+pub struct PercolatorCore {
     // Serialisable data.
     config: PercolatorConfig,
     cnf_queries: Vec<Query>,
@@ -291,7 +291,7 @@ pub struct Percolator {
 }
 
 #[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for Percolator {
+impl<'de> serde::Deserialize<'de> for PercolatorCore {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -306,7 +306,7 @@ impl<'de> serde::Deserialize<'de> for Percolator {
         }
 
         let helper = Helper::deserialize(deserializer)?;
-        let mut p = Percolator::from_config(helper.config);
+        let mut p = PercolatorCore::from_config(helper.config);
 
         // Rebuild the indexes from the queries.
         for q in helper.cnf_queries {
@@ -322,13 +322,13 @@ impl<'de> serde::Deserialize<'de> for Percolator {
     }
 }
 
-impl std::default::Default for Percolator {
+impl std::default::Default for PercolatorCore {
     fn default() -> Self {
         let default_config = PercolatorConfig::default();
-        Percolator::from_config(default_config)
+        PercolatorCore::from_config(default_config)
     }
 }
-impl fmt::Display for Percolator {
+impl fmt::Display for PercolatorCore {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -344,7 +344,7 @@ fn usize_to_f64(u: usize) -> Result<f64, TryFromIntError> {
     Ok(f64::from(u))
 }
 
-impl Percolator {
+impl PercolatorCore {
     pub fn from_config(config: PercolatorConfig) -> Self {
         Self {
             cnf_queries: Vec::new(),
@@ -371,7 +371,7 @@ impl Percolator {
     /// ```
     /// use mokaccino::prelude::*;
     ///
-    /// let mut p = Percolator::builder().build();
+    /// let mut p = PercolatorCore::builder().build();
     ///
     /// ```
     pub fn builder() -> PercBuilder {
@@ -389,7 +389,7 @@ impl Percolator {
     /// Example:
     /// ```
     /// use mokaccino::prelude::*;
-    /// let mut p = Percolator::default();
+    /// let mut p = PercolatorCore::default();
     /// let qid = p.add_query("field".has_value("value"));
     /// ```
     ///
@@ -403,7 +403,7 @@ impl Percolator {
     /// Example:
     /// ```
     /// use mokaccino::prelude::*;
-    /// let mut p = Percolator::default();
+    /// let mut p = PercolatorCore::default();
     /// match p.safe_add_query("field".has_value("value")) {
     ///    Ok(qid) => println!("Added query with id {}", qid),
     ///   Err(e) => println!("Failed to add query: {:?}", e),
@@ -493,7 +493,7 @@ impl Percolator {
     /// ```
     /// use mokaccino::prelude::*;
     ///
-    /// let mut p = Percolator::default();
+    /// let mut p = PercolatorCore::default();
     /// let qid = p.add_query("field".has_value("value"));
     /// assert!( p.safe_get_query(qid).is_some() );
     ///

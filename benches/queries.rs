@@ -25,7 +25,7 @@ fn parsing_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("indexing-bench");
     group.throughput(criterion::Throughput::Elements(1));
 
-    let mut p = mokaccino::prelude::Percolator::default();
+    let mut p = mokaccino::prelude::PercolatorCore::default();
     group.bench_function("indexing", |b| {
         b.iter_batched(
             || Query::random(&mut rng),

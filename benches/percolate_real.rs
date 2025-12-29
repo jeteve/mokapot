@@ -11,7 +11,7 @@ use mokaccino::models::cnf::CNFQueryable;
 use mokaccino::models::cnf::Query;
 
 use mokaccino::models::document::Document;
-use mokaccino::models::percolator_core::Percolator;
+use mokaccino::models::percolator_core::PercolatorCore;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -60,8 +60,8 @@ fn build_percolator<R: Rng + ?Sized>(
     n: usize,
     third_fields: &HashMap<&str, Vec<String>>,
     rng: &mut R,
-) -> Percolator {
-    let mut p = Percolator::builder()
+) -> PercolatorCore {
+    let mut p = PercolatorCore::builder()
         .n_clause_matchers(NonZeroUsize::new(4).unwrap())
         .build();
     (0..n)

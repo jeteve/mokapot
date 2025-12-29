@@ -1,13 +1,13 @@
 use mokaccino::models::{
     cnf::*,
     document::Document,
-    percolator_core::{Percolator, Qid},
+    percolator_core::{PercolatorCore, Qid},
 };
 use num_traits::Zero;
 
 #[test]
 fn test_percolator() {
-    let mut mp = Percolator::builder()
+    let mut mp = PercolatorCore::builder()
         .prefix_sizes(vec![1, 2, 5, 8, 13])
         .build();
     let q1 = "colour".has_value("blue");
