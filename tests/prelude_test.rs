@@ -17,7 +17,7 @@ fn test_percolator() {
 #[test]
 #[cfg(feature = "serde")]
 fn test_serialisation() {
-    let mut p = PercolatorCore::default();
+    let mut p = Percolator::default();
     let qids: Vec<Qid> = vec![
         p.add_query("A".has_value("a")),                      //0
         p.add_query("A".has_value("a") | "B".has_value("b")), //1
@@ -28,7 +28,7 @@ fn test_serialisation() {
 
     let json = serde_json::to_string(&p).unwrap();
     println!("{}", json);
-    let p2: PercolatorCore = serde_json::from_str(&json).unwrap();
+    let p2: Percolator = serde_json::from_str(&json).unwrap();
     for qid in qids {
         // No crash. Query is still there!
         let _ = p2.get_query(qid);
@@ -36,7 +36,7 @@ fn test_serialisation() {
 }
 
 fn test_nclause_percolator(n: NonZeroUsize) {
-    let mut p = PercolatorCore::builder().n_clause_matchers(n).build();
+    let mut p = Percolator::builder().n_clause_matchers(n).build();
 
     let q: Vec<Qid> = vec![
         p.safe_add_query("A:a".parse().unwrap()).unwrap(), //0

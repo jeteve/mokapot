@@ -1,4 +1,4 @@
-use mokaccino::{models::cnf::Query, prelude::PercolatorCore};
+use mokaccino::{models::cnf::Query, prelude::Percolator};
 
 #[test]
 fn test_random_query_strings() {
@@ -12,7 +12,7 @@ fn test_random_query_strings() {
 #[test]
 // test we can index random queries.
 fn test_random_queries() {
-    let mut p = PercolatorCore::default();
+    let mut p = Percolator::default();
     let mut rng = rand::rng();
     for _ in 0..1000 {
         let q = Query::random(&mut rng);

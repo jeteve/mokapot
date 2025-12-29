@@ -85,8 +85,8 @@ struct ClauseMatcher {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PercolatorConfig {
-    n_clause_matchers: NonZeroUsize,
-    prefix_sizes: Vec<usize>,
+    pub(crate) n_clause_matchers: NonZeroUsize,
+    pub(crate) prefix_sizes: Vec<usize>,
 }
 
 impl Default for PercolatorConfig {
@@ -191,55 +191,6 @@ impl PercolatorStats {
     }
 }
 
-#[derive(Default)]
-/// A builder should you want to build a percolator
-/// with different parameters
-pub struct PercBuilder {
-    config: PercolatorConfig,
-}
-
-impl PercBuilder {
-    pub fn build(self) -> PercolatorCore {
-        PercolatorCore::from_config(self.config)
-    }
-
-    /// Sets the expected number of clauses of indexed queries
-    /// to the given value. This help minimizing the number of post-match
-    /// checks the percolator has to do.
-    ///
-    /// You'll have to experiment and benchmark to find
-    /// the sweet spot for your specific use case.
-    ///
-    /// The default is 3.
-    ///
-    /// Example:
-    /// ```
-    /// use mokaccino::prelude::*;
-    /// use std::num::NonZeroUsize;
-    ///
-    /// let p = PercolatorCore::builder().n_clause_matchers(NonZeroUsize::new(5).unwrap()).build();
-    ///
-    /// ```
-    pub fn n_clause_matchers(mut self, n: NonZeroUsize) -> Self {
-        self.config.n_clause_matchers = n;
-        self
-    }
-
-    /// Sets the allowed prefix sizes for prefix queries.
-    /// See [`PercolatorConfig::prefix_sizes`] for details.
-    ///
-    /// Example:
-    /// ```
-    /// use mokaccino::prelude::*;
-    /// let p = PercolatorCore::builder().prefix_sizes(vec![3, 7, 42]).build();
-    /// ```
-    ///
-    pub fn prefix_sizes(mut self, sizes: Vec<usize>) -> Self {
-        self.config.prefix_sizes = sizes;
-        self
-    }
-}
-
 #[derive(Debug)]
 pub enum PercolatorError {
     /// Too many queries added to the percolator (more than u32::MAX)
@@ -259,7 +210,7 @@ pub enum PercolatorError {
 /// ```
 /// use mokaccino::prelude::*;
 ///
-/// let mut p = PercolatorCore::default();
+/// let mut p = Percolator::default();
 /// let qid = p.add_query("field".has_value("value"));
 /// assert_eq!(p.percolate(&[("field", "value")].into()).next().unwrap(), qid);
 /// ```
@@ -302,7 +253,7 @@ impl<'de> serde::Deserialize<'de> for PercolatorCore {
         struct Helper {
             config: PercolatorConfig,
             cnf_queries: Vec<Query>,
-            unindexed_qids: Vec<Qid>,
+            unindexed_qids: RoaringBitmap,
         }
 
         let helper = Helper::deserialize(deserializer)?;
@@ -366,18 +317,6 @@ impl PercolatorCore {
         self.preheaters.iter().any(|eph| eph.id == ph.id)
     }
 
-    /// Returns a percolator builder for configurability
-    /// Example:
-    /// ```
-    /// use mokaccino::prelude::*;
-    ///
-    /// let mut p = PercolatorCore::builder().build();
-    ///
-    /// ```
-    pub fn builder() -> PercBuilder {
-        PercBuilder::default()
-    }
-
     /// The percolator statistics
     /// Mainly for display.
     pub fn stats(&self) -> &PercolatorStats {
@@ -389,7 +328,7 @@ impl PercolatorCore {
     /// Example:
     /// ```
     /// use mokaccino::prelude::*;
-    /// let mut p = PercolatorCore::default();
+    /// let mut p = Percolator::default();
     /// let qid = p.add_query("field".has_value("value"));
     /// ```
     ///
@@ -403,7 +342,7 @@ impl PercolatorCore {
     /// Example:
     /// ```
     /// use mokaccino::prelude::*;
-    /// let mut p = PercolatorCore::default();
+    /// let mut p = Percolator::default();
     /// match p.safe_add_query("field".has_value("value")) {
     ///    Ok(qid) => println!("Added query with id {}", qid),
     ///   Err(e) => println!("Failed to add query: {:?}", e),
@@ -493,7 +432,7 @@ impl PercolatorCore {
     /// ```
     /// use mokaccino::prelude::*;
     ///
-    /// let mut p = PercolatorCore::default();
+    /// let mut p = Percolator::default();
     /// let qid = p.add_query("field".has_value("value"));
     /// assert!( p.safe_get_query(qid).is_some() );
     ///
