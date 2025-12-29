@@ -65,7 +65,7 @@ where
 pub type Percolator = PercolatorUid<Qid>;
 
 /// A percolator that allows identifiying queries
-/// by a stable user supplied ID.
+/// by a stable user supplied ID (must be a Copy + Eq + Hash type)
 ///
 /// This allow removing queries, compacting the percolator,
 /// serialising and deserialising it while keeping the same
@@ -105,16 +105,43 @@ impl<T> Display for PercolatorUid<T> {
 /// When the type used is Qid, just use this
 /// and keep the same interface as the PercolatorCore
 impl PercolatorUid<Qid> {
+    // The unsafe version of `safe_add_query`
     pub fn add_query(&mut self, q: Query) -> Qid {
         self.safe_add_query(q).unwrap()
     }
 
+    /// Safely adds a query to this percolator, reporting errors
+    /// when there are too many queries or other limits are exceeded.
+    ///
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    /// let mut p = Percolator::default();
+    /// match p.safe_add_query("field".has_value("value")) {
+    ///    Ok(qid) => println!("Added query with id {}", qid),
+    ///   Err(e) => println!("Failed to add query: {:?}", e),
+    /// }
+    /// ```
     pub fn safe_add_query(&mut self, q: Query) -> Result<Qid, PercolatorError> {
         let qid = self.perc.safe_add_query(q)?;
         self.qid_uid.insert(qid, qid);
         Ok(qid)
     }
 
+    /// Remove the given Qid from this Percolator.
+    ///
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    ///
+    /// let mut p = Percolator::default();
+    /// let qid = p.add_query("field".has_value("value"));
+    /// assert!( p.safe_get_query(qid).is_some() );
+    ///
+    /// assert!( p.remove_qid(qid) ); // was removed.
+    /// assert!( ! p.remove_qid(qid) ); // already removed.
+    /// assert!( p.safe_get_query(qid).is_none() );
+    /// ```
     pub fn remove_qid(&mut self, qid: Qid) -> bool {
         self.qid_uid.remove_by_left(&qid);
         self.perc.remove_qid(qid)
@@ -130,7 +157,7 @@ where
     /// ```
     /// use mokaccino::prelude::*;
     ///
-    /// let mut p = Percolator::builder().build();
+    /// let mut p = PercolatorUid::<u64>::builder().build();
     ///
     /// ```
     pub fn builder() -> PercBuilder<T> {
@@ -142,6 +169,16 @@ where
     /// in your database for instance.
     ///
     /// You can supply the same ID to override an existing query.
+    ///
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    /// let mut p = PercolatorUid::<u64>::default();
+    /// match p.safe_index_query_with_uid("field".has_value("value"), 1 as u64) {
+    ///    Ok(uid) => println!("Added query with id {}", uid),
+    ///   Err(e) => println!("Failed to add query: {:?}", e),
+    /// }
+    /// ```
     pub fn safe_index_query_with_uid(&mut self, q: Query, uid: T) -> Result<T, PercolatorError> {
         let qid = self.perc.safe_add_query(q)?;
         if let bimap::Overwritten::Right(old_qid, _) = self.qid_uid.insert(qid, uid) {
@@ -154,6 +191,20 @@ where
     /// Removes the given User provided ID from
     /// this percolator. True if it was effectively removed.
     /// false if it was absent (already removed, or simply not present).
+    ///
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    /// let mut p = PercolatorUid::<u64>::default();
+    /// match p.safe_index_query_with_uid("field".has_value("value"), 1 as u64) {
+    ///    Ok(uid) => println!("Added query with id {}", uid),
+    ///   Err(e) => println!("Failed to add query: {:?}", e),
+    /// }
+    ///
+    /// assert!( p.remove_uid(1) ); // was removed.
+    /// assert!( ! p.remove_uid(1) ); // already removed.
+    ///
+    /// ```
     pub fn remove_uid(&mut self, uid: T) -> bool {
         if let Some((qid, _)) = self.qid_uid.remove_by_right(&uid) {
             self.perc.remove_qid(qid)
@@ -171,7 +222,9 @@ where
         self.perc.safe_get_query(*qid)
     }
 
+    ///
     /// An iterator of the matching queries user provided IDs given the Document.
+    ///
     pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = T> + use<'b, '_, T> {
         self.perc
             .percolate(d)

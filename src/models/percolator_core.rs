@@ -219,7 +219,7 @@ pub enum PercolatorError {
 ///
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct PercolatorCore {
+pub(crate) struct PercolatorCore {
     // Serialisable data.
     config: PercolatorConfig,
     cnf_queries: Vec<Query>,
@@ -296,7 +296,7 @@ fn usize_to_f64(u: usize) -> Result<f64, TryFromIntError> {
 }
 
 impl PercolatorCore {
-    pub fn from_config(config: PercolatorConfig) -> Self {
+    pub(crate) fn from_config(config: PercolatorConfig) -> Self {
         Self {
             cnf_queries: Vec::new(),
             unindexed_qids: RoaringBitmap::new(),
@@ -319,7 +319,7 @@ impl PercolatorCore {
 
     /// The percolator statistics
     /// Mainly for display.
-    pub fn stats(&self) -> &PercolatorStats {
+    pub(crate) fn stats(&self) -> &PercolatorStats {
         &self.stats
     }
 
@@ -332,24 +332,11 @@ impl PercolatorCore {
     /// let qid = p.add_query("field".has_value("value"));
     /// ```
     ///
-    pub fn add_query(&mut self, q: Query) -> Qid {
+    pub(crate) fn add_query(&mut self, q: Query) -> Qid {
         self.safe_add_query(q).unwrap()
     }
 
-    /// Safely adds a query to this percolator, reporting errors
-    /// when there are too many queries or other limits are exceeded.
-    ///
-    /// Example:
-    /// ```
-    /// use mokaccino::prelude::*;
-    /// let mut p = Percolator::default();
-    /// match p.safe_add_query("field".has_value("value")) {
-    ///    Ok(qid) => println!("Added query with id {}", qid),
-    ///   Err(e) => println!("Failed to add query: {:?}", e),
-    /// }
-    /// ```
-    ///
-    pub fn safe_add_query(&mut self, q: Query) -> Result<Qid, PercolatorError> {
+    pub(crate) fn safe_add_query(&mut self, q: Query) -> Result<Qid, PercolatorError> {
         // Get the document from the query
         // and index in the query index
         // The Clause index is controlling the zip.
@@ -428,19 +415,7 @@ impl PercolatorCore {
     /// Returns true if the query was removed, false if
     /// it had already been removed earlier.
     ///
-    /// Example:
-    /// ```
-    /// use mokaccino::prelude::*;
-    ///
-    /// let mut p = Percolator::default();
-    /// let qid = p.add_query("field".has_value("value"));
-    /// assert!( p.safe_get_query(qid).is_some() );
-    ///
-    /// assert!( p.remove_qid(qid) ); // was removed.
-    /// assert!( ! p.remove_qid(qid) ); // already removed.
-    /// assert!( p.safe_get_query(qid).is_none() );
-    /// ```
-    pub fn remove_qid(&mut self, qid: Qid) -> bool {
+    pub(crate) fn remove_qid(&mut self, qid: Qid) -> bool {
         // mark as unindexed.
         if !self.unindexed_qids.insert(qid) {
             // Value was already marked as unindexed.
@@ -457,7 +432,7 @@ impl PercolatorCore {
     }
 
     /// Safe version of get_query. Will be None if no such query exists.
-    pub fn safe_get_query(&self, qid: Qid) -> Option<&Query> {
+    pub(crate) fn safe_get_query(&self, qid: Qid) -> Option<&Query> {
         if !self.unindexed_qids.contains(qid) {
             self.cnf_queries.get(qid as usize)
         } else {
@@ -465,16 +440,11 @@ impl PercolatorCore {
         }
     }
 
-    /// Get the query identified by the Qid
-    pub fn get_query(&self, qid: Qid) -> &Query {
-        &self.cnf_queries[qid as usize]
-    }
-
     ///
     /// Percolate a document through this, returning an iterator
     /// of the matching query IDs
     ///
-    pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = Qid> + use<'b, '_> {
+    pub(crate) fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = Qid> + use<'b, '_> {
         self.bs_from_document(d).into_iter().filter(move |&qid| {
             !self.must_filter.contains(qid) || self.cnf_queries[qid as usize].matches(d)
         })
