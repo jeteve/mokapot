@@ -114,6 +114,11 @@ impl PercolatorUid<Qid> {
         self.qid_uid.insert(qid, qid);
         Ok(qid)
     }
+
+    pub fn remove_qid(&mut self, qid: Qid) -> bool {
+        self.qid_uid.remove_by_left(&qid);
+        self.perc.remove_qid(qid)
+    }
 }
 
 impl<T> PercolatorUid<T>
@@ -132,15 +137,29 @@ where
         PercBuilder::default()
     }
 
-    pub fn safe_add_query_with_uid(&mut self, q: Query, uid: T) -> Result<T, PercolatorError> {
+    /// Index the given query with the user provided ID.
+    /// This is useful if queries already have an identifier
+    /// in your database for instance.
+    ///
+    /// You can supply the same ID to override an existing query.
+    pub fn safe_index_query_with_uid(&mut self, q: Query, uid: T) -> Result<T, PercolatorError> {
         let qid = self.perc.safe_add_query(q)?;
-        self.qid_uid.insert(qid, uid);
+        if let bimap::Overwritten::Right(old_qid, _) = self.qid_uid.insert(qid, uid) {
+            // Remove old QID, as this was an overwrite.
+            self.perc.remove_qid(old_qid);
+        }
         Ok(uid)
     }
 
-    pub fn remove_qid(&mut self, qid: Qid) -> bool {
-        self.qid_uid.remove_by_left(&qid);
-        self.perc.remove_qid(qid)
+    /// Removes the given User provided ID from
+    /// this percolator. True if it was effectively removed.
+    /// false if it was absent (already removed, or simply not present).
+    pub fn remove_uid(&mut self, uid: T) -> bool {
+        if let Some((qid, _)) = self.qid_uid.remove_by_right(&uid) {
+            self.perc.remove_qid(qid)
+        } else {
+            false
+        }
     }
 
     pub fn get_query(&self, uid: T) -> &Query {
@@ -152,6 +171,7 @@ where
         self.perc.safe_get_query(*qid)
     }
 
+    /// An iterator of the matching queries user provided IDs given the Document.
     pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = T> + use<'b, '_, T> {
         self.perc
             .percolate(d)
