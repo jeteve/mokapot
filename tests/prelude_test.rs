@@ -27,13 +27,11 @@ where
     assert!(!q.is_empty());
 
     assert_eq!(
-        // Invalid lat/lng.. Cannot be matched against query 17
         p.percolate(&[("A", "a")].into()).collect::<Vec<_>>(),
         vec![q[0]]
     );
 
     assert_eq!(
-        // Invalid lat/lng.. Cannot be matched against query 17
         p.percolate(&[("C", "multipla")].into()).collect::<Vec<_>>(),
         vec![q[1]]
     );
@@ -53,13 +51,11 @@ where
     assert!(!q.is_empty());
 
     assert_eq!(
-        // Invalid lat/lng.. Cannot be matched against query 17
         p.percolate_ref(&[("A", "a")].into()).collect::<Vec<_>>(),
         vec![&q[0]]
     );
 
     assert_eq!(
-        // Invalid lat/lng.. Cannot be matched against query 17
         p.percolate_ref(&[("C", "multipla")].into())
             .collect::<Vec<_>>(),
         vec![&q[1]]

@@ -73,7 +73,7 @@ where
 /// A Percolator type, with an API compatible with the previous version.
 pub type Percolator = PercolatorUid<Qid>;
 
-/// A percolator that allows identifiying queries
+/// A percolator that allows identifying queries
 /// by a stable user supplied ID (must be a Copy + Eq + Hash type)
 ///
 /// This allow removing queries, compacting the percolator,

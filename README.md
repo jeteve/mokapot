@@ -256,11 +256,11 @@ your own application query IDs.
 ## Query IDs
 
 There are two ways to deal with Query IDs with mokaccino. Query IDs (both automated or
-user provided) are stable accross serialisation/deserialisation cycles.
+user provided) are stable across serialisation/deserialisation cycles.
 
 ### Using your application Query IDs
 
-To use your application Query IDs, simply instanciate a `PercolatorUid` with your query ID type
+To use your application Query IDs, simply instantiate a `PercolatorUid` with your query ID type
 and use `index_query_uid`:
 
 ```rust
