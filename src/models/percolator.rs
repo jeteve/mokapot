@@ -93,6 +93,8 @@ pub struct PercolatorUid<T> {
     qid_uid: bimap::BiMap<Qid, T>,
 }
 
+// We cannot derive Default, because we dont
+// want to force T to implement Default.
 impl<T> std::default::Default for PercolatorUid<T>
 where
     T: std::cmp::Eq + std::hash::Hash,
@@ -159,7 +161,7 @@ impl PercolatorUid<Qid> {
 
 impl<T> PercolatorUid<T>
 where
-    T: std::cmp::Eq + std::hash::Hash + Copy,
+    T: std::cmp::Eq + std::hash::Hash,
 {
     /// Returns a percolator builder for configurability
     /// Example:
@@ -196,9 +198,12 @@ where
     /// assert_eq!(q.to_string(), "(AND (OR other=query))");
     ///
     /// ```
-    pub fn safe_index_query_with_uid(&mut self, q: Query, uid: T) -> Result<T, PercolatorError> {
+    pub fn safe_index_query_with_uid(&mut self, q: Query, uid: T) -> Result<T, PercolatorError>
+    where
+        T: Clone,
+    {
         let qid = self.perc.safe_add_query(q)?;
-        if let bimap::Overwritten::Right(old_qid, _) = self.qid_uid.insert(qid, uid) {
+        if let bimap::Overwritten::Right(old_qid, _) = self.qid_uid.insert(qid, uid.clone()) {
             // Remove old QID, as this was an overwrite.
             self.perc.remove_qid(old_qid);
         }
@@ -240,16 +245,27 @@ where
     }
 
     ///
-    /// An iterator of the matching queries user provided IDs given the Document.
+    /// An iterator of the matching ref of query IDs given the Document.
     ///
-    pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = T> + use<'b, '_, T> {
+    pub fn percolate_ref<'b>(&self, d: &'b Document) -> impl Iterator<Item = &T> + use<'b, '_, T> {
         self.perc
             .percolate(d)
             .filter_map(|qid| self.qid_uid.get_by_left(&qid))
-            .copied()
     }
 
     pub fn stats(&self) -> &PercolatorStats {
         self.perc.stats()
+    }
+}
+
+impl<T> PercolatorUid<T>
+where
+    T: std::cmp::Eq + std::hash::Hash + Copy,
+{
+    ///
+    /// An iterator of the matching queries user provided IDs given the Document.
+    ///
+    pub fn percolate<'b>(&self, d: &'b Document) -> impl Iterator<Item = T> + use<'b, '_, T> {
+        self.percolate_ref(d).copied()
     }
 }

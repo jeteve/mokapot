@@ -1,7 +1,73 @@
-use std::num::NonZeroUsize;
+use std::{hash::Hash, num::NonZeroUsize, rc::Rc};
 
 use h3o::LatLng;
 use mokaccino::prelude::*;
+
+#[test]
+fn test_percolator_uid() {
+    test_percolator_uid_stringlike::<String>();
+    test_percolator_uid_stringlike::<Rc<str>>();
+
+    test_percolator_uid_copyable::<u64, _>([1, 2]);
+    test_percolator_uid_copyable::<u32, _>([3, 4]);
+    test_percolator_uid_copyable::<i32, _>([-1, 0]);
+    test_percolator_uid_copyable::<usize, _>([0, 123]);
+}
+
+fn test_percolator_uid_copyable<T, const N: usize>(ids: [T; N])
+where
+    T: std::fmt::Debug + Copy + Eq + Hash,
+{
+    let mut p = PercolatorUid::<T>::default();
+    let q = [
+        p.safe_index_query_with_uid("A".has_value("a"), ids[0])
+            .unwrap(),
+        p.safe_index_query_with_uid("C".has_prefix("multi"), ids[1])
+            .unwrap(),
+    ];
+
+    assert!(!q.is_empty());
+
+    assert_eq!(
+        // Invalid lat/lng.. Cannot be matched against query 17
+        p.percolate(&[("A", "a")].into()).collect::<Vec<_>>(),
+        vec![q[0]]
+    );
+
+    assert_eq!(
+        // Invalid lat/lng.. Cannot be matched against query 17
+        p.percolate(&[("C", "multipla")].into()).collect::<Vec<_>>(),
+        vec![q[1]]
+    );
+}
+
+fn test_percolator_uid_stringlike<T>()
+where
+    for<'a> T: std::fmt::Debug + Clone + Eq + Hash + std::convert::From<&'a str>,
+{
+    let mut p = PercolatorUid::<T>::default();
+    let q = [
+        p.safe_index_query_with_uid("A".has_value("a"), "id1".into())
+            .unwrap(),
+        p.safe_index_query_with_uid("C".has_prefix("multi"), "id2".into())
+            .unwrap(),
+    ];
+
+    assert!(!q.is_empty());
+
+    assert_eq!(
+        // Invalid lat/lng.. Cannot be matched against query 17
+        p.percolate_ref(&[("A", "a")].into()).collect::<Vec<_>>(),
+        vec![&q[0]]
+    );
+
+    assert_eq!(
+        // Invalid lat/lng.. Cannot be matched against query 17
+        p.percolate_ref(&[("C", "multipla")].into())
+            .collect::<Vec<_>>(),
+        vec![&q[1]]
+    );
+}
 
 #[test]
 fn test_percolator() {
