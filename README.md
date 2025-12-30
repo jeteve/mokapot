@@ -241,17 +241,51 @@ Use the feature `send` if you want this crate to use only Send types.
 
 # Application development guidelines
 
-## Queries and Query IDs
+## Queries
 
 Do not treat this crate's Query objects as your primary application objects.
 
-Instead:
-
 Turn your application objects (which can be query like or any other structure) into Queries,
-index them using `add_query` and get `Qid`s.
+index them using `add_query` and get automatic `Qid`s, or use `index_query_uid` if you want to use
+your own application query IDs
 
-Using `percolate` will give you an iterator on Qids, and its your application's business to match those
-back to your original application objects.
+
+## Query IDs
+
+There are two ways to deal with Query IDs with mokaccino. Query IDs (both automated or
+user provided) are stable accross serialisation/deserialisation cycles.
+
+### Using your application Query IDs
+
+To use your application Query IDs, simply instanciate a `PercolatorUid` with your query ID type
+and use `index_query_uid`:
+
+```rust
+use mokaccino::prelude::*;
+
+let mut p = PercolatorUid::<u64>::default();
+
+let _ = p.index_query_uid("A".has_value("a"), 12);
+let _ = p.index_query_uid("C".has_prefix("multi"), 34);
+
+assert_eq!(
+        p.percolate(&[("A", "a")].into()).collect::<Vec<_>>(),
+        vec![12]
+);
+
+assert_eq!(
+        p.percolate(&[("C", "multiplex")].into()).collect::<Vec<_>>(),
+        vec![34]
+);
+
+```
+Your query UID type MUST at least implement `Clone` (you'll be able to use `percolate_ref`).
+If it implements `Copy`, you'll be able to use `percolate`, just like in the main example.
+
+### Using Mokaccino's automated Qids
+
+This is what the main example shows. In this mode, simply use the `Percolator` type and let it
+generate Qids for you.
 
 ## Documents
 

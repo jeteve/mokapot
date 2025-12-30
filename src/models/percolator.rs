@@ -185,7 +185,7 @@ where
     /// ```
     /// use mokaccino::prelude::*;
     /// let mut p = PercolatorUid::<u64>::default();
-    /// match p.safe_index_query_with_uid("field".has_value("value"), 1 as u64) {
+    /// match p.index_query_uid("field".has_value("value"), 1 as u64) {
     ///    Ok(uid) => println!("Added query with id {}", uid),
     ///   Err(e) => println!("Failed to add query: {:?}", e),
     /// }
@@ -193,12 +193,12 @@ where
     /// assert_eq!(q.to_string(), "(AND (OR field=value))");
     ///
     /// // You can overwrite the query with the same UID:
-    /// p.safe_index_query_with_uid("other".has_value("query"), 1 as u64);
+    /// p.index_query_uid("other".has_value("query"), 1 as u64);
     /// let q = p.get_query(1);
     /// assert_eq!(q.to_string(), "(AND (OR other=query))");
     ///
     /// ```
-    pub fn safe_index_query_with_uid(&mut self, q: Query, uid: T) -> Result<T, PercolatorError>
+    pub fn index_query_uid(&mut self, q: Query, uid: T) -> Result<T, PercolatorError>
     where
         T: Clone,
     {
@@ -218,7 +218,7 @@ where
     /// ```
     /// use mokaccino::prelude::*;
     /// let mut p = PercolatorUid::<u64>::default();
-    /// match p.safe_index_query_with_uid("field".has_value("value"), 1 as u64) {
+    /// match p.index_query_uid("field".has_value("value"), 1 as u64) {
     ///    Ok(uid) => println!("Added query with id {}", uid),
     ///   Err(e) => println!("Failed to add query: {:?}", e),
     /// }
