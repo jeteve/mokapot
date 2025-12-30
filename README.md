@@ -34,9 +34,13 @@ Percolators usually exist as part of more general search products, like Lucene.
 
 - Integer comparison queries.
 
-- Geo queries.
+- Geo queries using H3 indices or lat/long/radius queries.
 
-- Query parsing
+- Query parsing.
+
+- User provided Query IDs or automated Query IDs.
+
+- Query removals and updates.
 
 - `serde` serialisation/deserialisation (See Feature flags).
 
@@ -51,13 +55,12 @@ Percolators usually exist as part of more general search products, like Lucene.
 
 # Usage
 
-In the first example test, we build a set of queries and check documents
+In the example below, we build a set of queries and check documents
 will yield matching queries.
-
 
 This supports query parsing for each query building user inputs via the `FromStr` trait.
 
-You'll find some query syntax examples in the second example test. Use parenthesis to override classic
+You'll find some query syntax examples in the second example. Use parenthesis to override classic
 boolean operators' precedence.
 
 
@@ -237,7 +240,8 @@ mokaccino: { version = "0.2.0" , features = [ "serde" ] }
 
 ## send
 
-Use the feature `send` if you want this crate to use only Send types.
+Use the feature `send` if you want this crate to use only `Send` types for compatibility with a multi-threaded
+context.
 
 # Application development guidelines
 
@@ -247,8 +251,7 @@ Do not treat this crate's Query objects as your primary application objects.
 
 Turn your application objects (which can be query like or any other structure) into Queries,
 index them using `add_query` and get automatic `Qid`s, or use `index_query_uid` if you want to use
-your own application query IDs
-
+your own application query IDs.
 
 ## Query IDs
 

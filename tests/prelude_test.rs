@@ -20,10 +20,8 @@ where
 {
     let mut p = PercolatorUid::<T>::default();
     let q = [
-        p.safe_index_query_with_uid("A".has_value("a"), ids[0])
-            .unwrap(),
-        p.safe_index_query_with_uid("C".has_prefix("multi"), ids[1])
-            .unwrap(),
+        p.index_query_uid("A".has_value("a"), ids[0]).unwrap(),
+        p.index_query_uid("C".has_prefix("multi"), ids[1]).unwrap(),
     ];
 
     assert!(!q.is_empty());
@@ -47,9 +45,8 @@ where
 {
     let mut p = PercolatorUid::<T>::default();
     let q = [
-        p.safe_index_query_with_uid("A".has_value("a"), "id1".into())
-            .unwrap(),
-        p.safe_index_query_with_uid("C".has_prefix("multi"), "id2".into())
+        p.index_query_uid("A".has_value("a"), "id1".into()).unwrap(),
+        p.index_query_uid("C".has_prefix("multi"), "id2".into())
             .unwrap(),
     ];
 
