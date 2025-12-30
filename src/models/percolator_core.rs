@@ -261,7 +261,8 @@ impl<'de> serde::Deserialize<'de> for PercolatorCore {
 
         // Rebuild the indexes from the queries.
         for q in helper.cnf_queries {
-            p.add_query(q);
+            p.safe_add_query(q)
+                .expect("Failed to add query - limits exceeded? How did you get here?");
         }
 
         // and from the removed queries.
@@ -321,13 +322,6 @@ impl PercolatorCore {
     /// Mainly for display.
     pub(crate) fn stats(&self) -> &PercolatorStats {
         &self.stats
-    }
-
-    /// Adds a query to this percolator. Will panic if
-    /// there is more than u32::MAX queries.
-    ///
-    fn add_query(&mut self, q: Query) -> Qid {
-        self.safe_add_query(q).unwrap()
     }
 
     pub(crate) fn safe_add_query(&mut self, q: Query) -> Result<Qid, PercolatorError> {
@@ -397,7 +391,12 @@ impl PercolatorCore {
                 .positive_index
                 .index_document(&match_item.doc);
 
-            assert_eq!(clause_matcher.positive_index.len(), expected_index_len);
+            assert_eq!(
+                clause_matcher.positive_index.len(),
+                expected_index_len,
+                "Index length mismatch after adding query {}",
+                new_doc_id
+            );
         }
 
         self.cnf_queries.push(q);

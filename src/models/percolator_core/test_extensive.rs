@@ -116,6 +116,6 @@ fn test_percolator() {
 
         let q = Query::from_and(qs);
         //println!("Adding query={}", q.to_cnf());
-        p.add_query(q);
+        let _ = p.safe_add_query(q).unwrap();
     }
 }
