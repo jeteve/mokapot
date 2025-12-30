@@ -18,13 +18,16 @@ fn test_percolator() {
 #[cfg(feature = "serde")]
 fn test_serialisation() {
     let mut p = Percolator::default();
-    let qids: Vec<Qid> = vec![
+    let mut qids: Vec<Qid> = vec![
         p.add_query("A".has_value("a")),                      //0
         p.add_query("A".has_value("a") | "B".has_value("b")), //1
         p.add_query("A".has_value("a") & "B".has_value("b")), //2
         p.add_query(!"A".has_value("a")),                     //3
         p.add_query("A".i64_lt(10000)),
     ];
+
+    let to_remove = qids.pop().unwrap();
+    p.remove_qid(to_remove);
 
     let json = serde_json::to_string(&p).unwrap();
     println!("{}", json);
@@ -34,7 +37,7 @@ fn test_serialisation() {
         assert!(p2.safe_get_query(qid).is_some());
     }
     // Check some bonkers qid return none.
-    assert!(p2.safe_get_query(1234).is_none());
+    assert!(p2.safe_get_query(to_remove).is_none());
 }
 
 fn test_nclause_percolator(n: NonZeroUsize) {

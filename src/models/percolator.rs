@@ -178,6 +178,14 @@ where
     ///    Ok(uid) => println!("Added query with id {}", uid),
     ///   Err(e) => println!("Failed to add query: {:?}", e),
     /// }
+    /// let q = p.get_query(1);
+    /// assert_eq!(q.to_string(), "(AND (OR field=value))");
+    ///
+    /// // You can overwrite the query with the same UID:
+    /// p.safe_index_query_with_uid("other".has_value("query"), 1 as u64);
+    /// let q = p.get_query(1);
+    /// assert_eq!(q.to_string(), "(AND (OR other=query))");
+    ///
     /// ```
     pub fn safe_index_query_with_uid(&mut self, q: Query, uid: T) -> Result<T, PercolatorError> {
         let qid = self.perc.safe_add_query(q)?;
