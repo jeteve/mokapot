@@ -11,7 +11,7 @@ use mokaccino::models::cnf::CNFQueryable;
 use mokaccino::models::cnf::Query;
 
 use mokaccino::models::document::Document;
-use mokaccino::models::percolator::Percolator;
+use mokaccino::prelude::Percolator;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 

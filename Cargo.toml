@@ -21,7 +21,7 @@ exclude = [
 default-run="mokaccino"
 
 [features]
-serde = ["dep:serde", "serde_json", "h3o/serde", "roaring/serde"]
+serde = ["dep:serde", "serde_json", "h3o/serde", "roaring/serde", "bimap/serde"]
 send = []
 
 [dependencies]
@@ -38,6 +38,7 @@ strum = { version = "^0.27", features = ["derive"] }
 rand = { version = "^0.9"}
 nom = "^8"
 nonempty = "^0.12"
+bimap = "^0.6"
 
 [dev-dependencies]
 criterion = "0.7.0"

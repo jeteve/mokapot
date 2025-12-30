@@ -1,7 +1,66 @@
-use std::num::NonZeroUsize;
+use std::{hash::Hash, num::NonZeroUsize, rc::Rc};
 
 use h3o::LatLng;
 use mokaccino::prelude::*;
+
+#[test]
+fn test_percolator_uid() {
+    test_percolator_uid_stringlike::<String>();
+    test_percolator_uid_stringlike::<Rc<str>>();
+
+    test_percolator_uid_copyable::<u64, _>([1, 2]);
+    test_percolator_uid_copyable::<u32, _>([3, 4]);
+    test_percolator_uid_copyable::<i32, _>([-1, 0]);
+    test_percolator_uid_copyable::<usize, _>([0, 123]);
+}
+
+fn test_percolator_uid_copyable<T, const N: usize>(ids: [T; N])
+where
+    T: std::fmt::Debug + Copy + Eq + Hash,
+{
+    let mut p = PercolatorUid::<T>::default();
+    let q = [
+        p.index_query_uid("A".has_value("a"), ids[0]).unwrap(),
+        p.index_query_uid("C".has_prefix("multi"), ids[1]).unwrap(),
+    ];
+
+    assert!(!q.is_empty());
+
+    assert_eq!(
+        p.percolate(&[("A", "a")].into()).collect::<Vec<_>>(),
+        vec![q[0]]
+    );
+
+    assert_eq!(
+        p.percolate(&[("C", "multipla")].into()).collect::<Vec<_>>(),
+        vec![q[1]]
+    );
+}
+
+fn test_percolator_uid_stringlike<T>()
+where
+    for<'a> T: std::fmt::Debug + Clone + Eq + Hash + std::convert::From<&'a str>,
+{
+    let mut p = PercolatorUid::<T>::default();
+    let q = [
+        p.index_query_uid("A".has_value("a"), "id1".into()).unwrap(),
+        p.index_query_uid("C".has_prefix("multi"), "id2".into())
+            .unwrap(),
+    ];
+
+    assert!(!q.is_empty());
+
+    assert_eq!(
+        p.percolate_ref(&[("A", "a")].into()).collect::<Vec<_>>(),
+        vec![&q[0]]
+    );
+
+    assert_eq!(
+        p.percolate_ref(&[("C", "multipla")].into())
+            .collect::<Vec<_>>(),
+        vec![&q[1]]
+    );
+}
 
 #[test]
 fn test_percolator() {
@@ -18,7 +77,7 @@ fn test_percolator() {
 #[cfg(feature = "serde")]
 fn test_serialisation() {
     let mut p = Percolator::default();
-    let qids: Vec<Qid> = vec![
+    let mut qids: Vec<Qid> = vec![
         p.add_query("A".has_value("a")),                      //0
         p.add_query("A".has_value("a") | "B".has_value("b")), //1
         p.add_query("A".has_value("a") & "B".has_value("b")), //2
@@ -26,13 +85,18 @@ fn test_serialisation() {
         p.add_query("A".i64_lt(10000)),
     ];
 
+    let to_remove = qids.pop().unwrap();
+    p.remove_qid(to_remove);
+
     let json = serde_json::to_string(&p).unwrap();
     println!("{}", json);
     let p2: Percolator = serde_json::from_str(&json).unwrap();
     for qid in qids {
         // No crash. Query is still there!
-        let _ = p2.get_query(qid);
+        assert!(p2.safe_get_query(qid).is_some());
     }
+    // Check some bonkers qid returns none.
+    assert!(p2.safe_get_query(to_remove).is_none());
 }
 
 fn test_nclause_percolator(n: NonZeroUsize) {

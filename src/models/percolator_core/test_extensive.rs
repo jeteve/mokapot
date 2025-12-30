@@ -23,7 +23,7 @@ use crate::models::cnf::Query;
 use crate::models::document::Document;
 
 #[cfg(test)]
-use crate::models::percolator::Percolator;
+use crate::models::percolator_core::PercolatorCore;
 
 #[cfg(test)]
 use crate::models::queries::term::TermQuery;
@@ -85,7 +85,7 @@ fn test_percolator() {
         docs.push(d);
     }
 
-    let mut p = Percolator::default();
+    let mut p = PercolatorCore::default();
 
     // Add 5000 documents as a sample
     //for d in docs.iter().take(10000) {
@@ -116,6 +116,6 @@ fn test_percolator() {
 
         let q = Query::from_and(qs);
         //println!("Adding query={}", q.to_cnf());
-        p.add_query(q);
+        let _ = p.safe_add_query(q).unwrap();
     }
 }

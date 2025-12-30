@@ -34,9 +34,13 @@ Percolators usually exist as part of more general search products, like Lucene.
 
 - Integer comparison queries.
 
-- Geo queries.
+- Geo queries using H3 indices or lat/long/radius queries.
 
-- Query parsing
+- Query parsing.
+
+- User provided Query IDs or automated Query IDs.
+
+- Query removals and updates.
 
 - `serde` serialisation/deserialisation (See Feature flags).
 
@@ -51,13 +55,12 @@ Percolators usually exist as part of more general search products, like Lucene.
 
 # Usage
 
-In the first example test, we build a set of queries and check documents
+In the example below, we build a set of queries and check documents
 will yield matching queries.
-
 
 This supports query parsing for each query building user inputs via the `FromStr` trait.
 
-You'll find some query syntax examples in the second example test. Use parenthesis to override classic
+You'll find some query syntax examples in the second example. Use parenthesis to override classic
 boolean operators' precedence.
 
 
@@ -237,21 +240,55 @@ mokaccino: { version = "0.2.0" , features = [ "serde" ] }
 
 ## send
 
-Use the feature `send` if you want this crate to use only Send types.
+Use the feature `send` if you want this crate to use only `Send` types for compatibility with a multi-threaded
+context.
 
 # Application development guidelines
 
-## Queries and Query IDs
+## Queries
 
 Do not treat this crate's Query objects as your primary application objects.
 
-Instead:
-
 Turn your application objects (which can be query like or any other structure) into Queries,
-index them using `add_query` and get `Qid`s.
+index them using `add_query` and get automatic `Qid`s, or use `index_query_uid` if you want to use
+your own application query IDs.
 
-Using `percolate` will give you an iterator on Qids, and its your application's business to match those
-back to your original application objects.
+## Query IDs
+
+There are two ways to deal with Query IDs with mokaccino. Query IDs (both automated or
+user provided) are stable across serialisation/deserialisation cycles.
+
+### Using your application Query IDs
+
+To use your application Query IDs, simply instantiate a `PercolatorUid` with your query ID type
+and use `index_query_uid`:
+
+```rust
+use mokaccino::prelude::*;
+
+let mut p = PercolatorUid::<u64>::default();
+
+let _ = p.index_query_uid("A".has_value("a"), 12);
+let _ = p.index_query_uid("C".has_prefix("multi"), 34);
+
+assert_eq!(
+        p.percolate(&[("A", "a")].into()).collect::<Vec<_>>(),
+        vec![12]
+);
+
+assert_eq!(
+        p.percolate(&[("C", "multiplex")].into()).collect::<Vec<_>>(),
+        vec![34]
+);
+
+```
+Your query UID type MUST at least implement `Clone` (you'll be able to use `percolate_ref`).
+If it implements `Copy`, you'll be able to use `percolate`, just like in the main example.
+
+### Using Mokaccino's automated Qids
+
+This is what the main example shows. In this mode, simply use the `Percolator` type and let it
+generate Qids for you.
 
 ## Documents
 

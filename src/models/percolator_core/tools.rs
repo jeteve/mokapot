@@ -85,7 +85,7 @@ impl MatchItem {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{percolator::tools::ClauseExpander, types::OurRc};
+    use crate::models::{percolator_core::tools::ClauseExpander, types::OurRc};
 
     #[test]
     fn clause_expander() {
