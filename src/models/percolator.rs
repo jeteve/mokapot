@@ -5,12 +5,21 @@ use crate::{
     prelude::{Document, Qid, Query},
 };
 
-#[derive(Default)]
 /// A builder should you want to build a percolator
-/// with different parameters
+/// with different parameters.
 pub struct PercBuilder<T> {
+    // There's a generic T, as this should be able to build a PercolatorUid<T>
     config: PercolatorConfig,
     _marker: std::marker::PhantomData<T>,
+}
+
+impl<T> Default for PercBuilder<T> {
+    fn default() -> Self {
+        Self {
+            config: PercolatorConfig::default(),
+            _marker: std::marker::PhantomData,
+        }
+    }
 }
 
 impl<T> PercBuilder<T>
@@ -18,7 +27,7 @@ where
     T: std::cmp::Eq + std::hash::Hash,
 {
     pub fn build(self) -> PercolatorUid<T> {
-        PercolatorUid {
+        PercolatorUid::<T> {
             perc: PercolatorCore::from_config(self.config),
             qid_uid: bimap::BiMap::<Qid, T>::new(),
         }
@@ -150,7 +159,7 @@ impl PercolatorUid<Qid> {
 
 impl<T> PercolatorUid<T>
 where
-    T: std::cmp::Eq + std::hash::Hash + Copy + Default,
+    T: std::cmp::Eq + std::hash::Hash + Copy,
 {
     /// Returns a percolator builder for configurability
     /// Example:
@@ -161,7 +170,7 @@ where
     ///
     /// ```
     pub fn builder() -> PercBuilder<T> {
-        PercBuilder::default()
+        PercBuilder::<T>::default()
     }
 
     /// Index the given query with the user provided ID.

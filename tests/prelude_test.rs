@@ -36,7 +36,7 @@ fn test_serialisation() {
         // No crash. Query is still there!
         assert!(p2.safe_get_query(qid).is_some());
     }
-    // Check some bonkers qid return none.
+    // Check some bonkers qid returns none.
     assert!(p2.safe_get_query(to_remove).is_none());
 }
 
