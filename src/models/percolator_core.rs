@@ -82,7 +82,7 @@ struct ClauseMatcher {
     positive_index: Index,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PercolatorConfig {
     pub(crate) n_clause_matchers: NonZeroUsize,
@@ -97,6 +97,7 @@ impl Default for PercolatorConfig {
         }
     }
 }
+
 impl PercolatorConfig {
     /// The number of clause matchers to use.
     /// More clause matchers means less queries
@@ -126,6 +127,7 @@ impl PercolatorConfig {
 #[derive(Debug)]
 pub struct PercolatorStats {
     n_queries: usize,
+    n_queries_removed: usize,
     n_preheaters: usize,
     clauses_per_query: Hstats<f64>,
     preheaters_per_query: Hstats<f64>,
@@ -139,6 +141,7 @@ impl Default for PercolatorStats {
         Self {
             n_queries: Default::default(),
             n_preheaters: Default::default(),
+            n_queries_removed: Default::default(),
 
             clauses_per_query: proto_hstat.clone(),
             preheaters_per_query: proto_hstat.clone(),
@@ -151,7 +154,7 @@ impl std::fmt::Display for PercolatorStats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "🔎 N queries={}
+            "🔎 N queries={}, removed={}
 🔥 Preheaters={}
 ❓ Clauses per query:
 {}
@@ -160,6 +163,7 @@ impl std::fmt::Display for PercolatorStats {
 📏 Prefix lengths:
 {}",
             self.n_queries,
+            self.n_queries_removed,
             self.n_preheaters,
             self.clauses_per_query,
             self.preheaters_per_query,
@@ -169,9 +173,14 @@ impl std::fmt::Display for PercolatorStats {
 }
 
 impl PercolatorStats {
-    /// The number of queries considered
+    /// The number of queries ever added to this percolator
     pub fn n_queries(&self) -> usize {
         self.n_queries
+    }
+
+    /// The number of queries removed from the percolator
+    pub fn n_queries_removed(&self) -> usize {
+        self.n_queries_removed
     }
 
     /// The number of distinct pre heating functions
@@ -221,7 +230,7 @@ pub enum PercolatorError {
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub(crate) struct PercolatorCore {
     // Serialisable data.
-    config: PercolatorConfig,
+    pub(crate) config: PercolatorConfig,
     cnf_queries: Vec<Query>,
     unindexed_qids: RoaringBitmap,
 
@@ -421,6 +430,7 @@ impl PercolatorCore {
 
         // must_filter is now useless.
         self.must_filter.remove(qid);
+        self.stats.n_queries_removed += 1;
         true
     }
 

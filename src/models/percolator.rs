@@ -26,6 +26,13 @@ impl<T> PercBuilder<T>
 where
     T: std::cmp::Eq + std::hash::Hash,
 {
+    pub fn with_config(self, config: PercolatorConfig) -> Self {
+        Self {
+            config,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
     pub fn build(self) -> PercolatorUid<T> {
         PercolatorUid::<T> {
             perc: PercolatorCore::from_config(self.config),
@@ -175,6 +182,50 @@ where
         PercBuilder::<T>::default()
     }
 
+    /// Returns a compacted Percolator.
+    /// Essentialy a copy of Self with the same queries, but without
+    /// the holes left by removals.
+    ///
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    /// let mut p = Percolator::default();
+    /// p.index_query_uid("field".has_value("value"), 1);
+    /// p.remove_uid(1);
+    ///
+    /// assert!( p.holes_ratio() == 1.0 ); // As many removals as added.
+    ///
+    /// let mut p = p.compacted(); // Ditch the old p
+    ///
+    /// assert!( p.holes_ratio().is_nan() ); // Now there are no holes left, so NaN
+    /// ```
+    pub fn compacted(&self) -> Self
+    where
+        T: Clone,
+    {
+        let mut new_self = Self::builder()
+            .with_config(self.perc.config.clone())
+            .build();
+
+        // Index all queries
+        for (uid, q) in self.queries() {
+            let _ = new_self
+                .index_query_uid(q.clone(), uid)
+                .expect("Can index same query");
+        }
+        new_self
+    }
+
+    /// A ratio of the number of removals/number of additions.
+    ///
+    /// Will be `is_nan()` when no addition have ever been made
+    /// to this percolator.
+    ///
+    pub fn holes_ratio(&self) -> f64 {
+        let stats = self.perc.stats();
+        (stats.n_queries_removed() as f64) / (stats.n_queries() as f64)
+    }
+
     /// Index the given query with the user provided ID.
     /// This is useful if queries already have an identifier
     /// in your database for instance.
@@ -237,6 +288,15 @@ where
 
     pub fn get_query(&self, uid: T) -> &Query {
         self.safe_get_query(uid).unwrap()
+    }
+
+    fn queries(&self) -> impl Iterator<Item = (T, &Query)>
+    where
+        T: Clone,
+    {
+        self.qid_uid
+            .iter()
+            .map(|(_, uid)| (uid.clone(), self.get_query(uid.clone())))
     }
 
     pub fn safe_get_query(&self, uid: T) -> Option<&Query> {
