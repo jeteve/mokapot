@@ -1,3 +1,5 @@
+// Benchmark queries parsing and indexing.
+
 use criterion::{Criterion, criterion_group, criterion_main};
 use mokaccino::prelude::Query;
 use std::hint::black_box;

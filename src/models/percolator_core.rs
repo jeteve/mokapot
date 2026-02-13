@@ -456,20 +456,21 @@ impl PercolatorCore {
     // Get a RoaringBitMap from the document, using the clause matchers.
     fn bs_from_document(&self, d: &Document) -> RoaringBitmap {
         // This is where the magic happens.
-        let mut dclause = d.to_clause();
+        // A clause is a disjunction of litterals.
+        let mut doc_clause = d.to_clause();
         // Add the match all to match all queries
-        dclause.add_termquery(TermQuery::match_all());
+        doc_clause.add_termquery(TermQuery::match_all());
 
         // Preheat the clause
         // This adds a bit of time to the percolation.
-        dclause = self
+        doc_clause = self
             .preheaters
             .iter()
-            .fold(dclause, |c, ph| ph.expand_clause.0(c));
+            .fold(doc_clause, |c, ph| ph.expand_clause.0(c));
 
         self.clause_matchers
             .iter()
-            .map(|ms| clause_docs_from_idx(&dclause, &ms.positive_index))
+            .map(|ms| clause_docs_from_idx(&doc_clause, &ms.positive_index))
             .reduce_inplace(|acc, b| {
                 if acc.is_empty() {
                     true // Already empty. Stop the reduction.
