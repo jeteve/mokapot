@@ -715,11 +715,10 @@ mod tests_literal_preheater {
 
         let q = I64Query::new("f", 10, Ordering::LE);
         let ph = intcmp_query_preheater(&q);
-        let expander = ph.expand_clause;
 
         // Document with value 10 (should match)
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "10")]);
-        let expanded = (expander.0)(clause);
+        let expanded = ph.expand_clause(clause);
         // Should contain __INT_LE_13__f=true
         assert!(expanded.literals().iter().any(|l| {
             l.query()
@@ -731,7 +730,7 @@ mod tests_literal_preheater {
 
         // Document with value 14 (should NOT match) -> 14 > 13
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "14")]);
-        let expanded = (expander.0)(clause);
+        let expanded = ph.expand_clause(clause);
         // Should NOT contain the synthetic field
         assert!(!expanded.literals().iter().any(|l| {
             l.query()
@@ -748,11 +747,10 @@ mod tests_literal_preheater {
 
         let q = I64Query::new("f", 10, Ordering::GE);
         let ph = intcmp_query_preheater(&q);
-        let expander = ph.expand_clause;
 
         // Document with value 10 (should match)
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "10")]);
-        let expanded = (expander.0)(clause);
+        let expanded = ph.expand_clause(clause);
         assert!(expanded.literals().iter().any(|l| {
             l.query()
                 .term_query()
@@ -763,7 +761,7 @@ mod tests_literal_preheater {
 
         // Document with value 7 (should NOT match) -> 7 < 8
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "7")]);
-        let expanded = (expander.0)(clause);
+        let expanded = ph.expand_clause(clause);
         assert!(!expanded.literals().iter().any(|l| {
             l.query()
                 .term_query()
@@ -795,11 +793,10 @@ mod tests_literal_preheater {
 
         // Testing the expander logic too
         // It should match doc values with len >= clipped_len
-        let expander = ph.expand_clause;
 
         // Doc value "abc" (len 3) < 4. Should NOT expand.
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "abc")]);
-        let expanded = (expander.0)(clause);
+        let expanded = ph.expand_clause(clause);
         // Check no new literals added (or at least no synthetic prefix one)
         assert!(!expanded.literals().iter().any(|l| {
             l.query()
@@ -811,7 +808,7 @@ mod tests_literal_preheater {
 
         // Doc value "abcde" (len 5) >= 4. Should expand.
         let clause = Clause::from_termqueries(vec![TermQuery::new("f", "abcde")]);
-        let expanded = (expander.0)(clause);
+        let expanded = ph.expand_clause(clause);
         assert!(expanded.literals().iter().any(|l| {
             l.query()
                 .term_query()

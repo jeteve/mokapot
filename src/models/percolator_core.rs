@@ -466,7 +466,7 @@ impl PercolatorCore {
         doc_clause = self
             .preheaters
             .iter()
-            .fold(doc_clause, |c, ph| ph.expand_clause.0(c));
+            .fold(doc_clause, |c, ph| ph.expand_clause(c));
 
         self.clause_matchers
             .iter()
