@@ -37,11 +37,7 @@ use crate::{
 // Returns the clipped len to the smallest number
 // According to clip sizes.
 fn clip_prefix_len(allowed_size: &[usize], len: usize) -> usize {
-    *allowed_size
-        .iter()
-        .filter(|&&f| f <= len)
-        .next_back()
-        .unwrap_or(&len)
+    *allowed_size.iter().rfind(|&&f| f <= len).unwrap_or(&len)
 }
 
 fn safe_prefix(s: &str, len: usize) -> std::borrow::Cow<'_, str> {
