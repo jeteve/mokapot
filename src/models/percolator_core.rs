@@ -3,6 +3,7 @@ use std::{fmt, iter};
 
 use hstats::Hstats;
 use itertools::Itertools;
+use num_traits::ToPrimitive;
 use roaring::RoaringBitmap;
 
 use crate::itertools::InPlaceReduce;
@@ -136,7 +137,7 @@ pub struct PercolatorStats {
 
 impl Default for PercolatorStats {
     fn default() -> Self {
-        let proto_hstat = Hstats::new(0.0, 50.0, 25);
+        let proto_hstat = Hstats::new(0.0, 50.0, 50);
 
         Self {
             n_queries: Default::default(),
@@ -178,6 +179,37 @@ impl PercolatorStats {
         self.n_queries
     }
 
+    /// Returns the recommended configuration according
+    /// to the statistics.
+    pub fn recommended_cmcount(&self) -> Option<NonZeroUsize> {
+        // from self.clauses_per_query(), find the n_clause_matchers
+        // that covers 99% of the clauses.
+        let count = self.clauses_per_query().count();
+        if count == 0 {
+            // No data points. Always at least one
+            return NonZeroUsize::new(1);
+        }
+        let bins = self.clauses_per_query().bins();
+        // What is 99% of count?
+        let ninetynine = (count as f64 * 0.99).floor().to_u64()?;
+        // Sum the bins until the cumulative count is >= ninetynice.
+        let mut cumulative = 0;
+        for bin in bins {
+            dbg!(bin);
+            if dbg!(cumulative + bin.2) >= dbg!(ninetynine) {
+                // Only works because bin width == 1.0
+                return dbg!(bin.0)
+                    .floor()
+                    .to_usize()
+                    .and_then(NonZeroUsize::new)
+                    .or(NonZeroUsize::new(1));
+            }
+            cumulative += bin.2;
+        }
+
+        NonZeroUsize::new(1)
+    }
+
     /// The number of queries removed from the percolator
     pub fn n_queries_removed(&self) -> usize {
         self.n_queries_removed
@@ -197,6 +229,44 @@ impl PercolatorStats {
     /// Distribution of number of pre heating function per query
     pub fn preheaters_per_query(&self) -> &Hstats<f64> {
         &self.preheaters_per_query
+    }
+}
+
+#[cfg(test)]
+mod test_stats {
+    use std::num::NonZeroUsize;
+
+    use crate::models::percolator_core::PercolatorStats;
+
+    #[test]
+    fn test_recommendation() {
+        let mut s = PercolatorStats::default();
+        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(1));
+
+        // Works from 4 queries.
+        for _ in 1..=3 {
+            s.clauses_per_query.add(0.0);
+        }
+        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(1));
+
+        for _ in 1..=97 {
+            s.clauses_per_query.add(0.0);
+        }
+        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(1));
+        s.clauses_per_query.add(1000.0);
+        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(1));
+
+        // Add half of 100 queries with a clause count of 1
+        for _ in 1..=50 {
+            s.clauses_per_query.add(1.0);
+        }
+        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(1));
+
+        // Add a lot with 2 clauses.
+        for _ in 1..=50 {
+            s.clauses_per_query.add(2.0);
+        }
+        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(2));
     }
 }
 
