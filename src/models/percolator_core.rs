@@ -195,10 +195,10 @@ impl PercolatorStats {
         // Sum the bins until the cumulative count is >= ninetynice.
         let mut cumulative = 0;
         for bin in bins {
-            dbg!(bin);
-            if dbg!(cumulative + bin.2) >= dbg!(ninetynine) {
+            if cumulative + bin.2 >= ninetynine {
                 // Only works because bin width == 1.0
-                return dbg!(bin.0)
+                return bin
+                    .0
                     .floor()
                     .to_usize()
                     .and_then(NonZeroUsize::new)

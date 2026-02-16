@@ -71,6 +71,10 @@ fn build_percolator<R: Rng + ?Sized>(
         });
 
     println!("{}", p.stats());
+    println!(
+        "Recommended clause matchers={:?}",
+        p.stats().recommended_cmcount()
+    );
     p
 }
 
