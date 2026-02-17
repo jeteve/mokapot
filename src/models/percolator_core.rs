@@ -179,19 +179,19 @@ impl PercolatorStats {
         self.n_queries
     }
 
-    /// Returns the recommended configuration according
+    /// Returns the recommended Clause Matcher count according
     /// to the statistics.
-    pub fn recommended_cmcount(&self) -> Option<NonZeroUsize> {
+    pub fn recommended_cmcount(&self) -> NonZeroUsize {
         // from self.clauses_per_query(), find the n_clause_matchers
         // that covers 99% of the clauses.
         let count = self.clauses_per_query().count();
         if count == 0 {
             // No data points. Always at least one
-            return NonZeroUsize::new(1);
+            return NonZeroUsize::new(1).unwrap(); // Safe unwrap.
         }
         let bins = self.clauses_per_query().bins();
         // What is 99% of count?
-        let ninetynine = (count as f64 * 0.99).floor().to_u64()?;
+        let ninetynine = (count as f64 * 0.99).floor().to_u64().unwrap_or_default();
         // Sum the bins until the cumulative count is >= ninetynice.
         let mut cumulative = 0;
         for bin in bins {
@@ -202,12 +202,12 @@ impl PercolatorStats {
                     .floor()
                     .to_usize()
                     .and_then(NonZeroUsize::new)
-                    .or(NonZeroUsize::new(1));
+                    .unwrap_or(NonZeroUsize::new(1).unwrap());
             }
             cumulative += bin.2;
         }
 
-        NonZeroUsize::new(1)
+        NonZeroUsize::new(1).unwrap() // Safe unwrap.
     }
 
     /// The number of queries removed from the percolator
@@ -241,32 +241,33 @@ mod test_stats {
     #[test]
     fn test_recommendation() {
         let mut s = PercolatorStats::default();
-        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(1));
+        let one = NonZeroUsize::new(1).unwrap();
+        assert_eq!(s.recommended_cmcount(), one);
 
         // Works from 4 queries.
         for _ in 1..=3 {
             s.clauses_per_query.add(0.0);
         }
-        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(1));
+        assert_eq!(s.recommended_cmcount(), one);
 
         for _ in 1..=97 {
             s.clauses_per_query.add(0.0);
         }
-        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(1));
+        assert_eq!(s.recommended_cmcount(), one);
         s.clauses_per_query.add(1000.0);
-        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(1));
+        assert_eq!(s.recommended_cmcount(), one);
 
         // Add half of 100 queries with a clause count of 1
         for _ in 1..=50 {
             s.clauses_per_query.add(1.0);
         }
-        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(1));
+        assert_eq!(s.recommended_cmcount(), one);
 
         // Add a lot with 2 clauses.
         for _ in 1..=50 {
             s.clauses_per_query.add(2.0);
         }
-        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(2));
+        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(2).unwrap());
     }
 }
 
