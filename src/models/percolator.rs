@@ -182,6 +182,33 @@ where
         PercBuilder::<T>::default()
     }
 
+    /// Returns an automatically optimised and compacted Percolator
+    ///
+    /// It is recommended to call that once you have indexed few 100s of queries
+    /// in the percolator.
+    ///
+    /// If you just want to remove holes left behind by
+    /// queries removals, use `compacted` instead.
+    ///
+    pub fn optimised(&self) -> Self
+    where
+        T: Clone,
+    {
+        let mut new_self = Self::builder()
+            .n_clause_matchers(self.perc.stats().recommended_cmcount())
+            .prefix_sizes(self.perc.stats().recommended_prefix_sizes())
+            .build();
+
+        // And reindex all queries.
+        // Index all queries
+        for (uid, q) in self.queries() {
+            let _ = new_self
+                .index_query_uid(q.clone(), uid)
+                .expect("Can index same query");
+        }
+        new_self
+    }
+
     /// Returns a compacted Percolator.
     /// Essentialy a copy of Self with the same queries, but without
     /// the holes left by removals.

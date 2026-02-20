@@ -1,9 +1,9 @@
-use std::num::{NonZeroUsize, TryFromIntError};
+use std::num::{NonZeroU64, NonZeroUsize, TryFromIntError};
 use std::{fmt, iter};
 
 use hstats::Hstats;
 use itertools::Itertools;
-use num_traits::ToPrimitive;
+use num_traits::{Float, ToPrimitive};
 use roaring::RoaringBitmap;
 
 use crate::itertools::InPlaceReduce;
@@ -33,6 +33,56 @@ pub(crate) fn clause_docs_from_idx(c: &Clause, index: &Index) -> RoaringBitmap {
         .for_each(|bm| ret |= bm);
 
     ret
+}
+
+// Bins at centile
+pub fn bins_at_quantiles(
+    hstat: &Hstats<f64>,
+    quantiles: &[u64],
+    scale: NonZeroU64,
+) -> Vec<(f64, f64, u64)> {
+    // Compute the count boundaries and save the original indices/order for percentiles.
+    let mut quantiles_counts = {
+        let count = hstat.count();
+        quantiles
+            .iter()
+            .map(|&pc| {
+                pc.clamp(0, scale.get())
+                    .saturating_mul(count as u64)
+                    .div_ceil(scale.get())
+            })
+            .enumerate()
+            .collect::<Vec<_>>()
+    };
+
+    // Sort by increasing value for the algorithm below.
+    quantiles_counts.sort_unstable_by_key(|&(_, v)| v);
+
+    let mut res = Vec::with_capacity(quantiles_counts.len());
+
+    let mut cumul_bins = hstat.bins_cumulative().into_iter().peekable();
+
+    for quantile_count in quantiles_counts {
+        // Is the stable next value still good for the percentile?
+        while let Some(&bin) = cumul_bins.peek() {
+            // Advance if the bin is not good.
+            if bin.2 < quantile_count.1 {
+                cumul_bins.next();
+            } else {
+                // Bin is good. save and stay put for the next count.
+                res.push((quantile_count.0, bin));
+                break;
+            }
+        }
+    }
+
+    // Reorder the bins by original percentiles order
+    res.sort_unstable_by_key(|&(idx, _)| idx);
+
+    // Bit of quality control.
+    assert_eq!(res.len(), quantiles.len());
+
+    res.into_iter().map(|(_, bin)| bin).collect()
 }
 
 // For indexing clauses.
@@ -138,6 +188,7 @@ pub struct PercolatorStats {
 impl Default for PercolatorStats {
     fn default() -> Self {
         let proto_hstat = Hstats::new(0.0, 50.0, 50);
+        let prefix_lengths = Hstats::new(1.0, 100.0, 4);
 
         Self {
             n_queries: Default::default(),
@@ -146,7 +197,7 @@ impl Default for PercolatorStats {
 
             clauses_per_query: proto_hstat.clone(),
             preheaters_per_query: proto_hstat.clone(),
-            prefix_lengths: proto_hstat.clone(),
+            prefix_lengths,
         }
     }
 }
@@ -179,8 +230,9 @@ impl PercolatorStats {
         self.n_queries
     }
 
-    /// Returns the recommended Clause Matcher count according
-    /// to the statistics.
+    /// Returns the recommended Clause Matcher count
+    /// for building a new Percolator according to these
+    /// statistics.
     pub fn recommended_cmcount(&self) -> NonZeroUsize {
         // from self.clauses_per_query(), find the n_clause_matchers
         // that covers 99% of the clauses.
@@ -189,25 +241,40 @@ impl PercolatorStats {
             // No data points. Always at least one
             return NonZeroUsize::new(1).unwrap(); // Safe unwrap.
         }
-        let bins = self.clauses_per_query().bins();
-        // What is 99% of count?
-        let ninetynine = (count as f64 * 0.99).floor().to_u64().unwrap_or_default();
-        // Sum the bins until the cumulative count is >= ninetynice.
-        let mut cumulative = 0;
-        for bin in bins {
-            if cumulative + bin.2 >= ninetynine {
-                // Only works because bin width == 1.0
-                return bin
-                    .0
-                    .floor()
-                    .to_usize()
-                    .and_then(NonZeroUsize::new)
-                    .unwrap_or(NonZeroUsize::new(1).unwrap());
-            }
-            cumulative += bin.2;
+
+        let ninetynice_bin = bins_at_quantiles(
+            &self.clauses_per_query,
+            &[99],
+            NonZeroU64::new(100).unwrap(),
+        )[0];
+
+        ninetynice_bin
+            .0
+            .floor()
+            .to_usize()
+            .and_then(NonZeroUsize::new)
+            .unwrap_or(NonZeroUsize::new(1).unwrap())
+    }
+
+    /// Returns a vector of recommended prefix sizes
+    /// for building a new optimised percolator.
+    ///
+    pub fn recommended_prefix_sizes(&self) -> Vec<usize> {
+        if self.prefix_lengths.count() < 1 {
+            // Default..
+            return vec![2, 10, 100, 1000, 2000];
         }
 
-        NonZeroUsize::new(1).unwrap() // Safe unwrap.
+        let mut bins = self.prefix_lengths.bins();
+        bins.sort_by_key(|&(_, _, count)| count);
+
+        bins.into_iter()
+            .rev()
+            .take(5)
+            .map(|(floor, _, _)| floor.ceil().to_usize().unwrap_or(1))
+            .sorted()
+            .dedup()
+            .collect()
     }
 
     /// The number of queries removed from the percolator
@@ -236,7 +303,25 @@ impl PercolatorStats {
 mod test_stats {
     use std::num::NonZeroUsize;
 
+    //use hstats::Hstats;
+    //use num_traits::ToPrimitive;
+
     use crate::models::percolator_core::PercolatorStats;
+
+    //#[test]
+    // fn test_bins_at_fractions() {
+    //     let mut s = Hstats::<f64>::new(0.0, 100.0, 100);
+    //     assert_eq!(
+    //         bins_at_fractions(&s, vec![0.9, 1.0]),
+    //         vec![(f64::NEG_INFINITY, 0.0, 0), (f64::NEG_INFINITY, 0.0, 0)]
+    //     );
+
+    //     s.add(0.0);
+    //     assert_eq!(
+    //         bins_at_fractions(&s, vec![0.9, 1.0]),
+    //         vec![(f64::NEG_INFINITY, 0.0, 1), (f64::NEG_INFINITY, 0.0, 1)]
+    //     );
+    // }
 
     #[test]
     fn test_recommendation() {

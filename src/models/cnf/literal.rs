@@ -34,8 +34,9 @@ use crate::{
     },
 };
 
-// Returns the clipped len to the smallest number
-// According to clip sizes.
+// Returns the clipped len to the largest
+// possible allowed clip size. Assumes allowed_sizes
+// are given sorted.
 fn clip_prefix_len(allowed_size: &[usize], len: usize) -> usize {
     *allowed_size.iter().rfind(|&&f| f <= len).unwrap_or(&len)
 }

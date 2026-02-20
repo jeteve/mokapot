@@ -62,7 +62,7 @@ fn build_percolator<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> Percolator {
     let mut p = Percolator::builder()
-        .n_clause_matchers(NonZeroUsize::new(4).unwrap())
+        .n_clause_matchers(NonZeroUsize::new(1).unwrap())
         .build();
     (0..n)
         .map(|n| build_query(n, third_fields, rng))
@@ -75,7 +75,11 @@ fn build_percolator<R: Rng + ?Sized>(
         "Recommended clause matchers={:?}",
         p.stats().recommended_cmcount()
     );
-    p
+    println!(
+        "Recommended prefix sizes={:?}",
+        p.stats().recommended_prefix_sizes()
+    );
+    p.optimised()
 }
 
 fn build_document<R: Rng + ?Sized>(

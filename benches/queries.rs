@@ -39,6 +39,11 @@ fn parsing_bench(c: &mut Criterion) {
     });
 
     println!("{}", p.stats());
+    println!(
+        "Recommended Matcher count={} , Recommended prefix sizes={:?}",
+        p.stats().recommended_cmcount(),
+        p.stats().recommended_prefix_sizes()
+    );
 
     group.finish();
 }
