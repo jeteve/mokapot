@@ -79,7 +79,7 @@ fn build_percolator<R: Rng + ?Sized>(
         "Recommended prefix sizes={:?}",
         p.stats().recommended_prefix_sizes()
     );
-    p.optimised()
+    p.optimized()
 }
 
 fn build_document<R: Rng + ?Sized>(

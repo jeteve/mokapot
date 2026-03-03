@@ -3,7 +3,7 @@ use std::{fmt, iter};
 
 use hstats::Hstats;
 use itertools::Itertools;
-use num_traits::{Float, ToPrimitive};
+use num_traits::ToPrimitive;
 use roaring::RoaringBitmap;
 
 use crate::itertools::InPlaceReduce;
@@ -33,56 +33,6 @@ pub(crate) fn clause_docs_from_idx(c: &Clause, index: &Index) -> RoaringBitmap {
         .for_each(|bm| ret |= bm);
 
     ret
-}
-
-// Bins at centile
-pub fn bins_at_quantiles(
-    hstat: &Hstats<f64>,
-    quantiles: &[u64],
-    scale: NonZeroU64,
-) -> Vec<(f64, f64, u64)> {
-    // Compute the count boundaries and save the original indices/order for percentiles.
-    let mut quantiles_counts = {
-        let count = hstat.count();
-        quantiles
-            .iter()
-            .map(|&pc| {
-                pc.clamp(0, scale.get())
-                    .saturating_mul(count as u64)
-                    .div_ceil(scale.get())
-            })
-            .enumerate()
-            .collect::<Vec<_>>()
-    };
-
-    // Sort by increasing value for the algorithm below.
-    quantiles_counts.sort_unstable_by_key(|&(_, v)| v);
-
-    let mut res = Vec::with_capacity(quantiles_counts.len());
-
-    let mut cumul_bins = hstat.bins_cumulative().into_iter().peekable();
-
-    for quantile_count in quantiles_counts {
-        // Is the stable next value still good for the percentile?
-        while let Some(&bin) = cumul_bins.peek() {
-            // Advance if the bin is not good.
-            if bin.2 < quantile_count.1 {
-                cumul_bins.next();
-            } else {
-                // Bin is good. save and stay put for the next count.
-                res.push((quantile_count.0, bin));
-                break;
-            }
-        }
-    }
-
-    // Reorder the bins by original percentiles order
-    res.sort_unstable_by_key(|&(idx, _)| idx);
-
-    // Bit of quality control.
-    assert_eq!(res.len(), quantiles.len());
-
-    res.into_iter().map(|(_, bin)| bin).collect()
 }
 
 // For indexing clauses.
@@ -233,20 +183,22 @@ impl PercolatorStats {
     /// Returns the recommended Clause Matcher count
     /// for building a new Percolator according to these
     /// statistics.
+    ///
+    /// For now, this is the number of clause matcher
+    /// covering at least 90% of the queries.
+    ///
     pub fn recommended_cmcount(&self) -> NonZeroUsize {
         // from self.clauses_per_query(), find the n_clause_matchers
-        // that covers 99% of the clauses.
+        // that covers 90% of the clauses.
         let count = self.clauses_per_query().count();
         if count == 0 {
             // No data points. Always at least one
             return NonZeroUsize::new(1).unwrap(); // Safe unwrap.
         }
 
-        let ninetynice_bin = bins_at_quantiles(
-            &self.clauses_per_query,
-            &[99],
-            NonZeroU64::new(100).unwrap(),
-        )[0];
+        let ninetynice_bin = self
+            .clauses_per_query
+            .bins_at_quantiles(&[90], NonZeroU64::new(100).unwrap())[0];
 
         ninetynice_bin
             .0
@@ -259,6 +211,8 @@ impl PercolatorStats {
     /// Returns a vector of recommended prefix sizes
     /// for building a new optimised percolator.
     ///
+    /// For now those are the 4 most common prefix sizes covered
+    ///
     pub fn recommended_prefix_sizes(&self) -> Vec<usize> {
         if self.prefix_lengths.count() < 1 {
             // Default..
@@ -270,7 +224,8 @@ impl PercolatorStats {
 
         bins.into_iter()
             .rev()
-            .take(5)
+            .filter(|&(_, _, count)| count > 0)
+            .take(4)
             .map(|(floor, _, _)| floor.ceil().to_usize().unwrap_or(1))
             .sorted()
             .dedup()
@@ -306,6 +261,8 @@ mod test_stats {
     //use hstats::Hstats;
     //use num_traits::ToPrimitive;
 
+    use num_traits::ToPrimitive;
+
     use crate::models::percolator_core::PercolatorStats;
 
     //#[test]
@@ -328,6 +285,15 @@ mod test_stats {
         let mut s = PercolatorStats::default();
         let one = NonZeroUsize::new(1).unwrap();
         assert_eq!(s.recommended_cmcount(), one);
+        // the default.
+        assert_eq!(s.recommended_prefix_sizes(), vec![2, 10, 100, 1000, 2000]);
+
+        // Inject some fake prefix stats
+        for size in 1..100 {
+            s.prefix_lengths
+                .add(size.to_f64().expect("should be able to convert to f64"));
+        }
+        assert_eq!(s.recommended_prefix_sizes(), vec![1, 26, 51, 76]);
 
         // Works from 4 queries.
         for _ in 1..=3 {

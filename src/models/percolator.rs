@@ -184,13 +184,31 @@ where
 
     /// Returns an automatically optimised and compacted Percolator
     ///
-    /// It is recommended to call that once you have indexed few 100s of queries
+    /// It is recommended to call that once you have indexed at least a few 100s of queries
     /// in the percolator.
     ///
     /// If you just want to remove holes left behind by
     /// queries removals, use `compacted` instead.
     ///
-    pub fn optimised(&self) -> Self
+    /// This is an experimental feature and will use some hardcoded
+    /// defaults for hyper parameters.
+    ///
+    ///
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    /// let mut p = Percolator::default();
+    /// p.index_query_uid("field".has_value("value"), 1);
+    /// p.remove_uid(1);
+    ///
+    /// assert!( p.holes_ratio() == 1.0 ); // As many removals as added.
+    ///
+    /// let mut p = p.optimized(); // Replace with an optimised one.
+    ///
+    /// assert!( p.holes_ratio().is_nan() ); // Now there are no holes left, so NaN
+    /// ```
+    ///
+    pub fn optimized(&self) -> Self
     where
         T: Clone,
     {
@@ -199,7 +217,7 @@ where
             .prefix_sizes(self.perc.stats().recommended_prefix_sizes())
             .build();
 
-        // And reindex all queries.
+        // And reindex all queries, effectively doing compaction.
         // Index all queries
         for (uid, q) in self.queries() {
             let _ = new_self
