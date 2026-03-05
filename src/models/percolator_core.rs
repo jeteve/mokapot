@@ -265,21 +265,6 @@ mod test_stats {
 
     use crate::models::percolator_core::PercolatorStats;
 
-    //#[test]
-    // fn test_bins_at_fractions() {
-    //     let mut s = Hstats::<f64>::new(0.0, 100.0, 100);
-    //     assert_eq!(
-    //         bins_at_fractions(&s, vec![0.9, 1.0]),
-    //         vec![(f64::NEG_INFINITY, 0.0, 0), (f64::NEG_INFINITY, 0.0, 0)]
-    //     );
-
-    //     s.add(0.0);
-    //     assert_eq!(
-    //         bins_at_fractions(&s, vec![0.9, 1.0]),
-    //         vec![(f64::NEG_INFINITY, 0.0, 1), (f64::NEG_INFINITY, 0.0, 1)]
-    //     );
-    // }
-
     #[test]
     fn test_recommendation() {
         let mut s = PercolatorStats::default();

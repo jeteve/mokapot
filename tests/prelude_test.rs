@@ -3,6 +3,8 @@ use std::{hash::Hash, num::NonZeroUsize, rc::Rc};
 use h3o::LatLng;
 use mokaccino::prelude::*;
 
+use itertools::Itertools;
+
 #[test]
 fn test_percolator_uid() {
     test_percolator_uid_stringlike::<String>();
@@ -125,37 +127,50 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         p.add_query(
             "latlng".latlng_within(LatLng::new(48.864716, 2.349014).unwrap(), Meters(1000)),
         ), // 17 . Somewhere in Paris, within 1KM from this point.
+
+        // Some queries to remove.
+        p.add_query("P".has_prefix("")),                   // 18
+        p.add_query("P".has_prefix("")),                   // 19
+        p.add_query("P".has_prefix("")),                   // 20
     ];
+
+
+    p.remove_uid(q[18]);
+    p.remove_uid(q[19]);
+    p.remove_uid(q[20]);
+
+    // Optimized doesn't break anything
+    p = p.optimized();
 
     assert_eq!(
         // Invalid lat/lng.. Cannot be matched against query 17
-        p.percolate(&[("latlng", "bla")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("latlng", "bla")].into()).sorted().collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
     assert_eq!(
         // Valid lat/lng and within the given radius
-        p.percolate(&[("latlng", "48.859430,2.354946")].into())
+        p.percolate(&[("latlng", "48.859430,2.354946")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4], q[17]]
     );
 
     assert_eq!(
         // Valid lat/lng and outside the given radius
-        p.percolate(&[("latlng", "48.857999,2.359755")].into())
+        p.percolate(&[("latlng", "48.857999,2.359755")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
 
     assert_eq!(
         // Invalid position.. Cannot be matched against a h3 CellIndex
-        p.percolate(&[("position", "bla")].into())
+        p.percolate(&[("position", "bla")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
 
     assert_eq!(
         // Valid position equal to the cell index
-        p.percolate(&[("position", "871f09b20ffffff")].into())
+        p.percolate(&[("position", "871f09b20ffffff")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4], q[16]]
     );
@@ -163,7 +178,7 @@ fn test_nclause_percolator(n: NonZeroUsize) {
     assert_eq!(
         // Valid position inside the query
         // Use https://observablehq.com/@nrabinowitz/h3-index-inspector?collection=@nrabinowitz/h3
-        p.percolate(&[("position", "881f09b203fffff")].into())
+        p.percolate(&[("position", "881f09b203fffff")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4], q[16]]
     );
@@ -172,7 +187,7 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         // Valid position outside the query
         // Use https://observablehq.com/@nrabinowitz/h3-index-inspector?collection=@nrabinowitz/h3
         // Actually something in a neighbour
-        p.percolate(&[("position", "881f09b211fffff")].into())
+        p.percolate(&[("position", "881f09b211fffff")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
@@ -181,106 +196,106 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         // Valid position LARGER than the query
         // Use https://observablehq.com/@nrabinowitz/h3-index-inspector?collection=@nrabinowitz/h3
         // which means that its not possible to turn it into the query resolution.
-        p.percolate(&[("position", "861f09b27ffffff")].into())
+        p.percolate(&[("position", "861f09b27ffffff")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
 
     assert_eq!(
-        p.percolate(&[("P", ""), ("P", "1001")].into())
+        p.percolate(&[("P", ""), ("P", "1001")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4], q[10], q[11]]
     );
 
     assert_eq!(
-        p.percolate(&[("W", "Not an int")].into())
+        p.percolate(&[("W", "Not an int")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
 
     assert_eq!(
-        p.percolate(&[("W", "10")].into()).collect::<Vec<_>>(), // 10 does not yield query 12
+        p.percolate(&[("W", "10")].into()).sorted().collect::<Vec<_>>(), // 10 does not yield query 12
         vec![q[3], q[4], q[13]]
     );
 
     assert_eq!(
-        p.percolate(&[("W", "0009")].into()).collect::<Vec<_>>(), // 9 does!
+        p.percolate(&[("W", "0009")].into()).sorted().collect::<Vec<_>>(), // 9 does!
         vec![q[3], q[4], q[12], q[13]]
     );
     assert_eq!(
-        p.percolate(&[("W", "-123")].into()).collect::<Vec<_>>(), // As well as a negative number
+        p.percolate(&[("W", "-123")].into()).sorted().collect::<Vec<_>>(), // As well as a negative number
         vec![q[3], q[4], q[12], q[13]]
     );
 
     assert_eq!(
-        p.percolate(&[("W", "2000")].into()).collect::<Vec<_>>(), // As well as a negative number
+        p.percolate(&[("W", "2000")].into()).sorted().collect::<Vec<_>>(), // As well as a negative number
         vec![q[3], q[4], q[14]]
     );
     assert_eq!(
-        p.percolate(&[("W", "12345")].into()).collect::<Vec<_>>(), // As well as a negative number
+        p.percolate(&[("W", "12345")].into()).sorted().collect::<Vec<_>>(), // As well as a negative number
         vec![q[3], q[4], q[14], q[15]]
     );
 
     assert_eq!(
-        p.percolate(&[("P", "")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("P", "")].into()).sorted().collect::<Vec<_>>(),
         vec![q[3], q[4], q[10]]
     );
     assert_eq!(
-        p.percolate(&[("P", "some value")].into())
+        p.percolate(&[("P", "some value")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4], q[10]]
     );
 
     assert_eq!(
-        p.percolate(&[("A", "aa"), ("B", "bb"), ("C", "cc"), ("D", "blabla")].into())
+        p.percolate(&[("A", "aa"), ("B", "bb"), ("C", "cc"), ("D", "blabla")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4], q[9]]
     );
 
     assert_eq!(
-        p.percolate(&[("C", "mult")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("C", "mult")].into()).sorted().collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
     assert_eq!(
-        p.percolate(&[("C", "multimeter")].into())
+        p.percolate(&[("C", "multimeter")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[3], q[4], q[7]]
     );
 
     assert_eq!(
-        p.percolate(&[("C", "multi")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("C", "multi")].into()).sorted().collect::<Vec<_>>(),
         vec![q[3], q[4], q[7], q[8]]
     );
 
     assert_eq!(
-        p.percolate(&[("X", "x")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("X", "x")].into()).sorted().collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
 
     assert_eq!(
-        p.percolate(&[("B", "b")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("B", "b")].into()).sorted().collect::<Vec<_>>(),
         vec![q[1], q[3], q[4], q[5]]
     );
 
     assert_eq!(
-        p.percolate(&[("A", "b")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("A", "b")].into()).sorted().collect::<Vec<_>>(),
         vec![q[3], q[4]]
     );
 
     // Remove 3
     p.remove_qid(q[3]);
     assert_eq!(
-        p.percolate(&[("A", "b")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("A", "b")].into()).sorted().collect::<Vec<_>>(),
         vec![q[4]]
     );
 
     assert_eq!(
-        p.percolate(&[("A", "a")].into()).collect::<Vec<_>>(),
+        p.percolate(&[("A", "a")].into()).sorted().collect::<Vec<_>>(),
         vec![q[0], q[1]]
     );
 
     assert_eq!(
-        p.percolate(&[("A", "a"), ("B", "b")].into())
+        p.percolate(&[("A", "a"), ("B", "b")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[0], q[1], q[2], q[4]]
     );
@@ -288,7 +303,7 @@ fn test_nclause_percolator(n: NonZeroUsize) {
     // Remove 4
     p.remove_qid(q[4]);
     assert_eq!(
-        p.percolate(&[("A", "a"), ("B", "b")].into())
+        p.percolate(&[("A", "a"), ("B", "b")].into()).sorted()
             .collect::<Vec<_>>(),
         vec![q[0], q[1], q[2]]
     );

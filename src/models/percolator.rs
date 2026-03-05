@@ -146,23 +146,10 @@ impl PercolatorUid<Qid> {
         Ok(qid)
     }
 
-    /// Remove the given Qid from this Percolator.
-    ///
-    /// Example:
-    /// ```
-    /// use mokaccino::prelude::*;
-    ///
-    /// let mut p = Percolator::default();
-    /// let qid = p.add_query("field".has_value("value"));
-    /// assert!( p.safe_get_query(qid).is_some() );
-    ///
-    /// assert!( p.remove_qid(qid) ); // was removed.
-    /// assert!( ! p.remove_qid(qid) ); // already removed.
-    /// assert!( p.safe_get_query(qid).is_none() );
-    /// ```
+    // Remove the given Qid from this Percolator.
+    // This is just a shortcut to remove_uid where T = Qid
     pub fn remove_qid(&mut self, qid: Qid) -> bool {
-        self.qid_uid.remove_by_left(&qid);
-        self.perc.remove_qid(qid)
+        self.remove_uid(qid)
     }
 }
 
@@ -197,13 +184,14 @@ where
     /// Example:
     /// ```
     /// use mokaccino::prelude::*;
+    ///
     /// let mut p = Percolator::default();
     /// p.index_query_uid("field".has_value("value"), 1);
     /// p.remove_uid(1);
     ///
     /// assert!( p.holes_ratio() == 1.0 ); // As many removals as added.
     ///
-    /// let mut p = p.optimized(); // Replace with an optimised one.
+    /// p = p.optimized(); // Replace with an optimised one.
     ///
     /// assert!( p.holes_ratio().is_nan() ); // Now there are no holes left, so NaN
     /// ```
