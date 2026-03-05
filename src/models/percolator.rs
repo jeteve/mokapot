@@ -146,23 +146,10 @@ impl PercolatorUid<Qid> {
         Ok(qid)
     }
 
-    /// Remove the given Qid from this Percolator.
-    ///
-    /// Example:
-    /// ```
-    /// use mokaccino::prelude::*;
-    ///
-    /// let mut p = Percolator::default();
-    /// let qid = p.add_query("field".has_value("value"));
-    /// assert!( p.safe_get_query(qid).is_some() );
-    ///
-    /// assert!( p.remove_qid(qid) ); // was removed.
-    /// assert!( ! p.remove_qid(qid) ); // already removed.
-    /// assert!( p.safe_get_query(qid).is_none() );
-    /// ```
+    // Remove the given Qid from this Percolator.
+    // This is just a shortcut to remove_uid where T = Qid
     pub fn remove_qid(&mut self, qid: Qid) -> bool {
-        self.qid_uid.remove_by_left(&qid);
-        self.perc.remove_qid(qid)
+        self.remove_uid(qid)
     }
 }
 
@@ -180,6 +167,52 @@ where
     /// ```
     pub fn builder() -> PercBuilder<T> {
         PercBuilder::<T>::default()
+    }
+
+    /// Returns an automatically optimised and compacted Percolator
+    ///
+    /// It is recommended to call that once you have indexed at least a few 100s of queries
+    /// in the percolator.
+    ///
+    /// If you just want to remove holes left behind by
+    /// queries removals, use `compacted` instead.
+    ///
+    /// This is an experimental feature and will use some hardcoded
+    /// defaults for hyper parameters.
+    ///
+    ///
+    /// Example:
+    /// ```
+    /// use mokaccino::prelude::*;
+    ///
+    /// let mut p = Percolator::default();
+    /// p.index_query_uid("field".has_value("value"), 1);
+    /// p.remove_uid(1);
+    ///
+    /// assert!( p.holes_ratio() == 1.0 ); // As many removals as added.
+    ///
+    /// p = p.optimized(); // Replace with an optimised one.
+    ///
+    /// assert!( p.holes_ratio().is_nan() ); // Now there are no holes left, so NaN
+    /// ```
+    ///
+    pub fn optimized(&self) -> Self
+    where
+        T: Clone,
+    {
+        let mut new_self = Self::builder()
+            .n_clause_matchers(self.perc.stats().recommended_cmcount())
+            .prefix_sizes(self.perc.stats().recommended_prefix_sizes())
+            .build();
+
+        // And reindex all queries, effectively doing compaction.
+        // Index all queries
+        for (uid, q) in self.queries() {
+            let _ = new_self
+                .index_query_uid(q.clone(), uid)
+                .expect("Can index same query");
+        }
+        new_self
     }
 
     /// Returns a compacted Percolator.

@@ -1,8 +1,9 @@
-use std::num::{NonZeroUsize, TryFromIntError};
+use std::num::{NonZeroU64, NonZeroUsize, TryFromIntError};
 use std::{fmt, iter};
 
 use hstats::Hstats;
 use itertools::Itertools;
+use num_traits::ToPrimitive;
 use roaring::RoaringBitmap;
 
 use crate::itertools::InPlaceReduce;
@@ -136,7 +137,8 @@ pub struct PercolatorStats {
 
 impl Default for PercolatorStats {
     fn default() -> Self {
-        let proto_hstat = Hstats::new(0.0, 50.0, 25);
+        let proto_hstat = Hstats::new(0.0, 50.0, 50);
+        let prefix_lengths = Hstats::new(1.0, 100.0, 4);
 
         Self {
             n_queries: Default::default(),
@@ -145,7 +147,7 @@ impl Default for PercolatorStats {
 
             clauses_per_query: proto_hstat.clone(),
             preheaters_per_query: proto_hstat.clone(),
-            prefix_lengths: proto_hstat.clone(),
+            prefix_lengths,
         }
     }
 }
@@ -178,6 +180,58 @@ impl PercolatorStats {
         self.n_queries
     }
 
+    /// Returns the recommended Clause Matcher count
+    /// for building a new Percolator according to these
+    /// statistics.
+    ///
+    /// For now, this is the number of clause matcher
+    /// covering at least 90% of the queries.
+    ///
+    pub fn recommended_cmcount(&self) -> NonZeroUsize {
+        // from self.clauses_per_query(), find the n_clause_matchers
+        // that covers 90% of the clauses.
+        let count = self.clauses_per_query().count();
+        if count == 0 {
+            // No data points. Always at least one
+            return NonZeroUsize::new(1).unwrap(); // Safe unwrap.
+        }
+
+        let ninetynice_bin = self
+            .clauses_per_query
+            .bins_at_quantiles(&[90], NonZeroU64::new(100).unwrap())[0];
+
+        ninetynice_bin
+            .0
+            .floor()
+            .to_usize()
+            .and_then(NonZeroUsize::new)
+            .unwrap_or(NonZeroUsize::new(1).unwrap())
+    }
+
+    /// Returns a vector of recommended prefix sizes
+    /// for building a new optimised percolator.
+    ///
+    /// For now those are the 4 most common prefix sizes covered
+    ///
+    pub fn recommended_prefix_sizes(&self) -> Vec<usize> {
+        if self.prefix_lengths.count() < 1 {
+            // Default..
+            return vec![2, 10, 100, 1000, 2000];
+        }
+
+        let mut bins = self.prefix_lengths.bins();
+        bins.sort_by_key(|&(_, _, count)| count);
+
+        bins.into_iter()
+            .rev()
+            .filter(|&(_, _, count)| count > 0)
+            .take(4)
+            .map(|(floor, _, _)| floor.ceil().to_usize().unwrap_or(1))
+            .sorted()
+            .dedup()
+            .collect()
+    }
+
     /// The number of queries removed from the percolator
     pub fn n_queries_removed(&self) -> usize {
         self.n_queries_removed
@@ -197,6 +251,59 @@ impl PercolatorStats {
     /// Distribution of number of pre heating function per query
     pub fn preheaters_per_query(&self) -> &Hstats<f64> {
         &self.preheaters_per_query
+    }
+}
+
+#[cfg(test)]
+mod test_stats {
+    use std::num::NonZeroUsize;
+
+    //use hstats::Hstats;
+    //use num_traits::ToPrimitive;
+
+    use num_traits::ToPrimitive;
+
+    use crate::models::percolator_core::PercolatorStats;
+
+    #[test]
+    fn test_recommendation() {
+        let mut s = PercolatorStats::default();
+        let one = NonZeroUsize::new(1).unwrap();
+        assert_eq!(s.recommended_cmcount(), one);
+        // the default.
+        assert_eq!(s.recommended_prefix_sizes(), vec![2, 10, 100, 1000, 2000]);
+
+        // Inject some fake prefix stats
+        for size in 1..100 {
+            s.prefix_lengths
+                .add(size.to_f64().expect("should be able to convert to f64"));
+        }
+        assert_eq!(s.recommended_prefix_sizes(), vec![1, 26, 51, 76]);
+
+        // Works from 4 queries.
+        for _ in 1..=3 {
+            s.clauses_per_query.add(0.0);
+        }
+        assert_eq!(s.recommended_cmcount(), one);
+
+        for _ in 1..=97 {
+            s.clauses_per_query.add(0.0);
+        }
+        assert_eq!(s.recommended_cmcount(), one);
+        s.clauses_per_query.add(1000.0);
+        assert_eq!(s.recommended_cmcount(), one);
+
+        // Add half of 100 queries with a clause count of 1
+        for _ in 1..=50 {
+            s.clauses_per_query.add(1.0);
+        }
+        assert_eq!(s.recommended_cmcount(), one);
+
+        // Add a lot with 2 clauses.
+        for _ in 1..=50 {
+            s.clauses_per_query.add(2.0);
+        }
+        assert_eq!(s.recommended_cmcount(), NonZeroUsize::new(2).unwrap());
     }
 }
 
