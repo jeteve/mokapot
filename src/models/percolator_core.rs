@@ -68,7 +68,7 @@ fn clause_to_mi(c: &Clause, conf: &PercolatorConfig) -> MatchItem {
 
 /*
     From a CNFQuery, The documents that are meant to be indexed in the percolator
-    In order of costs. Cheaper ones first.
+    In order of costs. Cheapest ones first.
 */
 fn cnf_to_matchitems(q: &Query, conf: &PercolatorConfig) -> impl Iterator<Item = MatchItem> {
     q.clauses()
@@ -453,6 +453,7 @@ impl PercolatorCore {
             .map_err(|_| PercolatorError::TooManyQueries)?;
         self.stats.n_queries += 1;
 
+        // For stats only.
         for prefix_query in q.prefix_queries() {
             self.stats.prefix_lengths.add(
                 usize_to_f64(prefix_query.prefix().len())
@@ -472,7 +473,8 @@ impl PercolatorCore {
 
         let mut n_preheaters: usize = 0;
 
-        // Add the preheaters from the Match items.
+        // Add the preheaters from the Match items,
+        // taking only the ones that will fit in the number of clause matchers.
         // Note that this will EMPTY all the preheaters from
         // the match items. So dont expect to use them later.
         for preheater in mis
