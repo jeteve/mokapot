@@ -208,7 +208,7 @@ where
         // And reindex all queries, effectively doing compaction.
         // Index all queries
         for (uid, q) in self.queries() {
-            let _ = new_self
+            new_self
                 .index_query_uid(q.clone(), uid)
                 .expect("Can index same query");
         }
@@ -242,7 +242,7 @@ where
 
         // Index all queries
         for (uid, q) in self.queries() {
-            let _ = new_self
+            new_self
                 .index_query_uid(q.clone(), uid)
                 .expect("Can index same query");
         }
