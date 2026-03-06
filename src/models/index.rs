@@ -1,5 +1,5 @@
-//use std::collections::HashMap;
 use hashbrown::HashMap;
+use std::sync::LazyLock;
 
 use roaring::RoaringBitmap;
 
@@ -14,9 +14,11 @@ pub(crate) struct Index {
     //documents: Vec<Document>,
     // The inverted indices for each ( field,  value)
     term_idxs: HashMap<(OurStr, OurStr), RoaringBitmap>,
-    empty_bs: RoaringBitmap,
+    //empty_bs: RoaringBitmap,
     n_documents: DocId,
 }
+
+static EMPTY_BITMAP: LazyLock<RoaringBitmap> = LazyLock::new(RoaringBitmap::new);
 
 impl Index {
     /// How many documents were indexed.
@@ -32,7 +34,7 @@ impl Index {
     {
         self.term_idxs
             .get(&(field.into(), value.into()))
-            .unwrap_or(&self.empty_bs)
+            .unwrap_or(&EMPTY_BITMAP)
     }
 
     /// Make the given DocID unfindable in this index.
