@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0]
+* Added `optimized` and `compacted` methods to `Percolator` for automatic optimization and query compaction respectively.
+* Added `holes_ratio` method to `Percolator` to calculate the ratio of removed to added queries.
+* Enhanced the percolator's stats object with properties `recommended_cmcount` and `recommended_prefix_sizes` based on usage statistics.
+* Added `n_queries_removed` to the stats object to keep track of removed query stats.
+* Optimized preheater logic by using `expand_clause` directly.
+* Added `with_config` method to the percolator builder.
+
 ## [0.7.0]
 * Added explicit `PercolatorUid` to map custom query IDs to queries, allowing the use of custom query types.
 * Renamed `Percolator` to `PercolatorCore`, replacing it with a new `Percolator` wrapper around `PercolatorCore` with automated query IDs.
