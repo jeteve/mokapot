@@ -150,7 +150,7 @@ impl Document {
 
     /// All fields of this document
     /// in no particular order.
-    pub fn fields(&self) -> impl Iterator<Item = OurStr> + use<'_> {
+    pub fn fields(&self) -> impl Iterator<Item = OurStr> {
         self.fields.keys().cloned()
     }
 
@@ -246,5 +246,6 @@ mod test {
         assert!(d.is_empty());
         assert_eq!(d.fv_count(), 0);
         assert!(d.values_ref("field").is_none());
+        assert_eq!(d.fields().count(), 0);
     }
 }
