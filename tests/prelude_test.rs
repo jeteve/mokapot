@@ -66,13 +66,15 @@ where
 
 #[test]
 fn test_percolator() {
-    test_nclause_percolator(NonZeroUsize::new(1).unwrap());
+    for optimized in [false, true] {
+        test_nclause_percolator(NonZeroUsize::new(1).unwrap(), optimized);
 
-    test_nclause_percolator(NonZeroUsize::new(2).unwrap());
+        test_nclause_percolator(NonZeroUsize::new(2).unwrap(), optimized);
 
-    test_nclause_percolator(NonZeroUsize::new(3).unwrap());
+        test_nclause_percolator(NonZeroUsize::new(3).unwrap(), optimized);
 
-    test_nclause_percolator(NonZeroUsize::new(5).unwrap());
+        test_nclause_percolator(NonZeroUsize::new(5).unwrap(), optimized);
+    }
 }
 
 #[test]
@@ -101,7 +103,7 @@ fn test_serialisation() {
     assert!(p2.safe_get_query(to_remove).is_none());
 }
 
-fn test_nclause_percolator(n: NonZeroUsize) {
+fn test_nclause_percolator(n: NonZeroUsize, optimized: bool) {
     let mut p = Percolator::builder().n_clause_matchers(n).build();
 
     let q: Vec<Qid> = vec![
@@ -138,7 +140,9 @@ fn test_nclause_percolator(n: NonZeroUsize) {
     p.remove_uid(q[20]);
 
     // Optimized doesn't break anything
-    p = p.optimized();
+    if optimized {
+        p = p.optimized();
+    }
 
     assert_eq!(
         // Invalid lat/lng.. Cannot be matched against query 17
@@ -333,8 +337,10 @@ fn test_nclause_percolator(n: NonZeroUsize) {
         vec![q[0], q[1]]
     );
 
-    // Compact the percolator
-    p = p.compacted();
+    if optimized {
+        // Compact the percolator
+        p = p.compacted();
+    }
 
     assert_eq!(
         p.percolate(&[("A", "a"), ("B", "b")].into())
