@@ -1,6 +1,7 @@
 use std::num::{NonZeroU64, NonZeroUsize, TryFromIntError};
 use std::{fmt, iter};
 
+use hashbrown::HashSet;
 use hstats::Hstats;
 use itertools::Itertools;
 use num_traits::ToPrimitive;
@@ -8,6 +9,7 @@ use roaring::RoaringBitmap;
 
 use crate::itertools::InPlaceReduce;
 
+use crate::models::types::OurStr;
 use crate::models::{
     cnf::{Clause, Query},
     document::Document,
@@ -81,6 +83,13 @@ fn cnf_to_matchitems(q: &Query, conf: &PercolatorConfig) -> impl Iterator<Item =
 #[derive(Debug, Default)]
 struct ClauseMatcher {
     positive_index: Index,
+    preheaters: Vec<PreHeater>,
+}
+
+impl ClauseMatcher {
+    fn add_preheater(&mut self, ph: PreHeater) {
+        self.preheaters.push(ph);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -349,6 +358,8 @@ pub(crate) struct PercolatorCore {
     // To preheat the document clauses.
     #[cfg_attr(feature = "serde", serde(skip))]
     preheaters: Vec<PreHeater>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    seen_preheaters: HashSet<OurStr>,
     // Holds which queries MUST be finally filtered with
     // their match(document) method.
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -419,6 +430,7 @@ impl PercolatorCore {
             unindexed_qids: RoaringBitmap::new(),
 
             preheaters: Vec::new(),
+            seen_preheaters: HashSet::new(),
             clause_matchers: (0..config.n_clause_matchers().get())
                 .map(|_| ClauseMatcher::default())
                 .collect(),
@@ -430,9 +442,9 @@ impl PercolatorCore {
     }
 
     // Does this have this preheater yet?
-    fn has_preheater(&self, ph: &PreHeater) -> bool {
+    /*fn has_preheater(&self, ph: &PreHeater) -> bool {
         self.preheaters.iter().any(|eph| eph.id == ph.id)
-    }
+    }*/
 
     /// The percolator statistics
     /// Mainly for display.
@@ -471,12 +483,14 @@ impl PercolatorCore {
             self.must_filter.insert(new_doc_id);
         }
 
-        let mut n_preheaters: usize = 0;
+        //let mut n_preheaters: usize = 0;
 
         // Add the preheaters from the Match items,
         // taking only the ones that will fit in the number of clause matchers.
         // Note that this will EMPTY all the preheaters from
         // the match items. So dont expect to use them later.
+        /*
+        // DO NOT CONSUME DO GENERAL PREHEATERS HERE.
         for preheater in mis
             .iter_mut()
             .take(self.clause_matchers.len())
@@ -497,14 +511,35 @@ impl PercolatorCore {
         self.stats
             .preheaters_per_query
             .add(usize_to_f64(n_preheaters).map_err(|_| PercolatorError::TooManyPreheaters)?);
+        */
+
+        let mut seen_preheaters = std::mem::take(&mut self.seen_preheaters);
 
         let cms = self.clause_matchers.iter_mut();
-        for (clause_matcher, match_item) in
+        for (clause_matcher, mut match_item) in
             cms.zip(mis.into_iter().chain(iter::repeat(MatchItem::match_all())))
         {
             if match_item.must_filter {
                 self.must_filter.insert(new_doc_id);
             }
+
+            // do pre-heaters here, by claude_matcher
+            let pre_heaters = std::mem::take(&mut match_item.preheaters);
+            for ph in pre_heaters {
+                // Maybe not completely optimal now, but thats OK.
+                if ph.must_filter {
+                    self.must_filter.insert(new_doc_id);
+                }
+                // We need to add the preheater to the clause_matcher
+                // At percolation time, we only want to apply the preheaters right before
+                // using the clause matcher. ONLY if it hasnt been seen earlier.
+                // This ensure preheaters stay unique accross all clause matchers.
+                if !seen_preheaters.contains(&ph.id) {
+                    seen_preheaters.insert(ph.id.clone());
+                    clause_matcher.add_preheater(ph);
+                }
+            }
+
             clause_matcher
                 .positive_index
                 .index_document(&match_item.doc);
@@ -516,6 +551,9 @@ impl PercolatorCore {
                 new_doc_id
             );
         }
+
+        // Save the seen preheaters
+        self.seen_preheaters = std::mem::take(&mut seen_preheaters);
 
         self.cnf_queries.push(q);
         Ok(new_doc_id)
@@ -579,7 +617,16 @@ impl PercolatorCore {
 
         self.clause_matchers
             .iter()
-            .map(|ms| clause_docs_from_idx(&doc_clause, &ms.positive_index))
+            .map(|ms| {
+                // Expand clause with all clause matcher pre-heaters.
+                // Before trying to match it against the index.
+                doc_clause = ms
+                    .preheaters
+                    .iter()
+                    .fold(std::mem::take(&mut doc_clause), |c, ph| ph.expand_clause(c));
+
+                clause_docs_from_idx(&doc_clause, &ms.positive_index)
+            })
             .reduce_inplace(|acc, b| {
                 if acc.is_empty() {
                     true // Already empty. Stop the reduction.
