@@ -1,6 +1,12 @@
 use mokaccino::models::{cnf::*, document::Document, percolator::Percolator, percolator_core::Qid};
 use num_traits::Zero;
 
+use h3o::CellIndex;
+use std::{
+    num::{NonZeroU32, NonZeroUsize},
+    str::FromStr,
+};
+
 #[test]
 fn test_percolator_vanilla() {
     let mut mp = Percolator::default();
@@ -21,6 +27,33 @@ fn test_percolator_vanilla() {
     assert_eq!(mp.percolate(&d).collect::<Vec<Qid>>(), Vec::<Qid>::new());
 
     assert!(!mp.stats().to_string().is_empty());
+}
+
+#[test]
+fn test_late_preheat() {
+    // TODO: Make that pass.
+    let mut p = Percolator::builder()
+        .n_clause_matchers(NonZeroUsize::new(3).unwrap())
+        .build();
+
+    let north_london = CellIndex::from_str("85195da7fffffff").unwrap();
+
+    // Indexing this query will make the location be in the third clause matcher.
+    let q1 = "name".has_value("burger") & "meat".has_value("beef") & "location".h3in(north_london);
+
+    // The location one will be in the second clause matcher, but the preheater will
+    // not be added.
+    let q2 = "name".has_value("burger") & "location".h3in(north_london);
+
+    let qids = [p.add_query(q1), p.add_query(q2)];
+
+    let d: Document = Document::default()
+        .with_value("name", "burger")
+        .with_value("meat", "beef")
+        .with_value("location", "86195da4fffffff");
+
+    let res: Vec<_> = p.percolate(&d).collect();
+    assert_eq!(res, vec![qids[0], qids[1]]);
 }
 
 #[test]
