@@ -17,10 +17,10 @@ will be a good start.
 
 ```sh
 
-cargo bench
+RUSTFLAGS='-C target-cpu=native' cargo bench
 
 # Or..
-cargo bench --no-run
+RUSTFLAGS='-C target-cpu=native' cargo bench --no-run
 
 # And then run the benchmark executable by hand,
 # for instance:

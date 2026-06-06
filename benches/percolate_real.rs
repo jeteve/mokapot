@@ -61,6 +61,9 @@ fn build_percolator<R: Rng + ?Sized>(
     third_fields: &HashMap<&str, Vec<String>>,
     rng: &mut R,
 ) -> Percolator {
+    // Note that this will have poor preheater stats
+    // as this will ever consider the first clause, which is usually one
+    // with no preheating at all.
     let mut p = Percolator::builder()
         .n_clause_matchers(NonZeroUsize::new(1).unwrap())
         .build();
@@ -69,6 +72,9 @@ fn build_percolator<R: Rng + ?Sized>(
         .for_each(|q| {
             p.add_query(q);
         });
+
+    // Optimize p.
+    p = p.optimized();
 
     println!("{}", p.stats());
     println!(
@@ -79,7 +85,7 @@ fn build_percolator<R: Rng + ?Sized>(
         "Recommended prefix sizes={:?}",
         p.stats().recommended_prefix_sizes()
     );
-    p.optimized()
+    p
 }
 
 fn build_document<R: Rng + ?Sized>(
