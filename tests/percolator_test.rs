@@ -2,10 +2,7 @@ use mokaccino::models::{cnf::*, document::Document, percolator::Percolator, perc
 use num_traits::Zero;
 
 use h3o::CellIndex;
-use std::{
-    num::{NonZeroU32, NonZeroUsize},
-    str::FromStr,
-};
+use std::{num::NonZeroUsize, str::FromStr};
 
 #[test]
 fn test_percolator_vanilla() {

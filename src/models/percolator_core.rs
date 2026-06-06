@@ -84,11 +84,15 @@ fn cnf_to_matchitems(q: &Query, conf: &PercolatorConfig) -> impl Iterator<Item =
 struct ClauseMatcher {
     positive_index: Index,
     preheaters: Vec<PreHeater>,
+    preheaters_names: HashSet<OurStr>,
 }
 
 impl ClauseMatcher {
     fn add_preheater(&mut self, ph: PreHeater) {
-        self.preheaters.push(ph);
+        if !self.preheaters_names.contains(&ph.id) {
+            self.preheaters_names.insert(ph.id.clone());
+            self.preheaters.push(ph);
+        }
     }
 }
 
@@ -508,10 +512,11 @@ impl PercolatorCore {
 
                 if !seen_preheaters.contains(&ph.id) {
                     seen_preheaters.insert(ph.id.clone());
-                    clause_matcher.add_preheater(ph);
                     // Maintain count of all preheaters.
                     self.stats.n_preheaters += 1;
                 }
+
+                clause_matcher.add_preheater(ph);
             }
 
             clause_matcher
