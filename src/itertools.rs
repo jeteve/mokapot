@@ -13,8 +13,11 @@ pub(crate) trait TheShwartz: Iterator + Sized {
 }
 
 pub(crate) trait InPlaceReduce: Iterator + Sized {
-    // The closure it takes should return true if it wants to stop
-    // reducing.
+    /// Reduces the iterator collection in place,
+    /// using the first result as a seed.
+    ///
+    /// Stops if the given reduction returns true.
+    ///
     fn reduce_inplace<F>(mut self, mut f: F) -> Option<<Self as Iterator>::Item>
     where
         F: FnMut(&mut <Self as Iterator>::Item, &<Self as Iterator>::Item) -> bool,
