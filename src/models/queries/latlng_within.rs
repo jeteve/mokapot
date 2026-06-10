@@ -9,12 +9,7 @@ use crate::{
     models::{queries::common::DocMatcher, types::OurStr},
 };
 
-use nom::{
-    IResult, Parser,
-    character::complete::{char, u64},
-    number::complete::double,
-    sequence::preceded,
-};
+use chumsky::prelude::*;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -76,36 +71,37 @@ impl LatLngWithinQuery {
 }
 
 pub(crate) fn parse_latlng(input: &str) -> Option<LatLng> {
-    let mut parser = (double, preceded(char(','), double));
+    use chumsky::number::{format, number};
 
-    let pres: IResult<&str, (f64, f64)> = parser.parse(input);
+    let double = number::<{ format::STANDARD }, &str, f64, extra::Default>();
+    let parser = double.then_ignore(just(',')).then(double);
 
-    if let Ok(out) = pres
-        && let Ok(ll) = LatLng::new(out.1.0, out.1.1)
-    {
-        return Some(ll);
-    }
-
-    None
+    parser
+        .parse(input)
+        .into_result()
+        .ok()
+        .and_then(|(lat, lng)| LatLng::new(lat, lng).ok())
 }
 
 // Silently fails to parse a lat,lng,within
 pub(crate) fn parse_latlng_within(input: &str) -> Option<(LatLng, Meters)> {
-    let mut parser = (
-        double,
-        preceded(char(','), double),
-        preceded(char(','), u64),
-    );
+    use chumsky::number::{format, number};
 
-    let pres: IResult<&str, (f64, f64, u64)> = parser.parse(input);
+    let double = number::<{ format::STANDARD }, &str, f64, extra::Default>();
+    let u64_p = number::<{ format::STANDARD }, &str, u64, extra::Default>();
+    let parser = double
+        .then_ignore(just(','))
+        .then(double)
+        .then_ignore(just(','))
+        .then(u64_p);
 
-    if let Ok(out) = pres
-        && let Ok(ll) = LatLng::new(out.1.0, out.1.1)
-    {
-        return Some((ll, Meters(out.1.2)));
-    }
-
-    None
+    parser
+        .parse(input)
+        .into_result()
+        .ok()
+        .and_then(|((lat, lng), m)| {
+            LatLng::new(lat, lng).ok().map(|ll| (ll, Meters(m)))
+        })
 }
 
 // The cell value must be a valid double,double representing
