@@ -40,7 +40,7 @@ impl TermQuery {
 
     /// Bitmap of matching documents from the given index.
     pub(crate) fn docs_from_idx<'a>(&self, index: &'a Index) -> &'a RoaringBitmap {
-        index.docs_from_fv(self.field.clone(), self.term.clone())
+        index.docs_from_fv(self.field.as_ref(), self.term.as_ref())
     }
 }
 

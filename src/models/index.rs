@@ -1,4 +1,5 @@
 use hashbrown::HashMap;
+use std::hash::{BuildHasher, Hash, Hasher};
 use std::sync::LazyLock;
 
 use roaring::RoaringBitmap;
@@ -27,13 +28,20 @@ impl Index {
     }
 
     /// A RoaringBitmap of doc IDs matching the field value.
-    pub(crate) fn docs_from_fv<T, U>(&self, field: T, value: U) -> &RoaringBitmap
-    where
-        T: Into<OurStr>,
-        U: Into<OurStr>,
-    {
+    pub(crate) fn docs_from_fv(&self, field: &str, value: &str) -> &RoaringBitmap {
+        let hash = {
+            let mut state = self.term_idxs.hasher().build_hasher();
+            field.hash(&mut state);
+            value.hash(&mut state);
+            state.finish()
+        };
+
         self.term_idxs
-            .get(&(field.into(), value.into()))
+            .raw_entry()
+            .from_hash(hash, |(k_field, k_value)| {
+                k_field.as_ref() == field && k_value.as_ref() == value
+            })
+            .map(|(_, v)| v)
             .unwrap_or(&EMPTY_BITMAP)
     }
 
@@ -121,7 +129,7 @@ mod test {
 
         assert!(
             index
-                .docs_from_fv(colour.clone(), "purple")
+                .docs_from_fv(&colour, "purple")
                 .iter()
                 .next()
                 .is_none()
@@ -129,7 +137,7 @@ mod test {
 
         assert!(
             index
-                .docs_from_fv(colour.clone(), "purple")
+                .docs_from_fv(&colour, "purple")
                 .iter()
                 .next()
                 .is_none()
@@ -137,7 +145,7 @@ mod test {
 
         assert!(
             index
-                .docs_from_fv(colour.clone(), "blue")
+                .docs_from_fv(&colour, "blue")
                 .iter()
                 .next()
                 .is_some()
@@ -145,7 +153,7 @@ mod test {
 
         assert!(
             index
-                .docs_from_fv(colour.clone(), "blue")
+                .docs_from_fv(&colour, "blue")
                 .iter()
                 .next()
                 .is_some()
@@ -153,7 +161,7 @@ mod test {
 
         assert!(
             index
-                .docs_from_fv(taste.clone(), "sweet")
+                .docs_from_fv(&taste, "sweet")
                 .iter()
                 .next()
                 .is_some()
@@ -161,34 +169,34 @@ mod test {
 
         assert!(
             index
-                .docs_from_fv(taste.clone(), "sweet")
+                .docs_from_fv(&taste, "sweet")
                 .iter()
                 .next()
                 .is_some()
         );
 
         let sweet_docs = index
-            .docs_from_fv(taste.clone(), "sweet")
+            .docs_from_fv(&taste, "sweet")
             .iter()
             .collect::<Vec<_>>();
 
         assert_eq!(sweet_docs, vec![2]);
 
         let sweet_docs = index
-            .docs_from_fv(taste.clone(), "sweet")
+            .docs_from_fv(&taste, "sweet")
             .iter()
             .collect::<Vec<_>>();
 
         assert_eq!(sweet_docs, vec![2]);
 
         let blue_docs = index
-            .docs_from_fv(colour.clone(), "blue")
+            .docs_from_fv(&colour, "blue")
             .iter()
             .collect::<Vec<_>>();
         assert_eq!(blue_docs, vec![0, 2]);
 
         let blue_docs = index
-            .docs_from_fv(colour.clone(), "blue")
+            .docs_from_fv(&colour, "blue")
             .iter()
             .collect::<Vec<_>>();
         assert_eq!(blue_docs, vec![0, 2]);
@@ -198,7 +206,7 @@ mod test {
         // Check only DodID 2 is left.
         assert_eq!(
             index
-                .docs_from_fv(colour.clone(), "blue")
+                .docs_from_fv(&colour, "blue")
                 .iter()
                 .collect::<Vec<_>>(),
             vec![2]
@@ -207,6 +215,6 @@ mod test {
         // Unindex DocID 2
         index.unindex_docid(2);
         // Check nothing is left.
-        assert!(index.docs_from_fv(colour.clone(), "blue").is_empty());
+        assert!(index.docs_from_fv(&colour, "blue").is_empty());
     }
 }
