@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ##
 * Reduced use of preheater functions to make them specific to matchers.
+* Optimized lookup of field/values in indices
 
 ## [0.8.0]
 * Added `optimized` and `compacted` methods to `Percolator` for automatic optimization and query compaction respectively.
