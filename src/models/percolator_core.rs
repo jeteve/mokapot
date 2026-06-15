@@ -359,8 +359,6 @@ pub(crate) struct PercolatorCore {
     #[cfg_attr(feature = "serde", serde(skip))]
     // Operational stuff. Not serialisable.
     clause_matchers: Vec<ClauseMatcher>,
-    #[cfg_attr(feature = "serde", serde(skip))]
-    seen_preheaters: HashSet<OurStr>,
     // Holds which queries MUST be finally filtered with
     // their match(document) method.
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -430,7 +428,6 @@ impl PercolatorCore {
             cnf_queries: Vec::new(),
             unindexed_qids: RoaringBitmap::new(),
 
-            seen_preheaters: HashSet::new(),
             clause_matchers: (0..config.n_clause_matchers().get())
                 .map(|_| ClauseMatcher::default())
                 .collect(),
@@ -485,7 +482,7 @@ impl PercolatorCore {
 
         // Preheaters count per query.
         let mut n_preheaters: usize = 0;
-        let mut seen_preheaters = std::mem::take(&mut self.seen_preheaters);
+        let mut seen_preheaters = HashSet::new();
 
         let cms = self.clause_matchers.iter_mut();
         for (clause_matcher, mut match_item) in
@@ -494,6 +491,8 @@ impl PercolatorCore {
             if match_item.must_filter {
                 self.must_filter.insert(new_doc_id);
             }
+
+            seen_preheaters.extend(clause_matcher.preheaters_names.iter().cloned());
 
             // do pre-heaters here, by claude_matcher
             let pre_heaters = std::mem::take(&mut match_item.preheaters);
@@ -514,9 +513,9 @@ impl PercolatorCore {
                     seen_preheaters.insert(ph.id.clone());
                     // Maintain count of all preheaters.
                     self.stats.n_preheaters += 1;
-                }
 
-                clause_matcher.add_preheater(ph);
+                    clause_matcher.add_preheater(ph);
+                }
             }
 
             clause_matcher
@@ -532,7 +531,7 @@ impl PercolatorCore {
         }
 
         // Save the seen preheaters
-        self.seen_preheaters = std::mem::take(&mut seen_preheaters);
+        //self.seen_preheaters = std::mem::take(&mut seen_preheaters);
         // Update the stats of pre heaters per query:
         self.stats
             .preheaters_per_query
