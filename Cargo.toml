@@ -1,6 +1,6 @@
 [package]
 name = "mokaccino"
-version = "0.9.0"
+version = "0.9.1"
 edition = "2024"
 readme = "README.md"
 license = "MIT"
@@ -12,7 +12,11 @@ categories = ["algorithms"]
 exclude = [
     ".devcontainer/*",
     ".vscode/*",
-    "**.proptest-regressions"
+    "**.proptest-regressions",
+    "benches/*",
+    ".github/**",
+    "examples/*",
+
 ]
 
 

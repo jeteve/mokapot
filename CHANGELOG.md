@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1]
+* Removed benches and example source from packages.
+
 ## [0.9.0]
 * Reduced use of preheater functions to make them specific to matchers.
 * Optimized lookup of field/values in indices
